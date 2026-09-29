@@ -70,10 +70,12 @@ export class Prop {
       b.invMass = 0;
       b.invI = 0;
       b.vx = b.vy = b.va = 0;
+      b.scenery = true;
       this.isStatic = true;
     } else if (!this.heldBy) {
       b.kinematic = false;
       b.setMass(this.shape.mass, this.shape.inertia);
+      b.scenery = false;
       this.isStatic = false;
     }
   }

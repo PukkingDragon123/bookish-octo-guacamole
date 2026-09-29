@@ -59,7 +59,6 @@ export class Stage {
     this.time += dt;
     const cam = this.cam, dpr = this.dpr;
     const lampI = scene.lamp.intensity * (1 + scene.lamp.flicker);
-    for (const c of this.curtains) c.step(dt, this.time);
 
     // ------------- back: heaven + night
     const b = this.bctx;

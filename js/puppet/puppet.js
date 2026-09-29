@@ -92,6 +92,7 @@ export class Puppet {
       b.angDamp = 3.2;
       b.friction = 0.9;
       b.softness = 2e-7;
+      b.isPuppet = !rig.gait || !!rig.limbs?.armF;
       this.bodies[id] = b;
       this.parts.push(b);
       this.world.add(b);

@@ -264,6 +264,7 @@ export class World {
         if (!a.invMass && !b.invMass) continue;
         if (Math.abs(a.z - b.z) > this.depthSlop) continue;
         if (b.bound.y0 > a.bound.y1 + margin || a.bound.y0 > b.bound.y1 + margin) continue;
+        if ((a.scenery && b.isPuppet) || (b.scenery && a.isPuppet)) continue;
         if (a.ignore && a.ignore.has(b)) continue;
         if (b.ignore && b.ignore.has(a)) continue;
         pairs.push(a, b);
@@ -303,6 +304,12 @@ export class World {
       }
       for (const c of this.constraints) if (c.enabled && c.solveVel) c.solveVel(h);
     }
+    // last-resort guard: never let a NaN spread through a puppet
+    for (const b of this.bodies) {
+      if (Number.isFinite(b.x) && Number.isFinite(b.y) && Number.isFinite(b.a)) { b._ok = [b.x, b.y, b.a]; continue; }
+      const o = b._ok || [800, 500, 0];
+      b.x = b.px = o[0]; b.y = b.py = o[1]; b.a = b.pa = o[2]; b.vx = b.vy = b.va = 0;
+    }
     this.time += dt;
   }
 
@@ -326,8 +333,9 @@ export class World {
       for (const k of b.circles) {
         const lx = k.x * b.flip;
         const rx = lx * c - k.y * s, ry = lx * s + k.y * c;
-        const pen = b.y + ry + k.r - fy;
+        let pen = b.y + ry + k.r - fy;
         if (pen <= 0) continue;
+        pen = Math.min(pen, 12);
         // contact point at the bottom of the circle; normal n = (0, -1)
         const cx = rx, cy = ry + k.r;
         const w = genInvMass(b, cx, cy, 0, -1);
@@ -370,7 +378,7 @@ export class World {
           if (d2 >= R * R || d2 < 1e-8) continue;
           const d = Math.sqrt(d2);
           const nx = dx / d, ny = dy / d;
-          const pen = R - d;
+          const pen = Math.min(R - d, 6);
           // contact points on each surface (offsets from COM)
           const cAx = rAx - nx * ka.r, cAy = rAy - ny * ka.r;
           const cBx = rBx + nx * kb.r, cBy = rBy + ny * kb.r;

@@ -49,7 +49,7 @@ export class Game {
     this.cam.set(this.cam.framing('stage'));
     this._wire();
     import('./audio/audio.js').then((m) => { audio = m.audio; this.audio = audio; }).catch((e) => console.warn('audio unavailable', e));
-    import('./tracking/hands.js').then((m) => { HandTracker = m.HandTracker; }).catch((e) => console.warn('tracking unavailable', e));
+    this._handsP = import('./tracking/hands.js').then((m) => { HandTracker = m.HandTracker; }).catch((e) => console.warn('tracking unavailable', e));
     this.scene.on('hit', (h) => this._onHit(h));
     this.scene.on('animEvent', (p, ev) => { if (ev.sfx) audio?.sfx(ev.sfx, { pan: this._pan(p), vol: 0.8 }); });
     this.scene.on('removed', (a) => { if (this.selected === a) this.select(null); });
@@ -152,6 +152,7 @@ export class Game {
       this.ui.cam.classList.add('hidden');
       return;
     }
+    await this._handsP;
     if (!HandTracker) { this.ui.toast('ระบบติดตามมือยังไม่พร้อม · hand tracking unavailable'); return; }
     this.tracker?.stop();
     this.tracker = new HandTracker({ maxHands: 2 });
@@ -168,13 +169,14 @@ export class Game {
       this.ui.setButton('b-hand', false);
     }
   }
-  toggleDemo() {
+  async toggleDemo() {
     if (this.tracker && this.tracker.mode === 'synthetic') {
       this.tracker.stop();
       this.ui.setButton('b-demo', false);
       this.ui.cam.classList.add('hidden');
       return;
     }
+    await this._handsP;
     if (!HandTracker) return;
     this.tracker?.stop();
     this.tracker = new HandTracker({ maxHands: 2 });
@@ -550,6 +552,7 @@ export class Game {
     this.trackingActive = tracking;
     for (const f of this.flies) f.update(dt, this);
     this.scene.update(dt);
+    for (const c of this.stage.curtains) c.step(dt, this.time);
     this.cam.update(this.intro ? this.wallDt || dt : dt);
     // hand cursor pose
     if (!tracking) {
