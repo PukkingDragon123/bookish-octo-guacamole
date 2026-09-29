@@ -304,6 +304,60 @@ function pret() {
     dots(ctx, [[112, 108], [112, 140]], { spacing: 3, r: 0.6 });
     slits(ctx, [[104, 60], [106, 80]], { len: 3, gap: 3, ang: 2.6 });
   });
+  const leg = (id, x, far) => {
+    const th = tube([[x, 256], [x + 10, 290], [x + 4, 318]], [13, 10, 6]);
+    const sh = tube([[x + 4, 316], [x + 2, 346], [x + 4, 368]], [5, 4, 3.5]);
+    const tal = [0, 1, 2].map((k) => tube([[x + 4, 368], [x + 12 + k * 5, 374], [x + 18 + k * 6, 380]], [2.6, 1.8, 0.6]));
+    const t = piece(N + id, [th], (ctx) => { hide(ctx, th); trim(ctx, th, { d: 2.6, sp: 3, r: 0.55 }); spiral(ctx, x, 334, 6, { turns: 1.6 }); field(ctx, th, far ? INK.green : INK.red, { d: 2.4 }); trim(ctx, th, { seed: 84 }); for (let k = 0; k < 3; k++) kanok(ctx, x - 6, 272 + k * 12, 12, Math.PI - 0.4, false, { color: INK.gold }); if (far) dye(ctx, poly(th), '#000', 0.3); });
+    const s = piece(N + id + '2', [sh, ...tal], (ctx) => { hide(ctx, sh); for (const c of tal) hide(ctx, c); dye(ctx, poly(inset(sh, 1)), INK.yellow, 0.7); slits(ctx, [[x + 4, 322], [x + 3, 360]], { len: 3, gap: 3, ang: 1.57 }); if (!far) knot(ctx, x + 4, 318, 1.8); });
+    return { t, s, j: [x, 258], k: [x + 4, 318] };
+  };
+  const lF = leg('-legF', 214, false), lB = leg('-legB', 200, true);
+  return makeRig('monster', {
+    body: { pc: body, z: 0, mass: 1.4 },
+    head: { pc: head, z: 3, parent: 'body', j: [214, 146], lim: [-0.3, 0.3], stiff: 0.7 },
+    wingF: { pc: wF.w1, z: 4, parent: 'body', j: wF.j1, lim: [-0.6, 0.6], stiff: 0.4 },
+    wingF2: { pc: wF.w2, z: 3.5, parent: 'wingF', j: wF.j2, lim: [-0.6, 0.6], stiff: 0.3 },
+    wingB: { pc: wB.w1, z: -4, parent: 'body', j: wB.j1, lim: [-0.6, 0.6], stiff: 0.4 },
+    wingB2: { pc: wB.w2, z: -5, parent: 'wingB', j: wB.j2, lim: [-0.6, 0.6], stiff: 0.3 },
+    legF: { pc: lF.t, z: 2, parent: 'body', j: lF.j, lim: [-0.8, 0.8], stiff: 0.5 },
+    legF2: { pc: lF.s, z: 2.5, parent: 'legF', j: lF.k, lim: [-0.9, 0.9], stiff: 0.5 },
+    legB: { pc: lB.t, z: -2, parent: 'body', j: lB.j, lim: [-0.8, 0.8], stiff: 0.5 },
+    legB2: { pc: lB.s, z: -2.5, parent: 'legB', j: lB.k, lim: [-0.9, 0.9], stiff: 0.5 },
+  }, {
+    sound: 'roar',
+    gait: [{ part: 'wingF', amp: 0.35, phase: 0 }, { part: 'wingB', amp: 0.35, phase: 0.05 }, { part: 'wingF2', amp: 0.3, phase: 0.15 }, { part: 'wingB2', amp: 0.3, phase: 0.2 }, { part: 'legF', amp: 0.3, phase: 0 }, { part: 'legB', amp: 0.3, phase: 0.5 }],
+  });
+}
+
+// เปรต — a towering, emaciated Pret with a needle-eye mouth and rib lace.
+function pret() {
+  const N = 'pret';
+  const torso = shape([[94, 150], [124, 144], [132, 200], [138, 250], [134, 300], [138, 328], [84, 330], [82, 300], [80, 250], [84, 200]], { wob: 0.8, seed: 90 });
+  const body = piece(N + '-torso', [torso], (ctx) => {
+    hide(ctx, torso);
+    trim(ctx, torso, { seed: 91 });
+    for (let k = 0; k < 7; k++) { const y = 166 + k * 13; cut(ctx, poly(tube([[90, y], [108, y + 5], [126, y]], [2, 2.4, 1.8]))); dots(ctx, [[92, y + 6], [108, y + 11], [124, y + 6]], { spacing: 2.8, r: 0.5 }); }
+    krajangRow(ctx, [[138, 300], [110, 296], [82, 300]], 7, { color: INK.gold, inner: INK.crimson });
+    swirlFlames(ctx, 108, 272, 10, Math.PI / 2, { n: 3, len: 22, seed: 3 });
+    dots(ctx, [[108, 150], [108, 270]], { spacing: 3.4, r: 0.8 });
+    dye(ctx, poly(inset(torso, 3)), INK.teal, 0.3);
+    slits(ctx, [[98, 290], [122, 292]], { len: 10, gap: 4, ang: 1.6 });
+  });
+  const neck = tube([[108, 150], [112, 110], [114, 80]], [7, 6, 6]);
+  const headPts = shape([[94, 72], [100, 46], [118, 38], [134, 48], [140, 66], [134, 86], [118, 94], [102, 88]], { wob: 0.6, seed: 92 });
+  const hair = [0, 1, 2, 3, 4].map((k) => tube([[104 + k * 6, 50 - k], [100 + k * 6, 32 - k * 2], [96 + k * 8, 20 - k]], [1.4, 1, 0.4]));
+  const head = piece(N + '-head', [neck, headPts, ...hair], (ctx) => {
+    hide(ctx, neck); for (const h of hair) hide(ctx, h);
+    hide(ctx, headPts);
+    dye(ctx, poly(inset(headPts, 2)), INK.teal, 0.35);
+    trim(ctx, headPts, { d: 2.4, seed: 93 });
+    eye(ctx, 124, 62, 4.5, { style: 'round' });
+    ink(ctx, [[116, 56], [124, 55], [132, 58]], 1);
+    hole(ctx, 133, 76, 0.6);
+    dots(ctx, [[112, 108], [112, 140]], { spacing: 3, r: 0.6 });
+    slits(ctx, [[104, 60], [106, 80]], { len: 3, gap: 3, ang: 2.6 });
+  });
   const arm = (id, x, far) => {
     const up = tube([[x, 160], [x + 6, 220], [x + 8, 270]], [9, 6.5, 5.5]);
     const fo = tube([[x + 8, 268], [x + 12, 330], [x + 14, 380]], [5.5, 4.4, 4.2]);

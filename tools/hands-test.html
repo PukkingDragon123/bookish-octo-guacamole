@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hand tracking test</title>
+<style>
+  :root {
+    --bg: #110b07;
+    --panel: #1c130c;
+    --panel2: #24180f;
+    --line: #3a2a1a;
+    --ink: #eadcc0;
+    --dim: #a08c6c;
+    --gold: #e2b865;
+    --gold2: #f5d78e;
+    --red: #ff8f7a;
+    --green: #9fd49a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); font: 13px/1.35 system-ui, "Noto Sans Thai", "Leelawadee UI", "Thonburi", sans-serif; }
+  body { padding: 14px 16px 24px; }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-bottom: 12px; }
+  h1 { margin: 0; font-size: 18px; font-weight: 600; color: var(--gold2); letter-spacing: .02em; }
+  h1 small { color: var(--dim); font-weight: 400; font-size: 13px; margin-left: 6px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  button { background: var(--panel2); color: var(--gold2); border: 1px solid #5a4226; border-radius: 7px; padding: 6px 12px; font: inherit; cursor: pointer; }
+  button:hover { border-color: var(--gold); }
+  button.primary { background: linear-gradient(#3a2812, #2a1c0c); border-color: var(--gold); }
+  label.toggle { color: var(--dim); display: inline-flex; gap: 5px; align-items: center; cursor: pointer; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border: 1px solid var(--line); border-radius: 99px; color: var(--dim); background: var(--panel); font-variant-numeric: tabular-nums; }
+  .pill b { font-weight: 600; color: var(--ink); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #6b5a44; }
+  .dot.running { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .dot.loading { background: var(--gold); animation: pulse 1s infinite alternate; }
+  .dot.error { background: var(--red); }
+  @keyframes pulse { to { opacity: .3; } }
+
+  main { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+  @media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); } }
+  .stage { position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
+  #view { display: block; width: 100%; aspect-ratio: 4 / 3; }
+  .err { display: none; position: absolute; inset: 10px; border-radius: 10px; background: rgba(17, 11, 7, 0.88); flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 24px; gap: 10px; }
+  .err.show { display: flex; }
+  .err .icon { width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--gold); color: var(--gold2); display: grid; place-items: center; font-size: 22px; }
+  .err .th { font-size: 17px; color: var(--gold2); max-width: 34em; }
+  .err .en { font-size: 14px; color: var(--ink); max-width: 38em; }
+  .err .code { color: var(--dim); font-size: 12px; font-family: ui-monospace, monospace; }
+  .two { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .badge { padding: 4px 10px; border-radius: 99px; border: 1px solid var(--line); color: var(--dim); background: var(--panel2); transition: all .15s; }
+  .badge.on { color: #1a1006; background: var(--gold); border-color: var(--gold2); }
+  .badge.flash { box-shadow: 0 0 0 3px rgba(245, 215, 142, .45); }
+
+  .hands { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+  @media (max-width: 560px) { .hands { grid-template-columns: minmax(0, 1fr); } }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; min-width: 0; }
+  .card.absent { opacity: .45; }
+  .card h2 { margin: 0 0 6px; font-size: 13px; font-weight: 600; color: var(--dim); display: flex; justify-content: space-between; gap: 6px; }
+  .card h2 .lost { color: var(--red); font-weight: 500; }
+  .gesture { display: flex; align-items: baseline; gap: 8px; min-height: 34px; border-bottom: 1px solid var(--line); padding-bottom: 6px; margin-bottom: 6px; }
+  .gesture .name { font-size: 22px; color: var(--gold2); font-weight: 600; }
+  .gesture .en { color: var(--ink); }
+  .gesture .meta { margin-left: auto; color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .gesture.fresh .name { animation: pop .45s ease-out; }
+  @keyframes pop { 0% { color: #fff; text-shadow: 0 0 12px var(--gold2); } 100% { color: var(--gold2); text-shadow: none; } }
+  .row { display: grid; grid-template-columns: 62px minmax(0, 1fr) 46px; align-items: center; gap: 6px; margin: 3px 0; }
+  .row .k { color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .v { text-align: right; font-variant-numeric: tabular-nums; }
+  .bar { height: 7px; border-radius: 4px; background: #2e2114; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #a9803c, var(--gold2)); border-radius: 4px; }
+  .kv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 10px; margin: 4px 0 6px; font-variant-numeric: tabular-nums; }
+  .kv span { color: var(--dim); }
+  .kv b { color: var(--ink); font-weight: 500; }
+  .sub { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; margin: 8px 0 2px; }
+  .tipsWrap { display: flex; gap: 10px; align-items: flex-start; }
+  canvas.tips { width: 104px; height: 120px; background: #150e08; border: 1px solid var(--line); border-radius: 8px; flex: none; }
+  .scores { flex: 1; min-width: 0; }
+  .scores .row { grid-template-columns: 58px minmax(0, 1fr) 34px; margin: 2px 0; }
+  .scores .row.best .k { color: var(--gold2); }
+  .log { margin-top: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; max-height: 190px; overflow: auto; font-variant-numeric: tabular-nums; }
+  .log div { padding: 2px 0; border-bottom: 1px dashed #2c2014; color: var(--ink); }
+  .log div:last-child { border-bottom: 0; }
+  .log time { color: var(--dim); margin-right: 8px; }
+  .hint { color: var(--dim); margin-top: 8px; font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>หนังตะลุง · Hand tracking <small>gesture test bench</small></h1>
+  <div class="controls">
+    <button class="primary" id="btnCam">เปิดกล้อง · Camera</button>
+    <button id="btnDemo">สาธิต · Demo</button>
+    <button id="btnStop">หยุด · Stop</button>
+    <label class="toggle"><input type="checkbox" id="chkMirror" checked> mirror</label>
+    <span class="pill"><span class="dot" id="dot"></span><b id="status">idle</b><span id="info"></span></span>
+  </div>
+</header>
+
+<main>
+  <section>
+    <div class="stage">
+      <canvas id="view" width="640" height="480"></canvas>
+      <div class="err" id="err">
+        <div class="icon">!</div>
+        <div class="th" id="errTh"></div>
+        <div class="en" id="errEn"></div>
+        <div class="code" id="errCode"></div>
+        <div class="controls"><button class="primary" id="btnRetry">ลองใหม่ · Retry</button><button id="btnErrDemo">ดูสาธิตแทน · Show demo</button></div>
+      </div>
+    </div>
+    <div class="two">
+      <span class="badge" id="bWai">ไหว้ · wai</span>
+      <span class="badge" id="bClap">ตบมือ · clap</span>
+      <span class="badge" id="bWaiScore">wai score 0.00</span>
+    </div>
+    <div class="log" id="log"></div>
+    <div class="hint">?synthetic=1 → demo mode (animated synthetic hands through the same pipeline) · &amp;at=6 → start 6 s into the demo · the camera starts automatically otherwise.</div>
+  </section>
+
+  <section class="hands" id="hands"></section>
+</main>
+
+<script type="module">
+import { HandTracker, MEDIAPIPE_VERSION } from '../js/tracking/hands.js';
+import { GESTURES, GESTURE_LABELS } from '../js/tracking/gestures.js';
+
+const q = new URLSearchParams(location.search);
+const $ = (id) => document.getElementById(id);
+const tracker = new HandTracker({ maxHands: 2 });
+window.tracker = tracker;
+
+const view = $('view');
+const vctx = view.getContext('2d');
+const FINGERS = ['นิ้วโป้ง T', 'ชี้ I', 'กลาง M', 'นาง R', 'ก้อย P'];
+const TIP_COLORS = ['#f5d78e', '#e8a868', '#d9c27a', '#b9a36a', '#c98f5a'];
+
+// ---- hand cards --------------------------------------------------------
+const cards = [0, 1].map((id) => {
+  const el = document.createElement('div');
+  el.className = 'card absent';
+  const row = (k, key) => `<div class="row"><span class="k">${k}</span><div class="bar"><i data-bar="${key}"></i></div><span class="v" data-v="${key}">–</span></div>`;
+  el.innerHTML = `
+    <h2><span>มือ · hand <b data-t="id">${id}</b> · <b data-t="hand">–</b></span><span class="lost" data-t="lost"></span></h2>
+    <div class="gesture" data-t="gbox"><span class="name" data-t="gth">—</span><span class="en" data-t="gen">no hand</span><span class="meta" data-t="gmeta"></span></div>
+    <div class="kv">
+      <span>palm x,y</span><b data-t="palm">–</b>
+      <span>size</span><b data-t="size">–</b>
+      <span>roll</span><b data-t="roll">–</b>
+      <span>facing</span><b data-t="facing">–</b>
+      <span>confidence</span><b data-t="conf">–</b>
+      <span>raw</span><b data-t="raw">–</b>
+    </div>
+    ${row('depth', 'depth')}
+    <div class="sub">curl · งอนิ้ว</div>
+    ${FINGERS.map((f, i) => row(f, 'c' + i)).join('')}
+    ${row('spread', 'spread')}
+    ${row('pinch', 'pinch')}
+    ${row('thumb out', 'thumbOut')}
+    <div class="sub">tips (hand-local) · scores</div>
+    <div class="tipsWrap"><canvas class="tips" width="208" height="240"></canvas>
+      <div class="scores">${GESTURES.map((g) => `<div class="row" data-srow="${g}"><span class="k">${g}</span><div class="bar"><i data-bar="s_${g}"></i></div><span class="v" data-v="s_${g}">0</span></div>`).join('')}</div>
+    </div>`;
+  $('hands').appendChild(el);
+  const pick = (sel) => {
+    const m = {};
+    for (const n of el.querySelectorAll(sel)) m[n.dataset.t || n.dataset.bar || n.dataset.v || n.dataset.srow] = n;
+    return m;
+  };
+  return { el, t: pick('[data-t]'), bar: pick('[data-bar]'), v: pick('[data-v]'), srow: pick('[data-srow]'), tips: el.querySelector('canvas.tips'), last: {} };
+});
+
+function setText(card, key, text, map = card.t) {
+  if (card.last[key] !== text) {
+    card.last[key] = text;
+    map[key.replace(/^v:/, '')].textContent = text;
+  }
+}
+function setBar(card, key, value, digits = 2) {
+  const w = Math.round(Math.max(0, Math.min(1, value)) * 100);
+  const lk = 'b:' + key;
+  if (card.last[lk] !== w) {
+    card.last[lk] = w;
+    card.bar[key].style.width = w + '%';
+  }
+  setText(card, 'v:' + key, value.toFixed(digits), card.v);
+}
+
+function drawTips(c, hand) {
+  const g = c.getContext('2d');
+  const W = c.width, H = c.height;
+  g.clearRect(0, 0, W, H);
+  // hand-local: x in [-1.6, 1.6], y in [-2.6, 1.0] (fingers toward -y)
+  const sx = (x) => W / 2 + (x / 1.6) * (W / 2) * 0.92;
+  const sy = (y) => H * 0.72 + (y / 2.6) * H * 0.68;
+  g.strokeStyle = '#3a2a1a';
+  g.lineWidth = 1;
+  g.beginPath();
+  g.moveTo(sx(-1.6), sy(0)); g.lineTo(sx(1.6), sy(0));
+  g.moveTo(sx(0), sy(-2.6)); g.lineTo(sx(0), sy(1));
+  g.stroke();
+  g.beginPath();
+  g.arc(sx(0), sy(0), (W / 2) * 0.92 / 1.6 * 0.5, 0, Math.PI * 2);
+  g.stroke();
+  if (!hand) return;
+  hand.tips.forEach(([x, y], i) => {
+    g.beginPath();
+    g.moveTo(sx(0), sy(0));
+    g.lineTo(sx(x), sy(y));
+    g.strokeStyle = 'rgba(226,184,101,0.35)';
+    g.lineWidth = 2;
+    g.stroke();
+    g.beginPath();
+    g.arc(sx(x), sy(y), 7, 0, Math.PI * 2);
+    g.fillStyle = TIP_COLORS[i];
+    g.fill();
+    g.fillStyle = '#1a1006';
+    g.font = '600 10px system-ui';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText('TIMRP'[i], sx(x), sy(y) + 0.5);
+  });
+}
+
+function renderCard(card, hand) {
+  card.el.classList.toggle('absent', !hand);
+  if (!hand) {
+    setText(card, 'hand', '–');
+    setText(card, 'lost', '');
+    setText(card, 'gth', '—');
+    setText(card, 'gen', 'no hand');
+    setText(card, 'gmeta', '');
+    drawTips(card.tips, null);
+    return;
+  }
+  const g = hand.gesture;
+  const lab = GESTURE_LABELS[g.name] || GESTURE_LABELS.none;
+  setText(card, 'hand', hand.handedness === 'Left' ? 'ซ้าย Left' : 'ขวา Right');
+  setText(card, 'lost', hand.lost ? 'lost · หาย' : '');
+  setText(card, 'gth', lab.th);
+  setText(card, 'gen', g.name === 'none' ? 'none' : `${lab.en} (${g.name})`);
+  setText(card, 'gmeta', `${g.held.toFixed(1)} s · ${(g.confidence * 100).toFixed(0)}%`);
+  setText(card, 'palm', `${hand.palm.x.toFixed(2)}, ${hand.palm.y.toFixed(2)}`);
+  setText(card, 'size', hand.size.toFixed(3));
+  setText(card, 'roll', `${Math.round((hand.roll * 180) / Math.PI)}°`);
+  setText(card, 'facing', hand.facing === 'palm' ? 'ฝ่ามือ palm' : 'หลังมือ back');
+  setText(card, 'conf', hand.confidence.toFixed(2));
+  setText(card, 'raw', hand.rawGesture);
+  setBar(card, 'depth', hand.depth);
+  hand.curl.forEach((c, i) => setBar(card, 'c' + i, c));
+  setBar(card, 'spread', hand.spread);
+  setBar(card, 'pinch', hand.pinch);
+  setBar(card, 'thumbOut', hand.features.thumbOut);
+  let best = null, bs = 0;
+  for (const name of GESTURES) {
+    const s = hand.scores[name];
+    setBar(card, 's_' + name, s, 2);
+    if (s > bs) { bs = s; best = name; }
+  }
+  for (const name of GESTURES) card.srow[name].classList.toggle('best', name === best && bs >= 0.5);
+  drawTips(card.tips, hand);
+}
+
+// ---- log ---------------------------------------------------------------
+const logEl = $('log');
+const t0 = performance.now();
+function log(msg) {
+  const d = document.createElement('div');
+  d.innerHTML = `<time>${((performance.now() - t0) / 1000).toFixed(2)}s</time>`;
+  d.appendChild(document.createTextNode(msg));
+  logEl.prepend(d);
+  while (logEl.childElementCount > 40) logEl.lastElementChild.remove();
+}
+
+// ---- status / errors ---------------------------------------------------
+function showStatus() {
+  $('status').textContent = tracker.status;
+  $('dot').className = 'dot ' + tracker.status;
+  const bits = [];
+  if (tracker.mode) bits.push(tracker.mode);
+  if (tracker.delegate && tracker.mode === 'camera') bits.push(tracker.delegate);
+  if (tracker.running) bits.push(`${tracker.fps.toFixed(0)} Hz`);
+  bits.push(`mediapipe ${MEDIAPIPE_VERSION}`);
+  $('info').textContent = '· ' + bits.join(' · ');
+}
+tracker.addEventListener('statuschange', () => {
+  showStatus();
+  log(`status → ${tracker.status}${tracker.error && tracker.status === 'error' ? ` (${tracker.error.code})` : ''}`);
+  if (tracker.status === 'error' && tracker.error) showError(tracker.error);
+});
+
+function showError(e) {
+  const th = e.userMessageTh || (e.userMessage || '').split('\n')[0] || 'เกิดข้อผิดพลาด';
+  const en = e.userMessageEn || e.message || String(e);
+  $('errTh').textContent = th;
+  $('errEn').textContent = en;
+  $('errCode').textContent = e.code ? `code: ${e.code}${e.cause && e.cause.name ? ` · ${e.cause.name}` : ''}` : '';
+  $('err').classList.add('show');
+}
+function hideError() { $('err').classList.remove('show'); }
+
+async function startCamera() {
+  hideError();
+  try {
+    await tracker.start();
+    log(`camera ${tracker.video.videoWidth}×${tracker.video.videoHeight}, delegate ${tracker.delegate}`);
+  } catch (e) {
+    if (e.code !== 'aborted') {
+      showError(e);
+      console.info('[hands-test] start failed:', e.code, e.userMessageEn);
+    }
+  } finally {
+    window.__ready = true;
+  }
+}
+function startDemo() {
+  hideError();
+  tracker.startSynthetic({ at: +(q.get('at') || 0) });
+  log('demo mode (synthetic hands)');
+  setTimeout(() => { window.__ready = true; }, +(q.get('readyMs') || 1500));
+}
+
+$('btnCam').onclick = startCamera;
+$('btnRetry').onclick = startCamera;
+$('btnDemo').onclick = startDemo;
+$('btnErrDemo').onclick = startDemo;
+$('btnStop').onclick = () => { tracker.stop(); hideError(); log('stopped'); };
+
+// ---- loop --------------------------------------------------------------
+let lastDom = 0;
+const prevGesture = ['none', 'none'];
+function frame(now) {
+  tracker.update(now);
+
+  for (const h of tracker.hands) {
+    if (h.gesture.fresh) {
+      log(`hand ${h.id} (${h.handedness}) → ${h.gesture.name} · ${GESTURE_LABELS[h.gesture.name].th}`);
+      const box = cards[h.id].t.gbox;
+      box.classList.remove('fresh');
+      void box.offsetWidth;
+      box.classList.add('fresh');
+    }
+  }
+  const two = tracker.twoHands;
+  if (two.waiFresh) { log('ไหว้ · wai'); flash('bWai'); }
+  if (two.clap) { log('ตบมือ · clap'); flash('bClap'); }
+
+  // preview
+  const dpr = window.devicePixelRatio || 1;
+  const cw = Math.round(view.clientWidth * dpr), ch = Math.round(view.clientHeight * dpr);
+  if (cw > 0 && ch > 0 && (view.width !== cw || view.height !== ch)) { view.width = cw; view.height = ch; }
+  vctx.fillStyle = '#110b07';
+  vctx.fillRect(0, 0, view.width, view.height);
+  tracker.drawPreview(vctx, 0, 0, view.width, view.height, { mirrored: $('chkMirror').checked });
+
+  // readouts (~20 Hz)
+  if (now - lastDom > 50) {
+    lastDom = now;
+    const byId = [null, null];
+    for (const h of tracker.hands) byId[h.id] = h;
+    cards.forEach((c, i) => renderCard(c, byId[i]));
+    $('bWai').classList.toggle('on', two.wai);
+    $('bWaiScore').textContent = `wai score ${tracker._two.waiScore.toFixed(2)}`;
+    showStatus();
+  }
+  requestAnimationFrame(frame);
+}
+function flash(id) {
+  const el = $(id);
+  el.classList.add('flash', 'on');
+  setTimeout(() => { el.classList.remove('flash'); if (id !== 'bWai') el.classList.remove('on'); }, 450);
+}
+
+showStatus();
+requestAnimationFrame(frame);
+if (q.get('synthetic') === '1' || q.get('demo') === '1') startDemo();
+else startCamera();
+</script>
+</body>
+</html>
