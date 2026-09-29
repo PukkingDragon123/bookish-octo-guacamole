@@ -1,0 +1,19 @@
+{
+  "id": "nang",
+  "names": {
+    "part00": "head", "part01": "handJeeb", "part02": "upperArmF", "part03": "upperArmB",
+    "part04": "torso", "part05": "forearmB", "part06": "handWong", "part07": "forearmF",
+    "part08": "thighB", "part09": "thighF", "part10": "handPoint", "part11": "skirt",
+    "part12": "handCup", "part13": "shinB", "part14": "shinF", "part15": "fan"
+  },
+  "split": { "forearmF": { "x": 848, "right": "handF" } },
+  "rivets": {
+    "torso": [[499, 293], [418, 298], [582, 298], [500, 455]],
+    "upperArmB": [[328, 243], [262, 332]], "upperArmF": [[681, 240], [746, 329]],
+    "forearmB": [[243, 355]], "forearmF": [[762, 355]],
+    "skirt": [[500, 472], [445, 482], [555, 482]],
+    "thighB": [[341, 375], [233, 494]], "thighF": [[659, 375], [765, 496]],
+    "shinB": [[241, 524]], "shinF": [[763, 525]],
+    "fan": [[1000, 703]]
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "id": "reusi",
+  "names": {
+    "part00": "head", "part01": "cane", "part02": "upperArmF", "part03": "upperArmB",
+    "part04": "torso", "part05": "pot", "part06": "forearmB", "part07": "forearmF",
+    "part08": "handB", "part09": "handF", "part10": "thighF", "part11": "thighB",
+    "part12": "skirt", "part13": "shinF", "part14": "shinB"
+  },
+  "rivets": {
+    "torso": [[499, 229], [401, 241], [585, 245], [498, 466]],
+    "upperArmB": [[347, 207]], "upperArmF": [[652, 206]],
+    "forearmB": [[247, 347], [167, 463]], "forearmF": [[737, 352], [803, 476]],
+    "skirt": [[498, 538], [434, 572], [579, 561]],
+    "thighB": [[326, 506], [262, 678]], "thighF": [[682, 505], [747, 675]],
+    "shinB": [[285, 718]], "shinF": [[730, 715]],
+    "pot": [[928, 393]]
+  }
+}

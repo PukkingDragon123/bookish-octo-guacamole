@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>Leather art preview</title>
+<style>
+  body { margin: 0; background: #1b1410; color: #e9d9b5; font: 13px/1.3 system-ui, sans-serif; }
+  #grid { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px; }
+  figure { margin: 0; background: #0e0a08; padding: 4px; border: 1px solid #3a2a1c; }
+  figcaption { text-align: center; padding: 3px 0 1px; }
+  canvas { display: block; }
+  #err { color: #ff8a7a; white-space: pre-wrap; padding: 8px; }
+</style>
+</head>
+<body>
+<div id="err"></div>
+<div id="grid"></div>
+<script type="module">
+// Usage: tools/preview.html?m=js/props/market.js[&mode=lit|front|both][&size=320][&debug=1][&only=id,id]
+// or     tools/preview.html?sheet=1   (puppets cut from the uploaded sheets)
+import { assemble, drawRig, rigBounds, rodLine, M } from '../js/puppet/rig.js';
+import { makeCanvas } from '../js/art/leather.js';
+
+const q = new URLSearchParams(location.search);
+const mode = q.get('mode') || 'both';
+const size = +(q.get('size') || 300);
+const debug = q.get('debug') === '1';
+const only = q.get('only') ? q.get('only').split(',') : null;
+const grid = document.getElementById('grid');
+const err = document.getElementById('err');
+window.onerror = (m, s, l, c, e) => { err.textContent += (e && e.stack) || m; };
+
+const transCache = new Map();
+// Back-lit transmittance version of a sprite canvas (same model as the
+// game's shadow shader: T = rgb^1.6 where hide exists).
+function trans(canvas) {
+  if (transCache.has(canvas)) return transCache.get(canvas);
+  const c = makeCanvas(canvas.width, canvas.height);
+  const g = c.getContext('2d');
+  g.drawImage(canvas, 0, 0);
+  const d = g.getImageData(0, 0, c.width, c.height);
+  for (let i = 0; i < d.data.length; i += 4) {
+    for (let k = 0; k < 3; k++) d.data[i + k] = 255 * Math.pow(d.data[i + k] / 255, 1.6);
+  }
+  g.putImageData(d, 0, 0);
+  transCache.set(canvas, c);
+  return c;
+}
+
+function wrapRig(item) {
+  if (item.rig) return item.rig;
+  const s = item.sprite;
+  return { parts: { main: { sprite: s, z: 0 } }, root: 'main', _single: true, grip: item.grip, weapon: item.weapon };
+}
+
+function drawItem(ctx, rig, lit) {
+  const T = assemble(rig);
+  const b = rigBounds(rig, T);
+  const pad = 14;
+  const k = Math.min((size - pad * 2) / b.w, (size - pad * 2 - 16) / b.h, 3);
+  ctx.save();
+  ctx.translate(size / 2 - (b.x0 + b.w / 2) * k, size / 2 - (b.y0 + b.h / 2) * k);
+  ctx.scale(k, k);
+  const ids = Object.keys(rig.parts).sort((a, c) => (rig.parts[a].z || 0) - (rig.parts[c].z || 0));
+  if (lit) ctx.globalCompositeOperation = 'multiply';
+  for (const id of ids) {
+    const s = rig.parts[id].sprite;
+    const m = T[id];
+    ctx.save();
+    ctx.transform(m[0], m[1], m[2], m[3], m[4], m[5]);
+    ctx.drawImage(lit ? trans(s.canvas) : s.canvas, 0, 0, s.w, s.h);
+    ctx.restore();
+  }
+  ctx.globalCompositeOperation = 'source-over';
+  const rl = rodLine(rig, T);
+  if (rl) {
+    ctx.strokeStyle = lit ? 'rgba(30,20,10,0.9)' : '#8a6a3a';
+    ctx.lineWidth = 2.2 / k * 1.5;
+    ctx.beginPath(); ctx.moveTo(...rl[0]); ctx.lineTo(...rl[1]); ctx.stroke();
+  }
+  if (debug) {
+    ctx.lineWidth = 1 / k;
+    for (const id of ids) {
+      const p = rig.parts[id];
+      const m = T[id];
+      if (p.parent) {
+        const [x, y] = M.apply(m, p.sprite.local(p.pivot));
+        ctx.strokeStyle = '#f0f'; ctx.beginPath(); ctx.arc(x, y, 4 / k * 2, 0, 7); ctx.stroke();
+      }
+      ctx.strokeStyle = 'rgba(0,160,255,.5)';
+      ctx.save(); ctx.transform(...m); ctx.strokeRect(0, 0, p.sprite.w, p.sprite.h); ctx.restore();
+    }
+    const marks = { ...(rig.grips || {}), ...(rig.handRods || {}) };
+    for (const [pid, pt] of Object.entries(marks)) {
+      if (!rig.parts[pid]) continue;
+      const [x, y] = M.apply(T[pid], rig.parts[pid].sprite.local(pt));
+      ctx.fillStyle = '#0f0'; ctx.fillRect(x - 3 / k * 2, y - 3 / k * 2, 6 / k * 2, 6 / k * 2);
+    }
+    if (rig._single && rig.grip) {
+      const [x, y] = rig.parts.main.sprite.local(rig.grip);
+      ctx.fillStyle = '#0f0'; ctx.fillRect(x - 4, y - 4, 8, 8);
+    }
+    if (rig._single && rig.weapon) {
+      const s = rig.parts.main.sprite;
+      ctx.strokeStyle = '#f00'; ctx.lineWidth = 2 / k;
+      ctx.beginPath(); ctx.moveTo(...s.local(rig.weapon.a)); ctx.lineTo(...s.local(rig.weapon.b)); ctx.stroke();
+    }
+  }
+  ctx.restore();
+  return b;
+}
+
+function cell(item) {
+  const fig = document.createElement('figure');
+  const both = mode === 'both';
+  const c = makeCanvas(both ? size * 2 : size, size);
+  const ctx = c.getContext('2d');
+  const rig = wrapRig(item);
+  const lit = (x0) => {
+    const g = ctx.createRadialGradient(x0 + size / 2, size * 0.45, 10, x0 + size / 2, size * 0.5, size * 0.75);
+    g.addColorStop(0, '#fff3d6'); g.addColorStop(1, '#c9a46a');
+    ctx.fillStyle = g; ctx.fillRect(x0, 0, size, size);
+    ctx.save(); ctx.beginPath(); ctx.rect(x0, 0, size, size); ctx.clip(); ctx.translate(x0, 0);
+    drawItem(ctx, rig, true); ctx.restore();
+  };
+  const front = (x0) => {
+    ctx.fillStyle = '#213659'; ctx.fillRect(x0, 0, size, size);
+    ctx.save(); ctx.beginPath(); ctx.rect(x0, 0, size, size); ctx.clip(); ctx.translate(x0, 0);
+    const b = drawItem(ctx, rig, false); ctx.restore();
+    ctx.fillStyle = '#9fb3d9'; ctx.font = '11px system-ui';
+    ctx.fillText(`${Math.round(b.w)}×${Math.round(b.h)}u`, x0 + 6, size - 6);
+  };
+  if (mode === 'lit') lit(0); else if (mode === 'front') front(0); else { lit(0); front(size); }
+  fig.appendChild(c);
+  const cap = document.createElement('figcaption');
+  cap.textContent = `${item.name || ''} · ${item.en || ''} [${item.id}]`;
+  fig.appendChild(cap);
+  grid.appendChild(fig);
+}
+
+async function main() {
+  let items = [];
+  if (q.get('sheet')) {
+    const { loadSheetPuppets } = await import('../js/puppet/characters/sheetRigs.js');
+    const { puppets, props } = await loadSheetPuppets();
+    items = [...puppets.map((r) => ({ ...r, rig: r })), ...props];
+  } else {
+    const mod = await import('../' + q.get('m'));
+    const list = [...(mod.PUPPETS || []), ...(mod.PROPS || [])];
+    for (const d of list) {
+      if (only && !only.includes(d.id)) continue;
+      const t0 = performance.now();
+      try {
+        const built = await d.build();
+        const item = built.parts ? { ...d, rig: built } : { ...d, ...built };
+        items.push(item);
+        console.log(d.id, (performance.now() - t0).toFixed(1) + 'ms');
+      } catch (e) {
+        err.textContent += `${d.id}: ${e.stack}\n`;
+      }
+    }
+  }
+  for (const it of items) {
+    if (only && !only.includes(it.id)) continue;
+    cell(it);
+  }
+  window.__ready = true;
+}
+main().catch((e) => { err.textContent += e.stack; window.__ready = true; });
+</script>
+</body>
+</html>

@@ -1,0 +1,178 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Puppet physics test</title>
+<style>
+  body { margin: 0; background: #111; color: #ddd; font: 12px system-ui; }
+  canvas { display: block; }
+  #log { position: absolute; left: 8px; top: 8px; white-space: pre; text-shadow: 0 1px 2px #000; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1600" height="1000"></canvas>
+<div id="log"></div>
+<script type="module">
+// tools/physics-test.html?t=4&anim=strike&debug=1
+import { World } from '../js/physics/world.js';
+import { Puppet } from '../js/puppet/puppet.js';
+import { Prop } from '../js/sandbox/prop.js';
+import { loadSheetPuppets } from '../js/puppet/characters/sheetRigs.js';
+import { makeCanvas } from '../js/art/leather.js';
+
+const q = new URLSearchParams(location.search);
+const debug = q.get('debug') === '1';
+const c = document.getElementById('c');
+const ctx = c.getContext('2d');
+const log = document.getElementById('log');
+const world = new World();
+world.lamp = { x: 800, y: 380 };
+const FLOOR = 930;
+world.floorY = (z) => world.lamp.y + (FLOOR - world.lamp.y) * (1 - z);
+
+const { puppets, props } = await loadSheetPuppets();
+const byId = Object.fromEntries(puppets.map((p) => [p.id, p]));
+const propDefs = Object.fromEntries(props.map((p) => [p.id, p]));
+
+const A = new Puppet(world, byId.reusi, { x: 520, y: 500, z: 0.02 });
+A.plantAt(520, true);
+const B = new Puppet(world, byId.nang, { x: 1080, y: 500, z: 0.02, facing: -1 });
+B.plantAt(1080, true);
+const cane = new Prop(world, propDefs['reusi-cane'], { x: 600, y: 500, z: 0.02 });
+A.grab(cane, 'handF');
+const fan = new Prop(world, propDefs['nang-fan'], { x: 1000, y: 500, z: 0.02 });
+B.grab(fan, 'handF');
+const actors = [A, B, cane, fan];
+if (q.get('joints')) {
+  for (const p of [A, B]) for (const [id, j] of Object.entries(p.joints)) {
+    const [ax, ay] = j.A.toWorld(j.la[0], j.la[1]);
+    const [bx, by] = j.B.toWorld(j.lb[0], j.lb[1]);
+    console.log(p.rig.id, id, 'err', Math.hypot(ax - bx, ay - by).toFixed(2), 'rel-rest', ((j.relAngle() - j.rest) * 57.3).toFixed(1), 'lim', j.lim && j.lim.map((v) => (v * 57.3).toFixed(0)).join(','));
+  }
+}
+
+const trans = new Map();
+function T(canvas) {
+  if (trans.has(canvas)) return trans.get(canvas);
+  const t = makeCanvas(canvas.width, canvas.height);
+  const g = t.getContext('2d');
+  g.drawImage(canvas, 0, 0);
+  const d = g.getImageData(0, 0, t.width, t.height);
+  for (let i = 0; i < d.data.length; i += 4) for (let k = 0; k < 3; k++) d.data[i + k] = 255 * Math.pow(d.data[i + k] / 255, 1.6);
+  g.putImageData(d, 0, 0);
+  trans.set(canvas, t);
+  return t;
+}
+
+function drawBody(b) {
+  const L = world.lamp, s = 1 / (1 - b.z);
+  ctx.save();
+  ctx.translate(L.x, L.y); ctx.scale(s, s); ctx.translate(-L.x, -L.y);
+  ctx.translate(b.x, b.y); ctx.rotate(b.a); ctx.scale(b.flip, 1);
+  if (b.isRod) {
+    ctx.strokeStyle = '#1a120c'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(0, -b.rodLen / 2); ctx.lineTo(0, b.rodLen / 2); ctx.stroke();
+  } else if (b.sprite) {
+    ctx.translate(-b.com[0], -b.com[1]);
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.drawImage(T(b.sprite.canvas), 0, 0, b.sprite.w, b.sprite.h);
+    ctx.globalCompositeOperation = 'source-over';
+    if (debug) {
+      ctx.translate(b.com[0], b.com[1]);
+      ctx.strokeStyle = 'rgba(0,120,255,.7)'; ctx.lineWidth = 1;
+      for (const k of b.circles) { ctx.beginPath(); ctx.arc(k.x, k.y, k.r, 0, 7); ctx.stroke(); }
+    }
+  }
+  ctx.restore();
+}
+
+function drawRod(p) {
+  if (!p.rod) return;
+  const r = p.root, L = world.lamp, s = 1 / (1 - r.z);
+  ctx.save();
+  ctx.translate(L.x, L.y); ctx.scale(s, s); ctx.translate(-L.x, -L.y);
+  ctx.translate(r.x, r.y); ctx.rotate(r.a); ctx.scale(r.flip, 1);
+  ctx.strokeStyle = 'rgba(20,12,6,.95)'; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(...p.rod.a); ctx.lineTo(...p.rod.b); ctx.stroke();
+  ctx.restore();
+}
+
+function render() {
+  const g = ctx.createRadialGradient(800, 380, 30, 800, 450, 1000);
+  g.addColorStop(0, '#fff4d8'); g.addColorStop(1, '#b58a4f');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 1600, 1000);
+  ctx.fillStyle = '#6b4a2a'; ctx.fillRect(0, FLOOR, 1600, 3);
+  for (const b of world.bodies) drawBody(b);
+  for (const p of [A, B]) drawRod(p);
+}
+
+// scripted actions for headless checks
+const script = [
+  [0.6, () => A.play('strike')],
+  [0.8, () => B.play('dance')],
+  [2.0, () => { A.setMode('held'); }],
+  [2.0, 3.2, (t) => A.holdAt(520 + (t - 2) * 300, A.standY() - Math.sin((t - 2) * 3) * 60)],
+  [3.3, () => { A.plantAt(A.root.x); A.play('lunge'); }],
+  [4.4, () => B.flip()],
+  [4.6, () => A.play('leap')],
+  [6.0, () => A.play('wai')],
+  [6.0, () => B.stopAnim()],
+  [6.2, () => B.play('wong', { hold: true })],
+];
+const tEnd = +(q.get('t') || 0);
+let t = 0;
+const dt = 1 / 60;
+function stepOnce() {
+  for (const s of script) {
+    if (s.length === 2 && t < s[0] && t + dt >= s[0]) s[1]();
+    if (s.length === 3 && t >= s[0] && t <= s[1]) s[2](t);
+  }
+  for (const a of actors) a.update(dt, t);
+  world.step(dt);
+  t += dt;
+}
+function bad() {
+  return world.bodies.some((b) => !Number.isFinite(b.x) || !Number.isFinite(b.y) || !Number.isFinite(b.a) || Math.abs(b.x) > 1e5);
+}
+if (tEnd > 0) {
+  const t0 = performance.now();
+  let steps = 0;
+  while (t < tEnd) { stepOnce(); steps++; if (bad()) break; }
+  const ms = (performance.now() - t0) / steps;
+  render();
+  log.textContent = `t=${t.toFixed(2)} ${bad() ? 'EXPLODED' : 'ok'} ${ms.toFixed(2)}ms/step bodies=${world.bodies.length} constraints=${world.constraints.length}`;
+  console.log(log.textContent);
+  window.__ready = true;
+} else {
+  let last = performance.now();
+  function frame(now) {
+    const fdt = Math.min(0.05, (now - last) / 1000); last = now;
+    let acc = fdt;
+    while (acc > 0) { stepOnce(); acc -= dt; }
+    render();
+    log.textContent = `t=${t.toFixed(1)}`;
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  // mouse drag
+  let drag = null;
+  c.addEventListener('pointerdown', (e) => {
+    const x = e.offsetX * 1600 / c.clientWidth, y = e.offsetY * 1000 / c.clientHeight;
+    for (const p of [A, B]) if (p.hitTest(x, y)) { drag = p; p.setMode('held'); }
+  });
+  c.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const x = e.offsetX * 1600 / c.clientWidth, y = e.offsetY * 1000 / c.clientHeight;
+    drag.holdAt(x, y);
+  });
+  c.addEventListener('pointerup', () => { if (drag) drag.plantAt(drag.root.x); drag = null; });
+  addEventListener('keydown', (e) => {
+    const m = { Digit1: 'strike', Digit2: 'lunge', Digit3: 'block', Digit4: 'dance', Digit5: 'wai', Digit6: 'leap', Digit7: 'roar', Digit8: 'laugh', Digit9: 'wong' }[e.code];
+    if (m) A.play(m);
+    if (e.code === 'KeyF') A.flip();
+  });
+  window.__ready = true;
+}
+</script>
+</body>
+</html>
