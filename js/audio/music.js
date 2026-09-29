@@ -243,10 +243,10 @@ function ching(tr, s, t, mode, vol = 1) {
 }
 function mong(tr, which, t, vol = 1) {
   const f = which === 'hi' ? tr.hz(tr.def.mong?.[1] ?? -5) : tr.hz(tr.def.mong?.[0] ?? -7);
-  playBuffer(tr.ctx, tr.out, pitched(tr.ctx, 'mong', f), t, { vol: vol * 0.36 * (0.9 + tr.r() * 0.2), pan: PAN.mong, send: 0.12, sendDest: tr.eng.revIn });
+  playBuffer(tr.ctx, tr.out, pitched(tr.ctx, 'mong', f), t, { vol: vol * 0.36 * (0.9 + tr.r() * 0.2), pan: PAN.mong, send: 0.12, sendDest: tr.wet });
 }
 function bell(tr, p, t, vol, pan = 0, send = 0.6) {
-  playBuffer(tr.ctx, tr.out, pitched(tr.ctx, 'bell', tr.hz(p)), t, { vol, pan, send, sendDest: tr.eng.revIn });
+  playBuffer(tr.ctx, tr.out, pitched(tr.ctx, 'bell', tr.hz(p)), t, { vol, pan, send, sendDest: tr.wet });
 }
 
 // ---------------------------------------------------------------------------
@@ -284,10 +284,10 @@ export const MOODS = {
     },
     step(tr, s, t) {
       const r = tr.r;
-      if (s % 64 === 0) playBuffer(tr.ctx, tr.out, pitched(tr.ctx, 'gong', tr.hz(-10)), t, { vol: 0.3, pan: -0.1, send: 0.5, sendDest: tr.eng.revIn });
+      if (s % 64 === 0) playBuffer(tr.ctx, tr.out, pitched(tr.ctx, 'gong', tr.hz(-10)), t, { vol: 0.3, pan: -0.1, send: 0.5, sendDest: tr.wet });
       if (s % 64 === 32) mong(tr, 'hi', t, 0.45);
       if (r() < 0.14) bell(tr, 7 + Math.floor(r() * 9), t + r() * 0.1, 0.05 + r() * 0.1, (r() - 0.5) * 1.4, 0.8);
-      if (s % 8 === 4 && r() < 0.25) playBuffer(tr.ctx, tr.out, pitched(tr.ctx, 'khong', tr.hz(5 + Math.floor(r() * 6))), t, { vol: 0.12, pan: (r() - 0.5), send: 0.6, sendDest: tr.eng.revIn });
+      if (s % 8 === 4 && r() < 0.25) playBuffer(tr.ctx, tr.out, pitched(tr.ctx, 'khong', tr.hz(5 + Math.floor(r() * 6))), t, { vol: 0.12, pan: (r() - 0.5), send: 0.6, sendDest: tr.wet });
     },
     finish(tr, t, fade) {
       tr.drone?.stop(t, fade);
@@ -446,6 +446,11 @@ class Track {
     this.out.gain.setValueAtTime(0.0001, t0);
     this.out.gain.linearRampToValueAtTime(1, t0 + fadeIn);
     this.out.connect(music.out);
+    // per-track reverb send (faded together with the track)
+    this.wet = this.ctx.createGain();
+    this.wet.gain.setValueAtTime(0.0001, t0);
+    this.wet.gain.linearRampToValueAtTime(1, t0 + fadeIn);
+    this.wet.connect(this.eng.revIn);
     this.r = mulberry32((Date.now() & 0xffff) * 31 + seedCounter++ * 7919);
     this.t = t0;
     this.s = 0;
@@ -476,7 +481,7 @@ class Track {
   }
   hit(kind, t, vol = 1, pan = 0, rate = 1, send = 0) {
     this.music.hitCount++;
-    return playBuffer(this.ctx, this.out, perc(this.ctx, kind), t, { vol, pan, rate, send, sendDest: this.eng.revIn });
+    return playBuffer(this.ctx, this.out, perc(this.ctx, kind), t, { vol, pan, rate, send, sendDest: this.wet });
   }
   lead(kind, pan = 0, vol = 1) {
     return (this.leads[kind] ||= new LeadVoice(this.ctx, this.out, kind, this.t, { pan, vol }));
@@ -517,8 +522,10 @@ class Track {
   }
   fadeOut(t, dur) {
     if (this.stopAt != null) return;
-    holdAt(this.out.gain, t);
-    this.out.gain.linearRampToValueAtTime(0, t + dur);
+    for (const g of [this.out.gain, this.wet.gain]) {
+      holdAt(g, t);
+      g.linearRampToValueAtTime(0, t + dur);
+    }
     this.stopAt = t + dur;
     this.def.finish?.(this, t, dur);
   }
@@ -529,9 +536,12 @@ class Track {
   dispose() {
     this.dead = true;
     this.q.length = 0;
-    const out = this.out;
-    // let decaying hits die inside the silent gain, then detach
-    setTimeoutSafe(() => out.disconnect(), 6000);
+    const { out, wet } = this;
+    // let decaying hits die inside the silent gains, then detach
+    setTimeoutSafe(() => {
+      out.disconnect();
+      wet.disconnect();
+    }, 6000);
   }
 }
 

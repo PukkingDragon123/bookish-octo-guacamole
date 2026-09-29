@@ -986,6 +986,244 @@ function buildPhra() {
   );
 }
 
+// ================================================================ ยักษ์ demon
+// Demon head: green face with bulging eye, heavy flame brows, tusks and a
+// curled moustache, under a มงกุฎยอดกาบไผ่ (bamboo-sheath spire crown).
+function yakGeom(E, k) {
+  const X = (x, y) => [E[0] + x * k, E[1] + y * k];
+  const face = [X(5, -20), X(11, -16.5), X(16, -11.5), X(14.6, -6), X(15.4, -1.5), X(19, 3), X(23, 7), X(25.6, 11), X(24.8, 15.2), X(21, 17),
+    X(18, 16.2), X(17.6, 17.6), X(21, 18.8), X(20.6, 21.2), X(18.5, 23.6), X(4, 23.6), X(0, 21), X(-5, 22.5), X(-10, 19), X(-8, 26), X(-6, 36), X(-6, 44), X(-19, 44),
+    X(-19, 26), X(-17, 6), X(-16, -8), X(-10, -19)];
+  const jaw = [X(-14, 15), X(-6, 19.5), X(0, 21), X(4, 22.4), X(19, 22.4), X(20.4, 25.4), X(18.4, 30.5), X(14.5, 35), X(7, 37.2), X(-2, 35.6), X(-9, 30.5), X(-14, 23)];
+  const helmet = [X(8.5, -18), X(10.5, -25), X(6, -32), X(-6, -37), X(-19, -36.5), X(-29, -30), X(-33, -18), X(-32, -4), X(-26, 2), X(-18, -8), X(-8, -15), X(2, -18)];
+  const spBase = X(-8, -35), spTop = X(-13, -92), tip = X(-15, -110);
+  const tiers = [];
+  const leaves = [];
+  for (let i = 0; i < 5; i++) {
+    const t = i / 5;
+    const c = mix(spBase, spTop, t), c2 = mix(spBase, spTop, t + 0.2);
+    const w = lerp(15.5, 4, t) * k, w2 = lerp(15.5, 4, t + 0.2) * k;
+    tiers.push({ c, c2, w, w2, quad: [[c[0] - w, c[1]], [c[0] + w, c[1]], [c2[0] + w2 * 0.9, c2[1]], [c2[0] - w2 * 0.9, c2[1]]] });
+    const L = lerp(17, 8, t) * k, W0 = lerp(8, 4, t) * k;
+    leaves.push(hornPts([c[0] - w * 0.9, c[1] - 1.5 * k], L, -142 * DEG, 42 * DEG, W0, { swell: 1.5 * k }));
+    leaves.push(hornPts([c[0] + w * 0.9, c[1] - 1.5 * k], L, -38 * DEG, -42 * DEG, W0, { swell: 1.5 * k }));
+  }
+  const top = tiers[4];
+  const finial = [[top.c2[0] - 4 * k, top.c2[1] + 1], [top.c2[0] - 5 * k, top.c2[1] - 5 * k], tip, [top.c2[0] + 5 * k, top.c2[1] - 5 * k], [top.c2[0] + 4 * k, top.c2[1] + 1]];
+  const cone = [...tiers.map((t) => [t.c[0] - t.w, t.c[1]]), [top.c2[0] - top.w2, top.c2[1]], [top.c2[0] + top.w2, top.c2[1]], ...tiers.map((t) => [t.c[0] + t.w, t.c[1]]).reverse()];
+  const karn = hornPts(X(-15, 12), 46 * k, 196 * DEG, 84 * DEG, 20 * k, { swell: 7 * k, taper: 0.8 });
+  const ear = [X(-8, -4), X(-6.5, 4), X(-8, 12), X(-11, 18), X(-14.5, 15), X(-15.5, 4), X(-13, -4)];
+  return { X, face, jaw, helmet, tiers, leaves, finial, cone, karn, ear };
+}
+
+function yakHead(ctx, E, k, G, { skin = INK.jade, seed = 200 } = {}) {
+  const { X, face, helmet, tiers, leaves, finial, cone, karn, ear } = G;
+  // face & neck
+  leather(ctx, smooth(face, true, 0.4));
+  dye(ctx, smooth(inset(face, 1), true), skin, 0.95);
+  // shading lines on the brow, nose and cheek
+  goldL(ctx, [X(14.5, -7), X(9, -8.5), X(4, -7)], 0.7, { alpha: 0.9 });
+  ink(ctx, [X(18.4, 5), X(21, 9.5), X(20, 13.6)], INK.leather, 0.8);
+  ink(ctx, [X(19.6, 13.6), X(18.2, 15.4)], INK.leather, 1);
+  goldL(ctx, [X(12, 4), X(8.5, 9), X(9, 14)], 0.6, { alpha: 0.8 });
+  // teeth
+  const teeth = new Path2D();
+  for (let x = 5; x < 18.5; x += 2.3) { const a = X(x, 20.6), b = X(x + 1.9, 23.2); teeth.rect(a[0], a[1], b[0] - a[0], b[1] - a[1]); }
+  dye(ctx, teeth, INK.white, 0.98);
+  ink(ctx, [X(4, 20.4), X(19.5, 20.4)], INK.red, 1.3);
+  // upward tusk (เขี้ยว) from the mouth corner
+  const tusk = hornPts(X(4, 21.5), 13 * k, -70 * DEG, 40 * DEG, 3.6 * k);
+  leather(ctx, smooth(tusk, true)); dye(ctx, smooth(inset(tusk, 0.5), true), INK.white, 0.98);
+  const fang = hornPts(X(16, 21), 7 * k, 96 * DEG, -20 * DEG, 3 * k);
+  leather(ctx, smooth(fang, true)); dye(ctx, smooth(inset(fang, 0.4), true), INK.white, 0.98);
+  // bulging eye
+  const eyeP = new Path2D(); eyeP.ellipse(E[0] + 1 * k, E[1], 6.4 * k, 5.6 * k, 0, 0, TAU);
+  dye(ctx, eyeP, INK.white, 0.98);
+  ctx.save(); ctx.globalCompositeOperation = 'source-atop'; ctx.strokeStyle = INK.red; ctx.lineWidth = 1.3 * k; ctx.stroke(eyeP); ctx.restore();
+  const pup = new Path2D(); pup.arc(E[0] + 2.8 * k, E[1] + 0.3 * k, 3.1 * k, 0, TAU);
+  dye(ctx, pup, INK.leather, 1);
+  hole(ctx, E[0] + 3.6 * k, E[1] - 0.8 * k, 0.9 * k);
+  // heavy flame brow
+  const brow = hornPts(X(15, -9.5), 30 * k, 190 * DEG, 50 * DEG, 5.2 * k, { swell: 1.5 * k, w1: 0.8 });
+  leather(ctx, smooth(brow, true, 0.4));
+  dye(ctx, smooth(inset(brow, 0.8), true), INK.leather2, 1);
+  dots(ctx, C(brow.slice(0, 15)), { sp: 2.2, r: 0.6, seed: seed + 1, punch: 0 });
+  goldL(ctx, C(brow.slice(16)), 0.7);
+  // curled moustache
+  const mous = hornPts(X(17.5, 17.2), 24 * k, 170 * DEG, 150 * DEG, 4.6 * k, { w1: 1.2, taper: 0.8 });
+  leather(ctx, smooth(mous, true, 0.4));
+  goldL(ctx, C(mous.slice(0, 15)), 0.65);
+  // ear
+  leather(ctx, smooth(ear, true));
+  dye(ctx, smooth(inset(ear, 0.8), true), skin, 0.95);
+  ink(ctx, [X(-9.5, -1), X(-9.5, 6), X(-11.5, 13)], INK.leather, 0.7);
+  // crown spire
+  for (const l of leaves) { leather(ctx, smooth(l, true, 0.4)); flameDeco(ctx, l, { cols: [INK.gold, INK.red], d: [1, 2.6], seed: seed + 3 }); }
+  leather(ctx, smooth(cone, true, 0.3));
+  tiers.forEach((t, i) => {
+    dye(ctx, poly(t.quad), i % 2 ? INK.red : INK.green, 0.9);
+    dots(ctx, [mix(t.quad[0], t.quad[3], 0.5), mix(t.quad[1], t.quad[2], 0.5)], { sp: 2.4, r: 0.7, seed: seed + 10 + i, punch: 0.3 });
+    stripe(ctx, [[t.c[0] - t.w, t.c[1]], t.c, [t.c[0] + t.w, t.c[1]]], 3.4 * k * (1 - i * 0.12), { fill: INK.gold, edge: INK.white, ew: 0.5, seed: seed + 20 + i, sp: 2.2, r: 0.6 });
+  });
+  leather(ctx, smooth(finial, true, 0.3));
+  dye(ctx, smooth(inset(finial, 0.8), true), INK.gold, 0.92);
+  gem(ctx, finial[0][0] + 4 * k, finial[0][1] - 3 * k, 2.4 * k);
+  // helmet + band
+  leather(ctx, smooth(helmet, true));
+  dye(ctx, smooth(inset(helmet, 1.4), true), INK.red, 0.88);
+  scales(ctx, inset(helmet, 2.4), { sp: 5.2, dotR: 0.75 });
+  const band = [X(9.8, -20), X(-2, -19.5), X(-16, -15.5), X(-26, -7), X(-29, 0)];
+  stripe(ctx, band, 6 * k, { fill: INK.gold, seed: seed + 7, sp: 2.5, r: 0.75, edge: INK.white });
+  for (const t of [0.1, 0.35, 0.6]) { const q = C(band); const p = q[Math.floor(q.length * t)]; gem(ctx, p[0], p[1], 2.1 * k, { col: INK.green }); }
+  fringe(ctx, [X(9, -24), X(-3, -24), X(-17, -20.5), X(-28, -12)], 4.2 * k, { h: 1.6, edge: INK.white });
+  const pk = krajangPath(...X(9.4, -24), 8 * k, 15 * k, -98 * DEG);
+  leather(ctx, pk); dye(ctx, pk, INK.gold, 0.9); hole(ctx, ...X(9.8, -31), 1);
+  // กรรเจียก and ear pendant
+  leather(ctx, smooth(karn, true, 0.45));
+  flameDeco(ctx, karn, { seed: seed + 30, cols: [INK.gold, INK.red, INK.green], d: [1.4, 4.2, 7.8] });
+  flower(ctx, ...X(-11, 2), 5 * k, { n: 8 });
+  const drop = [X(-11.5, 17), X(-8.5, 23), X(-11.5, 30), X(-14.5, 23)];
+  leather(ctx, smooth(drop, true)); dye(ctx, smooth(drop, true), INK.gold, 0.9); gem(ctx, ...X(-11.5, 23.4), 2 * k);
+}
+
+function yakJaw(ctx, E, k, G, { skin = INK.jade, seed = 230 } = {}) {
+  const { X, jaw } = G;
+  leather(ctx, smooth(jaw, true, 0.4));
+  dye(ctx, smooth(inset(jaw, 1), true), skin, 0.95);
+  const teeth = new Path2D();
+  for (let x = 5.5; x < 18.5; x += 2.3) { const a = X(x, 22.2), b = X(x + 1.9, 24.8); teeth.rect(a[0], a[1], b[0] - a[0], b[1] - a[1]); }
+  dye(ctx, teeth, INK.white, 0.98);
+  ink(ctx, [X(4, 25.2), X(19.5, 25.2)], INK.red, 1.3);
+  // curly goatee
+  for (let i = 0; i < 4; i++) {
+    const c = hornPts(X(15 - i * 4, 34 - i * 0.6), (7 + i) * k, (110 + i * 12) * DEG, 120 * DEG, 2.4 * k);
+    leather(ctx, smooth(c, true, 0.4));
+  }
+  goldL(ctx, [X(17, 29), X(10, 33), X(0, 32)], 0.6, { alpha: 0.8 });
+}
+
+function buildYak() {
+  const k = 1.3;
+  const E = [26, 143];
+  const G = yakGeom(E, k);
+  const X = G.X;
+  const J = {
+    neck: X(-12, 36), jaw: X(-10.5, 17),
+    shB: [-38, 204], elB: [-55, 268], wrB: [-50, 330],
+    shF: [60, 202], elF: [77, 266], wrF: [82, 327],
+    waist: [12, 292],
+    hipB: [-14, 312], knB: [-48, 388], anB: [-54, 454],
+    hipF: [38, 312], knF: [70, 388], anF: [76, 454],
+  };
+  const skin = INK.jade;
+  const head = {
+    box: bb(3, G.face, G.helmet, G.leaves.flat(), G.finial, G.karn, [X(28, 0)]), z: -1, parent: 'torso', joint: J.neck, lim: [-20, 20], stiff: 0.7, mass: 1.1,
+    draw: (ctx) => yakHead(ctx, E, k, G, { skin }),
+  };
+  const jaw = {
+    box: bb(3, G.jaw, [X(-4, 44)]), z: -1.5, parent: 'head', joint: J.jaw, lim: [-3, 28], stiff: 0.6, mass: 0.3, noRivet: true,
+    draw: (ctx) => yakJaw(ctx, E, k, G, { skin }),
+  };
+  // ---------------------------------------------------------------- torso
+  const torsoPts = wob([[-10, 180], [-24, 184], [-38, 190], [-50, 199], [-53, 214], [-48, 232], [-41, 250], [-34, 270], [-31, 290], [-33, 312], [-12, 318],
+    [12, 320], [34, 318], [50, 312], [48, 290], [50, 270], [57, 250], [66, 232], [72, 214], [70, 200], [58, 190], [42, 184], [26, 180], [10, 178]], 0.5, 301);
+  const collar = wob([[-52, 202], [-42, 190], [-24, 182], [-4, 176], [14, 175], [32, 177], [50, 184], [66, 193], [73, 206], [60, 218], [44, 228], [26, 234], [12, 236], [-2, 234], [-20, 228], [-36, 218], [-49, 210]], 0.4, 302);
+  const torso = {
+    box: bb(3, torsoPts, collar), z: 0, mass: 1.6,
+    draw(ctx) {
+      leather(ctx, smooth(torsoPts, true));
+      const body = inset(torsoPts, 2.6);
+      dye(ctx, smooth(body, true), INK.red, 0.86);
+      scales(ctx, body, { sp: 8, dotR: 1.05 });
+      // armour breast plates
+      for (const [cx, cy, sd] of [[-14, 250, 1], [38, 250, 2]]) {
+        const pl = blobPts(cx, cy, 17, 15, { seed: sd, wobble: 0.04 });
+        leather(ctx, smooth(pl, true));
+        panel(ctx, pl, { fill: INK.green, sp: 3.2, r: 0.9, seed: 310 + sd, d2: 2.8 });
+        lace(ctx, inset(pl, 5), { sp: 5, r: 0.85, style: 'quad', seed: 320 + sd, punch: 0.35 });
+        flower(ctx, cx, cy, 5.5, { n: 8 });
+      }
+      // belly band with a kala-flower
+      stripe(ctx, [[-32, 284], [12, 289], [49, 284]], 9, { fill: INK.gold, edge: INK.white, seed: 330, sp: 3.2, r: 1.05 });
+      fringe(ctx, [[-30, 279], [12, 284], [47, 279]], 4.6, { h: 1.3 });
+      flower(ctx, 12, 288, 7.5, { n: 10 });
+      // big collar
+      leather(ctx, smooth(collar, true));
+      dye(ctx, smooth(inset(collar, 1.5), true), INK.green, 0.9);
+      lace(ctx, inset(collar, 3), { sp: 5, r: 0.9, style: 'quad', seed: 340, punch: 0.3 });
+      stripe(ctx, [[-44, 200], [-24, 189], [12, 183], [46, 188], [66, 200]], 6, { fill: INK.gold, seed: 341, sp: 2.6, r: 0.8, edge: INK.white });
+      stripe(ctx, [[-44, 210], [-22, 222], [12, 228], [44, 222], [64, 208]], 6, { fill: INK.red, seed: 342, sp: 2.8, r: 0.85, edge: INK.white });
+      for (const x of [-26, -6, 12, 30, 48]) flower(ctx, x, 204 + (x === 12 ? 4 : 0), 4.4, { n: 8 });
+      fringe(ctx, [[-48, 214], [-30, 226], [-10, 234], [12, 237], [34, 234], [52, 226], [68, 212]], 6.5, { flip: true, h: 1.35, col: INK.gold, inner: INK.red });
+      dots(ctx, inset(collar, 2.4), { sp: 3, r: 0.85, closed: true, seed: 343, punch: 0.2 });
+      rim(ctx, torsoPts, { seed: 344, gold: false, d: 2.2 });
+    },
+  };
+  // ---------------------------------------------------------------- skirt
+  const tailB = hornPts([-26, 318], 88, 160 * DEG, 100 * DEG, 30, { swell: 10, taper: 0.9 });
+  const tailB2 = hornPts([-22, 330], 62, 140 * DEG, 80 * DEG, 20, { swell: 6, taper: 0.9 });
+  const flapF = hornPts([44, 318], 58, 36 * DEG, -88 * DEG, 22, { swell: 7, taper: 0.9 });
+  const skirtCore = wob([[-33, 286], [12, 290], [50, 286], [54, 306], [55, 326], [46, 338], [30, 342], [24, 360], [13, 404], [2, 360], [-4, 342], [-24, 340], [-36, 330], [-38, 310]], 0.5, 351);
+  const skirt = {
+    box: bb(3, skirtCore, tailB, tailB2, flapF), z: 1, parent: 'torso', joint: J.waist, lim: [-14, 14], stiff: 0.75, mass: 1.3,
+    draw(ctx) {
+      for (const [fl, sd, cols] of [[tailB, 5, [INK.gold, INK.red, INK.green]], [tailB2, 6, [INK.gold, INK.green, INK.red]], [flapF, 7, [INK.gold, INK.red, INK.green]]]) {
+        leather(ctx, smooth(fl, true, 0.45));
+        flameDeco(ctx, fl, { seed: sd, cols, d: [1.4, 4.4, 8.2] });
+      }
+      leather(ctx, smooth(skirtCore, true, 0.45));
+      const hip = [[-31, 294], [50, 294], [53, 316], [44, 334], [12, 338], [-24, 334], [-35, 316]];
+      dye(ctx, smooth(hip, true), INK.green, 0.86);
+      brocade(ctx, hip, { sp: 9, seed: 5, dotR: 1 });
+      stripe(ctx, [[-34, 330], [12, 337], [52, 330]], 5.5, { fill: INK.gold, seed: 12, sp: 2.6, r: 0.8, edge: INK.white });
+      fringe(ctx, [[-33, 334], [12, 341], [51, 334]], 4.4, { flip: true, h: 1.2, inner: INK.green });
+      const apron = [[1, 296], [24, 296], [25, 330], [23, 364], [18, 388], [13, 402], [8, 388], [3, 364], [0, 330]];
+      leather(ctx, smooth(apron, true));
+      panel(ctx, apron, { fill: INK.gold, alpha: 0.9, sp: 3, r: 0.85, seed: 8, d2: 2.2, edge: INK.white });
+      dye(ctx, smooth(inset(apron, 4.4), true), INK.red, 0.88);
+      for (let y = 310; y < 394; y += 14) flower(ctx, 12.5, y, 5 - (y - 310) * 0.015, { n: 8 });
+      stripe(ctx, [[-34, 292], [12, 296], [50, 292]], 9, { fill: INK.gold, seed: 10, sp: 3.2, r: 1.05, edge: INK.white });
+      for (const x of [-20, 38]) gem(ctx, x, 293.5, 2.8, { col: INK.green });
+      const buckle = blobPts(12.5, 295, 10, 9, { seed: 4, wobble: 0.05 });
+      leather(ctx, smooth(buckle, true));
+      dye(ctx, smooth(inset(buckle, 1), true), INK.gold, 0.95);
+      flower(ctx, 12.5, 295, 7, { n: 10 });
+      rim(ctx, skirtCore, { seed: 11, gold: false, d: 2 });
+    },
+  };
+  // ---------------------------------------------------------------- limbs
+  const dB = unit(J.wrB[0] - J.elB[0], J.wrB[1] - J.elB[1]);
+  const dF = unit(J.wrF[0] - J.elF[0], J.wrF[1] - J.elF[1]);
+  const hk = 1.25;
+  const hf = handFrame(J.wrF, dF, 1, hk), hb = handFrame(J.wrB, dB, 1, hk);
+  const UA = { ra: 13.5, rb: 11 }, FA = { ra: 11, rb: 9 }, TH = { ra: 18, rb: 13 }, SH = { ra: 13, rb: 8.5 };
+  const defs = {
+    torso, head, jaw, skirt,
+    upperArmB: { box: bb(4, paddle(J.shB, J.elB, UA.ra, UA.rb, { ext: 3, extA: 2 }), [add(J.shB, [-30, -32])]), z: -8, parent: 'torso', joint: J.shB, stiff: 0.12, mass: 1.2, draw: (ctx) => upperArm(ctx, J.shB, J.elB, { ...UA, seed: 401, side: -1, skin, flame: 32, lz: false }) },
+    forearmB: { box: bb(4, paddle(J.elB, J.wrB, FA.ra, FA.rb, { ext: 5, extA: 1 })), z: -7, parent: 'upperArmB', joint: J.elB, lim: [-150, 12], stiff: 0.18, mass: 1.1, draw: (ctx) => forearm(ctx, J.elB, J.wrB, { ...FA, seed: 402, skin, lz: false }) },
+    handB: { box: bb(3, [hb(-10, -8), hb(-10, 9), hb(38, -18), hb(34, 14), hb(18, 22)]), z: -9, parent: 'forearmB', joint: J.wrB, lim: [-55, 55], stiff: 0.3, mass: 0.7, draw: (ctx) => openHand(ctx, J.wrB, dB, { side: 1, seed: 403, curl: 0.5, k: hk, skin }) },
+    thighB: { box: bb(4, paddle(J.hipB, J.knB, TH.ra, TH.rb, { ext: 2, extA: 3 })), z: -6, parent: 'skirt', joint: J.hipB, lim: [-75, 75], stiff: 0.45, mass: 1.2, draw: (ctx) => thigh(ctx, J.hipB, J.knB, { ...TH, seed: 404, fill: INK.red, fill2: INK.green }) },
+    shinB: { box: bb(4, paddle(J.knB, J.anB, SH.ra, SH.rb, { ext: 4, extA: 2 }), footPts(J.anB, -1, { len: 46 })), z: -7, parent: 'thighB', joint: J.knB, lim: [-8, 125], stiff: 0.5, draw: (ctx) => shin(ctx, J.knB, J.anB, -1, { ...SH, seed: 405, footLen: 46, skin, lz: false, guard: INK.red }) },
+    thighF: { box: bb(4, paddle(J.hipF, J.knF, TH.ra, TH.rb, { ext: 2, extA: 3 })), z: -4, parent: 'skirt', joint: J.hipF, lim: [-75, 75], stiff: 0.45, mass: 1.2, draw: (ctx) => thigh(ctx, J.hipF, J.knF, { ...TH, seed: 406, fill: INK.red, fill2: INK.green }) },
+    shinF: { box: bb(4, paddle(J.knF, J.anF, SH.ra, SH.rb, { ext: 4, extA: 2 }), footPts(J.anF, 1, { len: 46 })), z: -5, parent: 'thighF', joint: J.knF, lim: [-8, 125], stiff: 0.5, draw: (ctx) => shin(ctx, J.knF, J.anF, 1, { ...SH, seed: 407, footLen: 46, skin, lz: false, guard: INK.red }) },
+    upperArmF: { box: bb(4, paddle(J.shF, J.elF, UA.ra, UA.rb, { ext: 3, extA: 2 }), [add(J.shF, [30, -32])]), z: 4, parent: 'torso', joint: J.shF, stiff: 0.12, mass: 1.2, draw: (ctx) => upperArm(ctx, J.shF, J.elF, { ...UA, seed: 408, side: 1, skin, flame: 32, lz: false }) },
+    forearmF: { box: bb(4, paddle(J.elF, J.wrF, FA.ra, FA.rb, { ext: 5, extA: 1 })), z: 6, parent: 'upperArmF', joint: J.elF, lim: [-150, 12], stiff: 0.18, mass: 1.1, draw: (ctx) => forearm(ctx, J.elF, J.wrF, { ...FA, seed: 409, skin, lz: false }) },
+    handF: { box: bb(3, [hf(-10, -8), hf(-10, 9), hf(28, -13), hf(28, 12)]), z: 5, parent: 'forearmF', joint: J.wrF, lim: [-55, 55], stiff: 0.3, mass: 0.7, draw: (ctx) => fist(ctx, J.wrF, dF, { side: 1, seed: 410, k: hk, skin }) },
+  };
+  return buildRig(
+    { id: 'yak', name: 'ยักษ์', en: 'Yak — the Demon', kind: 'demon', voice: 'demon', height: 470 },
+    defs,
+    {
+      rod: [[12, 190], [12, 292], 300],
+      handRods: { handF: hf(9, 0), handB: hb(10, 0) },
+      grips: { handF: hf(15, 0.5), handB: hb(12, 0) },
+      holds: { handF: 'gada' },
+      limbs: STD_LIMBS({ jaw: 'jaw' }),
+      lines: LINES.yak,
+    },
+  );
+}
+
 // ================================================================ dialogue
 const LINES = {
   phra: {
@@ -1024,6 +1262,42 @@ const LINES = {
   },
 };
 
+LINES.yak = {
+  greet: [
+    { th: 'ฮ่า ฮ่า ฮ่า! ผู้ใดบังอาจย่างกรายมาถึงถิ่นข้า', en: 'Ha ha ha! Who dares set foot in my domain?' },
+    { th: 'ข้าคือพญายักษ์ผู้เกรียงไกร', en: 'I am the mighty lord of demons.' },
+    { th: 'มนุษย์ตัวน้อย มาหาข้าด้วยเหตุใด', en: 'Little human, why have you come to me?' },
+    { th: 'เอาละ วันนี้ข้าอารมณ์ดี จะไม่ทำอะไรเจ้า', en: 'Well now, I am in a good mood today. I shall spare you.' },
+  ],
+  fight: [
+    { th: 'กระบองข้าหนักนัก รับไปเถิด!', en: 'My mace is heavy — take this!' },
+    { th: 'โฮก! ข้าจะจับเจ้าโยนข้ามภูเขา', en: "Roar! I'll toss you over the mountains!" },
+    { th: 'สู้กับข้าเถิด ถ้าแน่จริง', en: 'Fight me, if you truly dare.' },
+    { th: 'ธรณีจงสะเทือน!', en: 'Let the earth tremble!' },
+  ],
+  taunt: [
+    { th: 'เจ้าตัวเล็กเท่ามดแดง', en: 'You are no bigger than a red ant.' },
+    { th: 'ฮ่า! ดาบของเจ้าเหมือนไม้จิ้มฟัน', en: 'Ha! Your sword is like a toothpick.' },
+    { th: 'มาเถิด มาให้ข้าหัวเราะเล่น', en: 'Come, give me a good laugh.' },
+  ],
+  dance: [
+    { th: 'ยักษ์ก็รำเป็นนะเจ้า', en: 'Even demons can dance, you know.' },
+    { th: 'ย่ำเท้าให้ธรณีสะเทือน!', en: 'Stamp until the earth shakes!' },
+    { th: 'โฮ่ โฮ่ รำอย่างยักษ์ ใหญ่โตมโหฬาร', en: "Ho ho, a demon's dance — grand and enormous!" },
+  ],
+  flee: [
+    { th: 'ไม่นะ! ข้าจะกลับไปเรียกพวกพ้อง', en: "No! I'll go and fetch my kin." },
+    { th: 'วันนี้ข้ายอมก่อน แต่ข้าจะกลับมา', en: 'I yield today, but I will return.' },
+    { th: 'โอ๊ย เจ็บนัก หนีก่อนดีกว่า', en: 'Ouch, that stings! Better run.' },
+  ],
+  idle: [
+    { th: 'หิวจัง อยากกินขนมสักร้อยถาด', en: 'So hungry — I could eat a hundred trays of sweets.' },
+    { th: 'ครอก... ยักษ์ก็ต้องงีบบ้าง', en: 'Snore... even demons need a nap.' },
+    { th: 'ทองในวังของข้ามากมายนัก', en: 'Oh, the gold in my palace is plentiful.' },
+  ],
+};
+
 export const PUPPETS = [
   { id: 'phra', name: 'พระเอก', en: 'Phra — the Prince', kind: 'hero', build: buildPhra },
+  { id: 'yak', name: 'ยักษ์', en: 'Yak — the Demon', kind: 'demon', build: buildYak },
 ];

@@ -294,8 +294,8 @@ export const PROPS = [
           ctx.font = 'bold 26px Loma, "Noto Sans Thai", "Leelawadee UI", Thonburi, Tahoma, sans-serif';
           ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
           ctx.globalCompositeOperation = 'source-atop';
-          ctx.strokeStyle = INK.leather; ctx.lineWidth = 5; ctx.strokeText('ก๋วยเตี๋ยว', 105, 118);
-          ctx.globalCompositeOperation = 'destination-out'; ctx.fillText('ก๋วยเตี๋ยว', 105, 118);
+          ctx.strokeStyle = INK.leather; ctx.lineWidth = 5; ctx.strokeText('ก๋วยเตี๋ยว', 105, 118, 180);
+          ctx.globalCompositeOperation = 'destination-out'; ctx.fillText('ก๋วยเตี๋ยว', 105, 118, 180);
           ctx.restore();
         });
         wheel(ctx, 50, 158, 28, sd);
@@ -365,13 +365,13 @@ export const PROPS = [
         for (const s of [-1, 1]) { const k = kanokPts(95 + s * 78, 26, 14, -Math.PI / 2 - s * 0.6, s > 0); piece(ctx, k, { color: INK.gold }); }
         // lettering cut out of the hide so the lamp shines through
         ctx.save();
-        ctx.font = 'bold 30px Loma, "Noto Sans Thai", "Leelawadee UI", Thonburi, Tahoma, sans-serif';
+        ctx.font = 'bold 27px Loma, "Noto Sans Thai", "Leelawadee UI", Thonburi, Tahoma, sans-serif';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.globalCompositeOperation = 'source-atop';
         ctx.strokeStyle = INK.goldLine; ctx.lineWidth = 1.6;
-        ctx.strokeText('ของดี ราคาถูก', 95, 58);
+        ctx.strokeText('ของดี ราคาถูก', 95, 58, 160);
         ctx.globalCompositeOperation = 'destination-out';
-        ctx.fillText('ของดี ราคาถูก', 95, 58);
+        ctx.fillText('ของดี ราคาถูก', 95, 58, 160);
         ctx.restore();
       }, { name: 'mk/sign' });
       return { sprite, mass: 1.2 };
