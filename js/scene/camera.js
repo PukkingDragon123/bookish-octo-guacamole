@@ -26,11 +26,9 @@ export class Camera {
       return { x: 800, y: 500, zoom };
     }
     // stage: cloth + frame + roof + a band of heaven; keep the cloth big
-    const zoom = Math.min(w / 1900, h / 1420);
+    const zoom = Math.min(w / 2000, h / 1560);
     const visH = h / zoom;
-    // keep the bottom of the booth frame (y≈1120) near the bottom edge
-    const y = Math.min(1180 - visH / 2, 470);
-    return { x: 800, y: Math.max(y, 300), zoom };
+    return { x: 800, y: 1200 - visH / 2, zoom };
   }
 
   flyTo(t, dur = 1.2, ease = easeInOut) {

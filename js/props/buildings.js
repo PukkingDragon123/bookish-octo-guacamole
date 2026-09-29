@@ -1810,14 +1810,14 @@ const B = (id, name, en, w, h, draw, meta = {}, opt = {}) => ({
 });
 
 export const PROPS = [
-  B('thai-house', 'เรือนไทย', 'Thai house on stilts', 520, 480, drawThaiHouse, {}, { px: 2 }),
+  B('thai-house', 'เรือนไทย', 'Thai house on stilts', 520, 480, drawThaiHouse, {}, { px: 1.75 }),
   B('thatched-hut', 'กระท่อมมุงจาก', 'Thatched hut', 300, 320, drawHut),
   B('sala', 'ศาลาไทย', 'Open Thai pavilion', 520, 420, drawSala),
   B('spirit-house', 'ศาลพระภูมิ', 'Spirit house on a post', 150, 340, drawSpiritHouse, { mass: 1.2 }),
-  B('ubosot', 'โบสถ์', 'Temple ordination hall', 720, 740, drawUbosot, { mass: 5 }, { px: 1.6, pad: 30 }),
+  B('ubosot', 'โบสถ์', 'Temple ordination hall', 720, 740, drawUbosot, { mass: 5 }, { px: 1.4, pad: 30 }),
   B('chedi', 'เจดีย์', 'Bell-shaped stupa', 270, 600, drawChedi, { mass: 4 }),
   B('prang', 'พระปรางค์', 'Prang tower', 300, 640, drawPrang, { mass: 4 }, { px: 1.8 }),
-  B('palace', 'ปราสาทราชวัง', 'Royal palace', 900, 920, drawPalace, { mass: 6 }, { px: 1.5, pad: 30 }),
+  B('palace', 'ปราสาทราชวัง', 'Royal palace', 900, 920, drawPalace, { mass: 6 }, { px: 1.3, pad: 30 }),
   B('village-well', 'บ่อน้ำ', 'Village well', 250, 280, drawWell),
   B('wooden-bridge', 'สะพานไม้', 'Wooden footbridge', 640, 230, drawBridge),
   B('bamboo-fence', 'รั้วไม้ไผ่', 'Bamboo fence', 420, 170, drawFence, { mass: 1.5 }),

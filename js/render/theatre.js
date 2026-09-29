@@ -9,7 +9,7 @@
 import { makeCanvas, rng, goldGrad, grain, krajang, krajangLine, prajam, kanok, roundRect, jitterPts } from './paint.js';
 import { paintSprite, leather, dotLine, dotFill, slit, INK, curve, poly } from '../art/leather.js';
 
-export const BOOTH = { x0: -470, y0: -520, x1: 2070, y1: 1440 };
+export const BOOTH = { x0: -470, y0: -900, x1: 2070, y1: 1440 };
 export const BAND = { top: 112, side: 54, bottom: 66, inset: 8 };
 export const TROUPE = { th: 'หนังตะลุง', sub: 'คณะ ศรีสวรรค์ศิลป์' };
 
@@ -27,8 +27,8 @@ export function paintBooth(k = 0.75, fonts = {}) {
   const r = rng(11);
 
   // ----------------------------------------------------------- side wings
-  wovenWall(ctx, -380, -70, 215, 1255, 3);
-  wovenWall(ctx, 1765, -70, 215, 1255, 4);
+  wovenWall(ctx, -380, -236, 215, 1421, 3);
+  wovenWall(ctx, 1765, -236, 215, 1421, 4);
   wovenWall(ctx, -100, 1080, 1800, 110, 5);
   // wing skirting boards
   for (const [x, w] of [[-380, 215], [1765, 215]]) {
@@ -138,16 +138,16 @@ export function paintBooth(k = 0.75, fonts = {}) {
   for (let y = 70; y < 960; y += 120) { tie(ctx, BAND.inset - 2, y, -1, 0); tie(ctx, 1600 - BAND.inset + 2, y, 1, 0); }
 
   // ---------------------------------------------------------- posts
-  for (const cx of [-135, 1735]) post(ctx, cx, -100, 1440);
+  for (const cx of [-135, 1735]) post(ctx, cx, -236, 1440);
 
   // ---------------------------------------------------------- roof
   roof(ctx, r);
 
   // gold รวงผึ้ง valance under the eave, above the frame
-  valance(ctx, -100, -150, 1800, 72);
+  valance(ctx, -130, -150, 1860, 90);
 
   // loudspeaker horn on the left post
-  horn(ctx, -135, -40);
+  horn(ctx, -135, -200);
 
   grain(ctx, BOOTH.x0, BOOTH.y0, W, H, 0.55);
   // re-open the cloth hole cleanly (grain & strokes may have spilled)
@@ -305,7 +305,7 @@ function post(ctx, cx, y0, y1) {
 
 function roof(ctx, r) {
   // lower wide roof (tiles), seen from the front
-  const eave = -64, top = -262;
+  const eave = -236, top = -430;
   const L0 = -470, R0 = 2070, L1 = -210, R1 = 1810;
   const roofPath = new Path2D();
   roofPath.moveTo(L0, eave);
@@ -361,7 +361,7 @@ function roof(ctx, r) {
   hangHong(ctx, R0 + 6, eave + 2, 1);
 
   // central gable (มุข) — หน้าบัน
-  const ax = 800, ay = -520, bl = 380, br = 1220, by = -150;
+  const ax = 800, ay = -700, bl = 380, br = 1220, by = -330;
   const gable = new Path2D();
   gable.moveTo(bl, by); gable.lineTo(ax, ay); gable.lineTo(br, by); gable.closePath();
   // roof slopes of the gable (tiles, darker)

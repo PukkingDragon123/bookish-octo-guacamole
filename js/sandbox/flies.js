@@ -1,0 +1,251 @@
+// Fruit flies (แมลงหวี่) drawn to the lamp — here they're tiny stagehands:
+// assign one to a puppet and give it a role, and it works the strings
+// from above, walking, fighting, selling, joking and dancing by itself.
+
+import { Puppet } from '../puppet/puppet.js';
+
+export const ROLES = [
+  ['fighter', 'นักดาบ', 'Sword fighter', '⚔'],
+  ['dancer', 'นางรำ', 'Dancer', '❀'],
+  ['merchant', 'แม่ค้า', 'Merchant', '฿'],
+  ['villager', 'ชาวบ้าน', 'Villager', '⌂'],
+  ['comedian', 'ตัวตลก', 'Comedian', '☺'],
+  ['monster', 'ปีศาจ', 'Monster', '♆'],
+  ['coward', 'ขี้ขลาด', 'Scaredy-cat', '!'],
+  ['follower', 'ผู้ติดตาม', 'Follower', '→'],
+  ['wander', 'เดินเล่น', 'Wanderer', '~'],
+];
+
+const GENERIC = {
+  greet: [{ th: 'สวัสดีจ้า', en: 'Hello!' }, { th: 'ไปไหนมา', en: 'Where have you been?' }],
+  fight: [{ th: 'เจอดาบข้าเสียเถิด!', en: 'Taste my blade!' }, { th: 'อย่าหนีนะ!', en: "Don't run!" }],
+  taunt: [{ th: 'แค่นี้เองหรือ', en: 'Is that all?' }],
+  sell: [{ th: 'ซื้อไหมจ๊ะ ของดีราคาถูก', en: 'Buy? Good stuff, cheap!' }, { th: 'หวานๆ จ้า', en: 'Sweet ones here!' }],
+  buy: [{ th: 'อันนี้เท่าไหร่', en: 'How much is this?' }, { th: 'ลดได้ไหม', en: 'Any discount?' }],
+  joke: [{ th: 'ฮ่าๆ ขำไม่ไหวแล้ว', en: "Haha, I can't stop laughing" }, { th: 'หรอยจังหู้', en: 'So tasty!' }],
+  flee: [{ th: 'ช่วยด้วย!', en: 'Help!' }, { th: 'หนีเร็ว!', en: 'Run!' }],
+  dance: [{ th: 'รำให้ดูนะ', en: "I'll dance for you" }],
+  idle: [{ th: 'ฟ้าสวยจัง', en: 'Lovely sky tonight' }],
+};
+
+const pick = (a) => a[Math.floor(Math.random() * a.length)];
+function line(p, cat) {
+  const L = (p.rig && p.rig.lines) || {};
+  const list = L[cat] && L[cat].length ? L[cat] : GENERIC[cat] || GENERIC.idle;
+  return pick(list);
+}
+
+export class Fly {
+  constructor(x, y) {
+    this.x = x; this.y = y; this.vx = 0; this.vy = 0;
+    this.actor = null;
+    this.role = null;
+    this.t = Math.random() * 10;
+    this.cool = 1 + Math.random() * 2;
+    this.goal = null;
+    this.wing = 0;
+  }
+
+  assign(actor, role) {
+    if (this.actor) this.actor.controller = null;
+    this.actor = actor;
+    this.role = role;
+    if (actor) {
+      actor.controller = this;
+      actor.flyRole = role;
+      if (actor.mode === 'ragdoll' || actor.mode === 'hung') actor.plantAt(actor.root.x);
+    }
+  }
+
+  release() {
+    if (this.actor) {
+      this.actor.controller = null;
+      this.actor.flyRole = null;
+      if (this.actor.anim && this.actor.anim.def.loop) this.actor.stopAnim();
+    }
+    this.actor = null;
+    this.role = null;
+  }
+
+  update(dt, game) {
+    this.t += dt;
+    this.wing += dt * 60;
+    const a = this.actor;
+    if (a && a.removed) this.release();
+    let tx, ty;
+    if (this.actor) {
+      const [hx, hy] = this.actor.handleWorld();
+      const [cx, cy] = game.scene.project(hx, hy, this.actor.z);
+      tx = cx + Math.sin(this.t * 2.3) * 14;
+      ty = cy - 170 - Math.sin(this.t * 1.7) * 10;
+      this._brain(dt, game);
+    } else {
+      // buzz around the lamp
+      const L = game.scene.lamp;
+      tx = L.x + Math.sin(this.t * 0.9) * 160 + Math.sin(this.t * 2.7) * 40;
+      ty = L.y - 60 + Math.cos(this.t * 1.3) * 90;
+    }
+    this.vx += ((tx - this.x) * 8 - this.vx * 3) * dt + (Math.random() - 0.5) * 900 * dt;
+    this.vy += ((ty - this.y) * 8 - this.vy * 3) * dt + (Math.random() - 0.5) * 900 * dt;
+    this.x += this.vx * dt;
+    this.y += this.vy * dt;
+  }
+
+  _walk(p, x, speed = 120, dt) {
+    const d = x - p.target.x;
+    const step = Math.sign(d) * Math.min(Math.abs(d), speed * dt);
+    p.target.x += step;
+    const want = Math.sign(d);
+    if (Math.abs(d) > 8 && want && want !== p.facing && !p.isBusy()) p.flip();
+    return Math.abs(d) < 10;
+  }
+
+  _face(p, x) {
+    const want = Math.sign(x - p.root.x);
+    if (want && want !== p.facing && !p.isBusy() && p.flipAnim <= 0) p.flip();
+  }
+
+  _brain(dt, game) {
+    const p = this.actor;
+    if (!(p instanceof Puppet)) return;
+    if (p.mode === 'ragdoll') return;
+    if (p.mode !== 'planted') p.plantAt(p.root.x);
+    this.cool -= dt;
+    const others = game.scene.actors.filter((o) => o !== p && o instanceof Puppet && !o.removed && Math.abs(o.z - p.z) < 0.08);
+    const nearest = (f = () => true) => {
+      let best = null, bd = Infinity;
+      for (const o of others) {
+        if (!f(o)) continue;
+        const d = Math.abs(o.root.x - p.root.x);
+        if (d < bd) { bd = d; best = o; }
+      }
+      return best ? { o: best, d: bd } : null;
+    };
+    const minX = 120, maxX = 1480;
+    const wander = (speed = 70) => {
+      if (this.goal == null || this._walk(p, this.goal, speed, dt)) {
+        if (Math.random() < dt * 0.6 || this.goal == null) this.goal = minX + Math.random() * (maxX - minX);
+      }
+    };
+    const say = (cat) => { p.say(line(p, cat)); game.onSpeech?.(p, p.speech); };
+
+    switch (this.role) {
+      case 'fighter':
+      case 'monster': {
+        const foe = nearest((o) => !o.isAnimal);
+        if (!foe) { wander(); break; }
+        const range = (p.height + foe.o.height) * 0.3;
+        this._face(p, foe.o.root.x);
+        if (foe.d > range) this._walk(p, foe.o.root.x - Math.sign(foe.o.root.x - p.root.x) * range * 0.9, this.role === 'monster' ? 150 : 130, dt);
+        else if (foe.d < range * 0.55) this._walk(p, p.root.x - Math.sign(foe.o.root.x - p.root.x) * 60, 90, dt);
+        if (this.cool <= 0 && !p.isBusy()) {
+          const r = Math.random();
+          if (this.role === 'monster' && r < 0.25) { p.play('roar'); say('taunt'); }
+          else if (foe.d <= range * 1.2) {
+            if (foe.o.attacking > 0 && r < 0.5) p.play('block');
+            else p.play(r < 0.55 ? 'strike' : r < 0.85 ? 'lunge' : 'leap');
+            if (Math.random() < 0.3) say('fight');
+          } else if (r < 0.15) say('taunt');
+          this.cool = 0.9 + Math.random() * 1.4;
+        }
+        if (foe.o.attacking > 0 && foe.d < range * 1.3 && !p.isBusy() && Math.random() < dt * 3) p.play('block');
+        break;
+      }
+      case 'dancer': {
+        if (!p.anim || p.anim.name !== 'dance') { p.play('dance', { loop: true }); if (Math.random() < 0.5) say('dance'); }
+        if (this.goal == null || this._walk(p, this.goal, 35, dt)) this.goal = 300 + Math.random() * 1000;
+        if (this.cool <= 0) { if (Math.random() < 0.25) { p.stopAnim(); p.play('wong'); } this.cool = 6 + Math.random() * 5; }
+        break;
+      }
+      case 'merchant': {
+        const stall = game.scene.actors.find((o) => o.def && ['market', 'food'].includes(o.def.cat) && Math.abs(o.z - p.z) < 0.1);
+        if (stall) {
+          const [sx] = game.scene.project(stall.root.x, 0, stall.z);
+          this._walk(p, game.scene.unproject(sx + 150, 0, p.z)[0], 80, dt);
+        }
+        if (this.cool <= 0 && !p.isBusy()) {
+          p.play(Math.random() < 0.7 ? 'beckon' : 'wave');
+          say('sell');
+          this.cool = 4 + Math.random() * 4;
+        }
+        break;
+      }
+      case 'villager': {
+        const n = nearest();
+        if (n && n.d < 200 && this.cool <= 0 && !p.isBusy()) {
+          this._face(p, n.o.root.x);
+          const merchant = n.o.flyRole === 'merchant';
+          p.play(merchant ? 'point' : Math.random() < 0.5 ? 'wai' : 'wave');
+          say(merchant ? 'buy' : 'greet');
+          this.cool = 5 + Math.random() * 5;
+        } else wander(70);
+        break;
+      }
+      case 'comedian': {
+        wander(90);
+        if (this.cool <= 0 && !p.isBusy()) {
+          const n = nearest();
+          const r = Math.random();
+          if (n && n.d < 180 && r < 0.3) { this._face(p, n.o.root.x); p.play('strike'); say('joke'); }
+          else if (r < 0.7) { p.play('laugh'); say('joke'); }
+          else p.play('leap');
+          this.cool = 3 + Math.random() * 3;
+        }
+        break;
+      }
+      case 'coward': {
+        const threat = nearest((o) => o.flyRole === 'monster' || o.flyRole === 'fighter' || o.kind === 'demon');
+        if (threat && threat.d < 420) {
+          const away = p.root.x - Math.sign(threat.o.root.x - p.root.x) * 300;
+          this._walk(p, Math.max(minX, Math.min(maxX, away)), 220, dt);
+          if (!p.anim || p.anim.name !== 'flee') { p.play('flee', { loop: true }); say('flee'); }
+        } else {
+          if (p.anim && p.anim.name === 'flee') p.stopAnim();
+          wander(50);
+        }
+        break;
+      }
+      case 'follower': {
+        const lead = game.selected && game.selected !== p && game.selected instanceof Puppet ? game.selected : nearest()?.o;
+        if (lead) {
+          const side = Math.sign(p.root.x - lead.root.x) || -1;
+          this._walk(p, lead.root.x + side * lead.height * 0.45, 140, dt);
+          if (this.cool <= 0 && !p.isBusy()) { if (Math.random() < 0.3) say('greet'); this.cool = 6; }
+        } else wander();
+        break;
+      }
+      default: {
+        wander(60);
+        if (this.cool <= 0) {
+          if (p.def?.sound) game.audio?.sfx(p.def.sound, { pan: (p.root.x - 800) / 800, vol: 0.6 });
+          if (!p.isHumanoid) p.play('hop');
+          this.cool = 3 + Math.random() * 6;
+        }
+      }
+    }
+  }
+
+  draw(ctx, toScreen, dpr, zoom) {
+    const [sx, sy] = toScreen(this.x, this.y);
+    const s = Math.max(0.6, zoom * 1.4);
+    ctx.save();
+    ctx.setTransform(dpr * s, 0, 0, dpr * s, sx * dpr, sy * dpr);
+    if (this.actor) {
+      const g = ctx.createRadialGradient(0, 0, 1, 0, 0, 16);
+      g.addColorStop(0, 'rgba(255,230,150,0.55)');
+      g.addColorStop(1, 'rgba(255,230,150,0)');
+      ctx.fillStyle = g; ctx.fillRect(-16, -16, 32, 32);
+    }
+    const flap = Math.sin(this.wing) * 0.6;
+    ctx.fillStyle = 'rgba(220,235,255,0.55)';
+    for (const side of [-1, 1]) {
+      ctx.save(); ctx.rotate(side * (0.5 + flap)); ctx.beginPath(); ctx.ellipse(side * 5, -5, 6, 3, 0, 0, 7); ctx.fill(); ctx.restore();
+    }
+    ctx.fillStyle = '#3a2a12';
+    ctx.beginPath(); ctx.ellipse(0, 0, 3.5, 5, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#d62a1c';
+    ctx.beginPath(); ctx.arc(-1.8, -4, 1.6, 0, 7); ctx.arc(1.8, -4, 1.6, 0, 7); ctx.fill();
+    ctx.restore();
+    return [sx, sy];
+  }
+}

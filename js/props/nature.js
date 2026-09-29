@@ -25,6 +25,16 @@ function almondPts(x, y, len, wid, ang, bend = 0) {
   for (let i = n - 1; i > 0; i--) { const t = i / n; out.push(T(t * len, -Math.sin(t * Math.PI) * wid * 0.5 + bend * Math.sin(t * Math.PI) * wid)); }
   return out;
 }
+// Cheap almond cut for dense lace: two quadratic curves.
+function addAlmond(path, x, y, len, wid, ang) {
+  const c = Math.cos(ang), si = Math.sin(ang);
+  const tx = x + c * len, ty = y + si * len;
+  const mx = x + c * len * 0.5, my = y + si * len * 0.5;
+  path.moveTo(x, y);
+  path.quadraticCurveTo(mx - si * wid, my + c * wid, tx, ty);
+  path.quadraticCurveTo(mx + si * wid, my - c * wid, x, y);
+  path.closePath();
+}
 function addPts(path, pts) {
   pts.forEach(([x, y], i) => (i ? path.lineTo(x, y) : path.moveTo(x, y)));
   path.closePath();
@@ -136,7 +146,7 @@ function drawCoconut(ctx, { rng: r, w: W, h: H }) {
     f.shape.forEach((s) => addPts(crownP, s));
     ribs.push(f.rib);
   });
-  leather(ctx, crownP);
+  leather(ctx, crownP, { edge: false });
   dye(ctx, crownP, INK.green, 0.5);
   ribs.forEach((rib, i) => {
     gold(ctx, rib.slice(1), 1);
@@ -302,13 +312,13 @@ function drawBodhi(ctx, { rng: r, w: W, h: H }) {
   // backing canopy: one lace-cut mass behind the leaves
   const canopy = new Path2D();
   clusters.forEach(([x, y, R], i) => addPts(canopy, blobPts(x, y, R * 0.95, R * 0.75, { seed: 70 + i, wobble: 0.1 })));
-  leather(ctx, canopy);
+  leather(ctx, canopy, { edge: false });
   dye(ctx, canopy, INK.green, 0.55);
   const lace = new Path2D();
   for (let y = 40, row = 0; y < 460; y += 9, row++) {
     for (let x = 30 + (row % 2) * 5; x < W - 30; x += 10) {
       const a = Math.atan2(y - (G - 270), x - cx) + (row % 2 ? 0.6 : -0.6);
-      addPts(lace, almondPts(x, y, 7.5, 3.4, a));
+      addAlmond(lace, x, y, 7.5, 3.4, a);
     }
   }
   ctx.save(); ctx.clip(canopy); ctx.globalCompositeOperation = 'destination-out'; ctx.fill(lace); ctx.restore();
@@ -329,12 +339,15 @@ function drawBodhi(ctx, { rng: r, w: W, h: H }) {
   const leafP = new Path2D();
   const lpts = leaves.map((l) => bodhiLeaf(l.x, l.y, l.s, l.a));
   lpts.forEach((p) => addPts(leafP, p));
-  leather(ctx, leafP);
+  leather(ctx, leafP, { edge: false });
   const cols = [INK.green, INK.jade, INK.green, INK.gold, INK.green, INK.jade, INK.vermilion];
   const slitP = new Path2D();
+  const byCol = new Map();
   leaves.forEach((l, i) => {
     const p = lpts[i];
-    dye(ctx, poly(inset(p, 1.6)), r() < 0.06 ? INK.vermilion : cols[(l.k * 5 + l.ci * 3) % 6], 0.72);
+    const col = r() < 0.06 ? INK.vermilion : cols[(l.k * 5 + l.ci * 3) % 6];
+    if (!byCol.has(col)) byCol.set(col, new Path2D());
+    addPts(byCol.get(col), inset(p, 1.6));
     const c = Math.cos(l.a), s = Math.sin(l.a);
     slitP.moveTo(l.x + c * l.s * 0.1, l.y + s * l.s * 0.1);
     slitP.lineTo(l.x + c * l.s * 1.05, l.y + s * l.s * 1.05);
@@ -343,12 +356,15 @@ function drawBodhi(ctx, { rng: r, w: W, h: H }) {
       slitP.lineTo(l.x + c * l.s * 0.62 - s * side * l.s * 0.24, l.y + s * l.s * 0.62 + c * side * l.s * 0.24);
     }
   });
+  byCol.forEach((path, col) => dye(ctx, path, col, 0.72));
+  const rimP = new Path2D();
+  lpts.forEach((p) => addPts(rimP, p));
+  line(ctx, rimP, INK.goldLine, 0.55);
   ctx.save();
   ctx.globalCompositeOperation = 'destination-out';
   ctx.lineWidth = 1;
   ctx.stroke(slitP);
   ctx.restore();
-  lpts.forEach((p) => gold(ctx, p, 0.55, { closed: true, smoothIt: false }));
   // sacred cloths wrapped round the trunk (ผ้าแพรสามสี)
   const bands = [[G - 190, INK.red], [G - 176, INK.yellow], [G - 162, INK.green]];
   bands.forEach(([y, col], i) => {
@@ -424,7 +440,7 @@ function drawBamboo(ctx, { rng: r, w: W, h: H }) {
       leafList.push({ pts: lf, x: tip[0], y: tip[1], a: la, l: (40) * s });
     }
   });
-  leather(ctx, lp);
+  leather(ctx, lp, { edge: false });
   dye(ctx, lp, INK.green, 0.55);
   const sl = new Path2D();
   leafList.forEach(({ x, y, a, l }) => { sl.moveTo(x + Math.cos(a) * 5, y + Math.sin(a) * 5); sl.lineTo(x + Math.cos(a) * l * 0.85, y + Math.sin(a) * l * 0.85); });
@@ -930,7 +946,7 @@ function drawForestTree(ctx, { rng: r, w: W, h: H }) {
       const base = Math.atan2(jy - src[1], jx - src[0]);
       const la = base + ((row + Math.round(x / 10)) % 2 ? 0.62 : -0.62);
       const s = 7.4 + r() * 1.2;
-      addPts(lace, almondPts(jx - Math.cos(la) * s * 0.5, jy - Math.sin(la) * s * 0.5, s, s * 0.44, la));
+      addAlmond(lace, jx - Math.cos(la) * s * 0.5, jy - Math.sin(la) * s * 0.5, s, s * 0.44, la);
     }
   }
   ctx.save();
@@ -1062,9 +1078,9 @@ const N = (id, name, en, w, h, draw, meta = {}, opt = {}) => ({
 });
 
 export const PROPS = [
-  N('coconut-palm', 'ต้นมะพร้าว', 'Coconut palm', 460, 700, drawCoconut, { static: true, mass: 3 }, { px: 1.75 }),
+  N('coconut-palm', 'ต้นมะพร้าว', 'Coconut palm', 460, 700, drawCoconut, { static: true, mass: 3 }, { px: 1.4 }),
   N('banana-plant', 'ต้นกล้วย', 'Banana plant', 340, 440, drawBanana, { static: true, mass: 2 }),
-  N('bodhi-tree', 'ต้นโพธิ์', 'Bodhi tree', 600, 660, drawBodhi, { static: true, mass: 4 }, { px: 1.6 }),
+  N('bodhi-tree', 'ต้นโพธิ์', 'Bodhi tree', 600, 660, drawBodhi, { static: true, mass: 4 }, { px: 1.35 }),
   N('bamboo-clump', 'กอไผ่', 'Bamboo clump', 400, 640, drawBamboo, { static: true, mass: 3 }, { px: 1.75 }),
   N('lotus-pond', 'บัว', 'Lotus pond cluster', 380, 280, drawLotus, { mass: 0.8 }),
   N('mural-mountain', 'ภูเขาสินเทา', 'Mural mountain (Sinthao)', 620, 620, drawMountain, { static: true, mass: 6 }, { px: 1.6 }),
@@ -1073,5 +1089,5 @@ export const PROPS = [
   N('sun', 'พระอาทิตย์', 'Sun', 280, 280, drawSun, (w, h) => ({ static: true, glow: [w / 2, h / 2, 260], mass: 1 })),
   N('scroll-cloud', 'เมฆลายไทย', 'Thai scroll cloud', 396, 150, drawCloud, { static: true, mass: 0.5 }),
   N('campfire', 'กองไฟ', 'Campfire', 170, 190, drawCampfire, (w, h) => ({ glow: [w / 2, h - 60, 220], mass: 1.5 })),
-  N('forest-tree', 'ต้นไม้ป่า', 'Forest tree (set piece)', 560, 780, drawForestTree, { static: true, mass: 4 }, { px: 1.6 }),
+  N('forest-tree', 'ต้นไม้ป่า', 'Forest tree (set piece)', 560, 780, drawForestTree, { static: true, mass: 4 }, { px: 1.35 }),
 ];

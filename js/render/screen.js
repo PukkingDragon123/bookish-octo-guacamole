@@ -192,8 +192,8 @@ void main() {
   for (int i = 1; i < 3; i++) {
     float sx = uCloth.x * float(i) / 3.0 + sin(p.y * 0.01 + float(i)) * 2.0;
     float d = abs(p.x - sx);
-    seam += (1.0 - smoothstep(1.2, 3.2, d)) * 0.22;
-    seam += (1.0 - smoothstep(0.0, 1.0, abs(d - 4.5))) * step(0.5, fract(p.y / 7.0)) * 0.12;
+    seam += (1.0 - smoothstep(1.0, 2.6, d)) * 0.09;
+    seam += (1.0 - smoothstep(0.0, 1.0, abs(d - 4.5))) * step(0.5, fract(p.y / 7.0)) * 0.05;
   }
   float age = fbm(p * 0.004 + 3.1);
   float spots = smoothstep(0.72, 0.9, fbm(p * 0.011 + 17.0)) * 0.12;

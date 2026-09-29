@@ -1737,7 +1737,7 @@ function buildPhaya() {
       ctx.save(); ctx.clip(smooth(inset(sarong, 2.5), true));
       for (let y = 262; y < 330; y += 12) {
         const row = [];
-        for (let x = -70; x < 76; x += 8) row.push([x, y + ((x / 8) % 2 ? 0 : 5)]);
+        for (let x = -70, j = 0; x < 76; x += 6, j++) row.push([x, y + (j % 2 ? 0 : 5)]);
         const P = new Path2D(); row.forEach(([x, yy], i) => (i ? P.lineTo(x, yy) : P.moveTo(x, yy)));
         ink(ctx, P, INK.white, 1.6);
         dots(ctx, offset(row, -4), { sp: 4, r: 0.8, seed: y, sm: false, punch: 0.3 });
@@ -1810,6 +1810,174 @@ function buildPhaya() {
       holds: { handF: 'staff' },
       limbs: STD_LIMBS({ jaw: 'jaw' }),
       lines: LINES.phaya,
+    },
+  );
+}
+
+// ================================================================ เทวดา deva
+// Celestial being: golden refined face under a flame-tipped ชฎา with a
+// flaming halo (ประภามณฑล), flame wings rising behind the shoulders, long
+// flame-hemmed skirt and floating ribbons (ผ้าทิพย์) as loose parts.
+function ribbonSeg(ctx, a, b, w0, w1, { seed = 1, col = INK.red, tip = 0 } = {}) {
+  const pts = wob(paddle(a, b, w0, w1, { bulge: 0.12, ext: 1, extA: 1 }), 0.3, seed);
+  leather(ctx, smooth(pts, true));
+  dye(ctx, smooth(inset(pts, 1.2), true), INK.gold, 0.9);
+  dye(ctx, smooth(inset(pts, 3), true), col, 0.9);
+  dots(ctx, inset(pts, 2.1), { sp: 2.8, r: 0.75, closed: true, seed, punch: 0.35 });
+  const f = frame(a, b);
+  for (let t = 0.25; t < 1; t += 0.3) flower(ctx, ...f.at(t, 0), Math.min(w0, w1) * 0.55, { n: 6 });
+  if (tip) {
+    const fl = hornPts(b, 26, Math.atan2(b[1] - a[1], b[0] - a[0]), tip * 110 * DEG, w1 * 2.2, { swell: 3 });
+    leather(ctx, smooth(fl, true, 0.4));
+    flameDeco(ctx, fl, { seed: seed + 5, cols: [INK.gold, col], d: [1, 3] });
+    return [...pts, ...fl];
+  }
+  return pts;
+}
+
+function buildThewada() {
+  const k = 1.12;
+  const E = [20, 118];
+  const G = chadaHeadGeom(E, k, { tiers: 7, spireTop: [-15, -82], tip: [-19, -104], hw: 12.5, karnSize: 42 });
+  const X = G.X;
+  const J = {
+    neck: [12, 158],
+    shB: [-30, 170], elB: [-44, 230], wrB: [-42, 290],
+    shF: [46, 170], elF: [62, 228], wrF: [70, 286],
+    waist: [6, 254],
+    hipB: [-12, 270], knB: [-36, 344], anB: [-42, 426],
+    hipF: [24, 270], knF: [50, 344], anF: [56, 426],
+  };
+  const skin = INK.gold;
+  // flame halo: disc with kanok tongues round its rim
+  const hc = X(-6, -8);
+  const halo = [];
+  for (let i = 0; i < 40; i++) {
+    const a = (i / 40) * TAU, r = (i % 2 ? 44 : 50) * k;
+    halo.push([hc[0] + Math.cos(a) * r, hc[1] + Math.sin(a) * r * 0.98]);
+  }
+  const head = {
+    box: bb(3, G.crown.outline, G.helmet, G.karn, halo, [X(24, 0), X(0, 48)]), z: -1, parent: 'torso', joint: J.neck, lim: [-22, 22], stiff: 0.7, mass: 0.9,
+    draw(ctx) {
+      leather(ctx, smooth(halo, true, 0.35));
+      dye(ctx, smooth(inset(halo, 1.4), true), INK.gold, 0.9);
+      dye(ctx, smooth(ellipsePts(hc[0], hc[1], 40 * k, 39 * k, 40), true), INK.red, 0.85);
+      dye(ctx, smooth(ellipsePts(hc[0], hc[1], 33 * k, 32 * k, 40), true), INK.leather, 0.8);
+      for (const [r, sd] of [[46, 1], [37, 2], [30, 3]]) dots(ctx, ellipsePts(hc[0], hc[1], r * k, r * k * 0.98, 60), { sp: 3, r: 0.85, closed: true, seed: 1100 + sd, punch: 0.4 });
+      for (let i = 0; i < 16; i++) {
+        const a = (i / 16) * TAU;
+        const p = [hc[0] + Math.cos(a) * 24 * k, hc[1] + Math.sin(a) * 24 * k];
+        spots(ctx, [p], 1.3, { punch: true });
+      }
+      chadaHead(ctx, E, k, G, { skin, tierCols: [INK.green, INK.red], neck: 47, seed: 1130, lip: INK.crimson });
+    },
+  };
+  // ---------------------------------------------------------------- torso
+  const torsoPts = wob([[-6, 150], [-18, 154], [-30, 159], [-40, 168], [-42, 180], [-37, 194], [-31, 210], [-26, 228], [-24, 244], [-26, 266], [-10, 272],
+    [8, 274], [24, 272], [36, 266], [35, 244], [38, 228], [44, 210], [51, 194], [57, 180], [58, 169], [48, 159], [34, 153], [22, 150], [8, 148]], 0.4, 1201);
+  const collar = wob([[-43, 169], [-34, 159], [-21, 152], [-6, 147], [10, 146], [26, 149], [41, 155], [55, 163], [59, 173], [47, 184], [33, 194], [19, 200], [8, 202], [-4, 200], [-18, 194], [-31, 184], [-41, 176]], 0.3, 1202);
+  const wingB = [hornPts([-24, 176], 92, -150 * DEG, 60 * DEG, 26, { swell: 10, taper: 0.9 }), hornPts([-26, 186], 70, -170 * DEG, 50 * DEG, 18, { swell: 6 }), hornPts([-22, 196], 50, 170 * DEG, 40 * DEG, 13, { swell: 4 })];
+  const wingF = [hornPts([38, 176], 88, -30 * DEG, -60 * DEG, 24, { swell: 9, taper: 0.9 }), hornPts([40, 186], 64, -10 * DEG, -50 * DEG, 16, { swell: 5 })];
+  const torso = {
+    box: bb(3, torsoPts, collar, ...wingB, ...wingF), z: 0, mass: 1.3,
+    draw(ctx) {
+      [...wingB, ...wingF].forEach((w, i) => { leather(ctx, smooth(w, true, 0.4)); flameDeco(ctx, w, { seed: 1210 + i, cols: [INK.gold, i % 2 ? INK.green : INK.red, i % 2 ? INK.red : INK.green], d: [1.4, 4.2, 7.8] }); });
+      leather(ctx, smooth(torsoPts, true));
+      const body = inset(torsoPts, 2.6);
+      dye(ctx, smooth(body, true), INK.gold, 0.55);
+      brocade(ctx, body, { sp: 9, seed: 3, dotR: 1.05 });
+      const plk = [[1, 200], [13, 200], [12, 246], [7, 252], [2, 246]];
+      panel(ctx, plk, { fill: INK.red, sp: 3, r: 0.85, seed: 1220, d2: 2.6 });
+      for (const [a, b] of [[[-34, 172], [30, 246]], [[48, 172], [-18, 246]]]) {
+        ink(ctx, [a, b], INK.leather, 4);
+        stripe(ctx, [a, mix(a, b, 0.5), b], 3.2, { fill: INK.gold, edge: INK.white, ew: 0.5, seed: 1221, sp: 2.4, r: 0.7 });
+      }
+      flower(ctx, 7, 220, 7, { n: 10 });
+      stripe(ctx, [[-24, 244], [7, 248], [36, 244]], 7, { fill: INK.green, seed: 1222, sp: 3, r: 0.95, edge: INK.white });
+      fringe(ctx, [[-22, 240.5], [7, 244.4], [34, 240.5]], 4.2, { h: 1.3 });
+      leather(ctx, smooth(collar, true));
+      dye(ctx, smooth(inset(collar, 1.5), true), INK.green, 0.9);
+      lace(ctx, inset(collar, 3), { sp: 4.8, r: 0.85, style: 'quad', seed: 1223, punch: 0.3 });
+      stripe(ctx, [[-36, 167], [-20, 157], [7, 152], [32, 155], [52, 165]], 5, { fill: INK.gold, seed: 1224, sp: 2.5, r: 0.75, edge: INK.white });
+      for (const x of [-24, -8, 8, 24, 40]) flower(ctx, x, 174 + (x === 8 ? 4 : 0) + Math.abs(x - 8) * 0.04, 3.8, { n: 8 });
+      fringe(ctx, [[-39, 180], [-24, 190], [-6, 199], [8, 202], [24, 198], [38, 190], [54, 177]], 5.4, { flip: true, h: 1.35, col: INK.gold, inner: INK.red });
+      dots(ctx, inset(collar, 2.3), { sp: 3, r: 0.8, closed: true, seed: 1225, punch: 0.2 });
+      rim(ctx, torsoPts, { seed: 1226, gold: false, d: 2.1 });
+    },
+  };
+  // ---------------------------------------------------------------- skirt (knee-length, flame hem)
+  const hemPts = [];
+  const skirtTop = [[-27, 248], [6, 251], [38, 248]];
+  const hemL = [-50, 348], hemR = [66, 348];
+  for (let i = 0; i <= 9; i++) {
+    const t = i / 9, x = lerp(hemR[0], hemL[0], t), y = 344 + Math.sin(t * Math.PI) * 10;
+    hemPts.push([x, y]);
+    if (i < 9) hemPts.push([x - 6.4, y + 11 + (i % 2) * 3]);
+  }
+  const skirtPts = wob([...skirtTop, [44, 270], [52, 300], [60, 326], ...hemPts, [-44, 326], [-38, 300], [-31, 270]], 0.4, 1251);
+  const skirt = {
+    box: bb(3, skirtPts), z: 1, parent: 'torso', joint: J.waist, lim: [-12, 12], stiff: 0.75, mass: 1.2,
+    draw(ctx) {
+      leather(ctx, smooth(skirtPts, true, 0.5));
+      const body = inset(skirtPts, 2.4);
+      dye(ctx, smooth(body, true), INK.red, 0.86);
+      lace(ctx, body, { sp: 6.4, r: 0.95, style: 'quad', seed: 1252, punch: 0.3 });
+      // pleats (จีบ) falling from the belt
+      for (const x of [-18, -4, 20, 34]) {
+        const pl = [[x, 256], [x + (x - 8) * 0.25, 300], [x + (x - 8) * 0.45, 342]];
+        stripe(ctx, pl, 5, { fill: INK.green, edge: INK.goldLine, seed: 1253 + x, sp: 2.8, r: 0.75 });
+      }
+      stripe(ctx, hemPts.filter((_, i) => i % 2 === 0).map(([x, y]) => [x, y - 5]), 6, { fill: INK.gold, edge: INK.white, seed: 1260, sp: 2.8, r: 0.8 });
+      const apron = [[-2, 254], [17, 254], [18, 290], [16, 330], [8, 360], [0, 330], [-2, 290]];
+      leather(ctx, smooth(apron, true));
+      panel(ctx, apron, { fill: INK.gold, sp: 3, r: 0.8, seed: 1261, d2: 2.2, edge: INK.white });
+      dye(ctx, smooth(inset(apron, 4.2), true), INK.green, 0.88);
+      for (let y = 266; y < 350; y += 14) flower(ctx, 8, y, 4.6 - (y - 266) * 0.015, { n: 8 });
+      stripe(ctx, [[-27, 253], [7, 256], [38, 253]], 8, { fill: INK.gold, seed: 1262, sp: 3, r: 1, edge: INK.white });
+      const buckle = [[8, 245], [18, 255], [8, 265], [-2, 255]];
+      leather(ctx, smooth(buckle, true, 0.3));
+      dye(ctx, smooth(buckle, true, 0.3), INK.gold, 0.95);
+      flower(ctx, 8, 255, 6, { n: 8 });
+      rim(ctx, skirtPts, { seed: 1263, gold: false, d: 2 });
+    },
+  };
+  // ---------------------------------------------------------------- ribbons (ผ้าทิพย์), loose low-stiffness parts
+  const rb = [[-28, 186], [-62, 236], [-84, 300]];
+  const rf = [[36, 262], [78, 292], [96, 350]];
+  const ribbons = {
+    ribbonB0: { box: bb(4, paddle(rb[0], rb[1], 7, 6, { ext: 1, extA: 1 })), z: -11, parent: 'torso', joint: rb[0], lim: [-50, 50], stiff: 0.08, mass: 0.2, draw: (ctx) => ribbonSeg(ctx, rb[0], rb[1], 6, 5, { seed: 1301, col: INK.red }) },
+    ribbonB1: { box: bb(4, paddle(rb[1], rb[2], 6, 5, { ext: 1, extA: 1 }), [add(rb[2], [-30, -10]), add(rb[2], [20, 30])]), z: -10.9, parent: 'ribbonB0', joint: rb[1], lim: [-60, 60], stiff: 0.06, mass: 0.15, draw: (ctx) => ribbonSeg(ctx, rb[1], rb[2], 5, 4.2, { seed: 1302, col: INK.red, tip: 1 }) },
+    ribbonF0: { box: bb(4, paddle(rf[0], rf[1], 7, 6, { ext: 1, extA: 1 })), z: 1.5, parent: 'skirt', joint: rf[0], lim: [-50, 50], stiff: 0.08, mass: 0.2, draw: (ctx) => ribbonSeg(ctx, rf[0], rf[1], 6, 5, { seed: 1303, col: INK.green }) },
+    ribbonF1: { box: bb(4, paddle(rf[1], rf[2], 6, 5, { ext: 1, extA: 1 }), [add(rf[2], [30, -10]), add(rf[2], [-20, 30])]), z: 1.6, parent: 'ribbonF0', joint: rf[1], lim: [-60, 60], stiff: 0.06, mass: 0.15, draw: (ctx) => ribbonSeg(ctx, rf[1], rf[2], 5, 4.2, { seed: 1304, col: INK.green, tip: -1 }) },
+  };
+  // ---------------------------------------------------------------- limbs
+  const dB = unit(J.wrB[0] - J.elB[0], J.wrB[1] - J.elB[1]);
+  const dF = unit(J.wrF[0] - J.elF[0], J.wrF[1] - J.elF[1]);
+  const hf = handFrame(J.wrF, dF, 1), hb = handFrame(J.wrB, dB, 1);
+  const defs = {
+    torso, head, skirt, ...ribbons,
+    upperArmB: { box: bb(4, paddle(J.shB, J.elB, 10.5, 8, { ext: 3, extA: 2 }), [add(J.shB, [-26, -26])]), z: -8, parent: 'torso', joint: J.shB, stiff: 0.12, draw: (ctx) => upperArm(ctx, J.shB, J.elB, { ra: 10.5, rb: 8, seed: 1401, side: -1, band: INK.green }) },
+    forearmB: { box: bb(4, paddle(J.elB, J.wrB, 8, 6.4, { ext: 5, extA: 1 })), z: -7, parent: 'upperArmB', joint: J.elB, lim: [-150, 12], stiff: 0.18, draw: (ctx) => forearm(ctx, J.elB, J.wrB, { ra: 8, rb: 6.4, seed: 1402, cuffCol: INK.green }) },
+    handB: { box: bb(3, [hb(-10, -8), hb(-10, 9), hb(38, -18), hb(34, 14), hb(18, 22)]), z: -9, parent: 'forearmB', joint: J.wrB, lim: [-60, 60], stiff: 0.3, mass: 0.6, draw: (ctx) => openHand(ctx, J.wrB, dB, { side: 1, seed: 1403, curl: 0.9, skin }) },
+    thighB: { box: bb(4, paddle(J.hipB, J.knB, 14, 10.5, { ext: 2, extA: 3 })), z: -6, parent: 'skirt', joint: J.hipB, lim: [-70, 70], stiff: 0.45, draw: (ctx) => thigh(ctx, J.hipB, J.knB, { ra: 14, rb: 10.5, seed: 1404, hem: false }) },
+    shinB: { box: bb(4, paddle(J.knB, J.anB, 9.5, 6.4, { ext: 4, extA: 2 }), footPts(J.anB, -1)), z: -7, parent: 'thighB', joint: J.knB, lim: [-8, 125], stiff: 0.5, draw: (ctx) => shin(ctx, J.knB, J.anB, -1, { ra: 9.5, rb: 6.4, seed: 1405, guard: INK.green, skin }) },
+    thighF: { box: bb(4, paddle(J.hipF, J.knF, 14, 10.5, { ext: 2, extA: 3 })), z: -4, parent: 'skirt', joint: J.hipF, lim: [-70, 70], stiff: 0.45, draw: (ctx) => thigh(ctx, J.hipF, J.knF, { ra: 14, rb: 10.5, seed: 1406, hem: false }) },
+    shinF: { box: bb(4, paddle(J.knF, J.anF, 9.5, 6.4, { ext: 4, extA: 2 }), footPts(J.anF, 1)), z: -5, parent: 'thighF', joint: J.knF, lim: [-8, 125], stiff: 0.5, draw: (ctx) => shin(ctx, J.knF, J.anF, 1, { ra: 9.5, rb: 6.4, seed: 1407, guard: INK.green, skin }) },
+    upperArmF: { box: bb(4, paddle(J.shF, J.elF, 10.5, 8, { ext: 3, extA: 2 }), [add(J.shF, [26, -26])]), z: 4, parent: 'torso', joint: J.shF, stiff: 0.12, draw: (ctx) => upperArm(ctx, J.shF, J.elF, { ra: 10.5, rb: 8, seed: 1408, side: 1, band: INK.green }) },
+    forearmF: { box: bb(4, paddle(J.elF, J.wrF, 8, 6.4, { ext: 5, extA: 1 })), z: 6, parent: 'upperArmF', joint: J.elF, lim: [-150, 12], stiff: 0.18, draw: (ctx) => forearm(ctx, J.elF, J.wrF, { ra: 8, rb: 6.4, seed: 1409, cuffCol: INK.green }) },
+    handF: { box: bb(3, [hf(-10, -18), hf(-10, 9), hf(38, -18), hf(34, 14), hf(18, 22)]), z: 5, parent: 'forearmF', joint: J.wrF, lim: [-60, 60], stiff: 0.3, mass: 0.6, draw: (ctx) => openHand(ctx, J.wrF, dF, { side: -1, seed: 1410, curl: 0.9, skin }) },
+  };
+  const hff = handFrame(J.wrF, dF, -1);
+  return buildRig(
+    { id: 'thewada', name: 'เทวดา', en: 'Thewada — the Deva', kind: 'god', voice: 'god', height: 440 },
+    defs,
+    {
+      rod: [[8, 156], [7, 254], 320],
+      handRods: { handF: hff(10, 0), handB: hb(10, 0) },
+      grips: { handF: hff(12, 0), handB: hb(12, 0) },
+      holds: {},
+      limbs: STD_LIMBS({ ribbons: ['ribbonB0', 'ribbonB1', 'ribbonF0', 'ribbonF1'] }),
+      lines: LINES.thewada,
     },
   );
 }
@@ -1956,9 +2124,43 @@ LINES.phaya = {
   ],
 };
 
+LINES.thewada = {
+  greet: [
+    { th: 'สุขีภวันตุ ขอให้ท่านเป็นสุขเถิด', en: 'Sukhi bhavantu — may you be happy.' },
+    { th: 'เราลงมาจากสรวงสวรรค์', en: 'We have descended from the heavens.' },
+    { th: 'ผู้ใจบุญเอ๋ย ปรารถนาพรใดจงกล่าวมา', en: 'Kind soul, speak whatever blessing you wish.' },
+  ],
+  fight: [
+    { th: 'จงหยุดเถิด อธรรมย่อมแพ้แก่ธรรม', en: 'Cease! Wrong always yields to right.' },
+    { th: 'แสงสวรรค์จงส่องนำทาง', en: "Let heaven's light show the way!" },
+    { th: 'เราจะปกปักรักษาผู้ทำความดี', en: 'We protect those who do good.' },
+  ],
+  taunt: [
+    { th: 'ความโกรธทำให้ใจมืดมัว', en: 'Anger clouds the heart.' },
+    { th: 'สงบใจเสียเถิด แล้วจะเห็นทาง', en: 'Calm your heart, and you will see the way.' },
+    { th: 'แม้มีฤทธิ์มากเพียงใด ก็หนีกรรมไม่พ้น', en: 'However mighty, none escape their own deeds.' },
+  ],
+  dance: [
+    { th: 'ร่ายรำดั่งนางฟ้าบนหมู่เมฆ', en: 'We dance like celestials upon the clouds.' },
+    { th: 'ดอกไม้สวรรค์จงโปรยปราย', en: 'Let heavenly flowers rain down.' },
+    { th: 'ระบำเทวาให้โลกชื่นบาน', en: 'A dance of the gods to gladden the world.' },
+  ],
+  flee: [
+    { th: 'ถึงเวลาที่เราต้องกลับสู่สวรรค์', en: 'It is time we returned to heaven.' },
+    { th: 'ขอลาก่อน หมู่เมฆรอเราอยู่', en: 'Farewell — the clouds await us.' },
+    { th: 'เราจะจางหายไปดั่งสายลม', en: 'We fade away like the breeze.' },
+  ],
+  idle: [
+    { th: 'โลกมนุษย์ช่างงดงามนัก', en: 'How beautiful the human world is.' },
+    { th: 'ได้ยินเสียงสวดมนต์แว่วมา', en: 'We hear chanting drifting on the wind.' },
+    { th: 'ดวงดาวคือตะเกียงของเหล่าเทวดา', en: 'The stars are the lamps of the gods.' },
+  ],
+};
+
 export const PUPPETS = [
   { id: 'phra', name: 'พระเอก', en: 'Phra — the Prince', kind: 'hero', build: buildPhra },
   { id: 'yak', name: 'ยักษ์', en: 'Yak — the Demon', kind: 'demon', build: buildYak },
   { id: 'hanuman', name: 'หนุมาน', en: 'Hanuman — the White Monkey', kind: 'monkey', build: buildHanuman },
   { id: 'phaya', name: 'พญา', en: 'Phaya — the King', kind: 'hero', build: buildPhaya },
+  { id: 'thewada', name: 'เทวดา', en: 'Thewada — the Deva', kind: 'god', build: buildThewada },
 ];

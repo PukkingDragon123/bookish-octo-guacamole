@@ -8,7 +8,7 @@
 import { makeCanvas, rng, goldGrad, grain, thaiCloud, ceilingStar, krajang, prajam } from './paint.js';
 
 export const NIGHT = { x0: -1500, y0: -700, x1: 3100, y1: 1500 };
-export const HEAVEN = { x0: -1500, y0: -3400, x1: 3100, y1: -300 };
+export const HEAVEN = { x0: -1500, y0: -3400, x1: 3100, y1: -250 };
 
 function region(R, k, draw) {
   const W = R.x1 - R.x0, H = R.y1 - R.y0;
@@ -237,6 +237,15 @@ export function paintHeaven(k = 0.35) {
       thaiCloud(ctx, x, -560 + r() * 140, 420 + r() * 200, 150 + r() * 70, { seed: i * 7, fill: '#f7ecd2', shade: '#caa77e', glow: 'rgba(255,215,150,0.5)' });
     }
     grain(ctx, x0, y0, x1 - x0, y1 - y0, 0.4);
+    // melt the bottom edge into the night sky
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-out';
+    const fade = ctx.createLinearGradient(0, y1 - 420, 0, y1);
+    fade.addColorStop(0, 'rgba(0,0,0,0)');
+    fade.addColorStop(1, 'rgba(0,0,0,1)');
+    ctx.fillStyle = fade;
+    ctx.fillRect(x0, y1 - 420, x1 - x0, 420);
+    ctx.restore();
   });
 }
 
