@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nang Talung audio test</title>
+<style>
+  :root { --bg: #1b1410; --panel: #241a14; --line: #3a2a1c; --ink: #e9d9b5; --dim: #a8967a; --hot: #f0a64a; --ok: #8fd18b; --bad: #ff8a7a; --warn: #ffd27a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 13px/1.35 system-ui, sans-serif; }
+  header { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 10px 14px; background: #120d0a; border-bottom: 1px solid var(--line); }
+  h1 { margin: 0; font-size: 16px; font-weight: 600; }
+  h2 { margin: 0 0 8px; font-size: 13px; font-weight: 600; color: var(--hot); letter-spacing: .02em; }
+  main { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 10px; padding: 10px 14px 40px; }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; }
+  section.wide { grid-column: 1 / -1; }
+  button { background: #3a2a1c; color: var(--ink); border: 1px solid #5a4430; border-radius: 4px; padding: 5px 9px; margin: 2px; font: inherit; cursor: pointer; }
+  button:hover { background: #4a3624; }
+  button.on { background: var(--hot); color: #1b1410; border-color: var(--hot); }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 4px 0; }
+  label { color: var(--dim); display: inline-flex; align-items: center; gap: 6px; }
+  input[type=range] { width: 130px; }
+  input[type=text] { background: #120d0a; color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 5px 7px; width: 100%; font: inherit; }
+  input[type=number] { width: 56px; background: #120d0a; color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 3px; }
+  #status { color: var(--dim); font-variant-numeric: tabular-nums; }
+  canvas#meter { background: #0e0a08; border: 1px solid var(--line); border-radius: 3px; }
+  .grid { display: flex; flex-wrap: wrap; }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+  td, th { text-align: left; padding: 2px 6px; border-bottom: 1px solid #2c2018; white-space: nowrap; }
+  th { color: var(--dim); font-weight: 500; }
+  .PASS { color: var(--ok); } .WARN { color: var(--warn); } .FAIL { color: var(--bad); }
+  #summary { font-weight: 600; margin: 6px 0; }
+  .hint { color: var(--dim); font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>หนังตะลุง — audio test</h1>
+  <button id="init">Init audio</button>
+  <button id="mute">Mute</button>
+  <label>Volume <input id="vol" type="range" min="0" max="1" step="0.01" value="0.85"></label>
+  <canvas id="meter" width="160" height="18"></canvas>
+  <span id="status">not initialised (click anywhere)</span>
+</header>
+<main>
+  <section>
+    <h2>Music</h2>
+    <div class="grid" id="moods"></div>
+    <div class="row"><button id="mstop">Stop (1.5 s fade)</button><span id="moodNow" class="hint"></span></div>
+    <div class="row"><label>Intensity <input id="intensity" type="range" min="0" max="1" step="0.01" value="0"></label><span id="intVal">0.00</span></div>
+  </section>
+  <section>
+    <h2>Ambience &amp; lamp</h2>
+    <div class="row"><button id="astart">Start night ambience</button><button id="astop">Stop</button></div>
+    <div class="row"><label>Ambience level <input id="alevel" type="range" min="0" max="1" step="0.01" value="0.7"></label></div>
+    <div class="row"><label>Lamp hum <input id="lamp" type="range" min="0" max="1" step="0.01" value="0"></label></div>
+  </section>
+  <section class="wide">
+    <h2>Sound effects</h2>
+    <div class="row">
+      <label>Pan <input id="span" type="range" min="-1" max="1" step="0.05" value="0"></label>
+      <label>Vol <input id="svol" type="range" min="0" max="1.5" step="0.05" value="1"></label>
+      <label>Pitch <input id="spitch" type="range" min="0.5" max="2" step="0.05" value="1"></label>
+    </div>
+    <div class="grid" id="sfx"></div>
+  </section>
+  <section>
+    <h2>Instruments</h2>
+    <div class="row"><label><input id="auto" type="checkbox" checked> auto note (melodic walk)</label><label>note <input id="note" type="number" value="0" step="1"></label></div>
+    <div class="grid" id="inst"></div>
+    <div class="row"><button id="demo">Play 8-note phrase on last instrument</button></div>
+    <p class="hint">Keys 1–9 play degrees 0–8 on the last instrument you clicked.</p>
+  </section>
+  <section>
+    <h2>Voices</h2>
+    <input id="text" type="text" value="สวัสดีครับ วันนี้เราจะเล่นหนังตะลุงกัน!">
+    <div class="row" id="samples"></div>
+    <div class="row"><label>Rate <input id="rate" type="range" min="0.5" max="2" step="0.05" value="1"></label><label>Pan <input id="vpan" type="range" min="-1" max="1" step="0.05" value="0"></label></div>
+    <div class="grid" id="voices"></div>
+    <div class="row hint" id="vdur"></div>
+  </section>
+  <section class="wide">
+    <h2>Self-test (offline renders)</h2>
+    <div class="row"><button id="runtest">Run self-test</button><span class="hint">Also runs automatically with <code>?selftest=1</code>. Levels are at master volume 1.</span></div>
+    <div id="summary"></div>
+    <table id="results"><thead><tr><th>group</th><th>name</th><th>status</th><th>peak dB</th><th>short-term dB</th><th>rms dB</th><th>len s</th><th>notes</th></tr></thead><tbody></tbody></table>
+  </section>
+</main>
+<script type="module">
+import { audio, AudioEngine, SFX_NAMES, MOOD_NAMES, INSTRUMENT_NAMES } from '../js/audio/audio.js';
+import { VOICES } from '../js/audio/vocal.js';
+import { cacheSize } from '../js/audio/dsp.js';
+
+const $ = (id) => document.getElementById(id);
+const q = new URLSearchParams(location.search);
+const SELFTEST = q.get('selftest') === '1';
+
+// ---------------------------------------------------------------------------
+// Pre-init safety: every call must be a silent no-op before init().
+const preInit = [];
+{
+  const tryit = (name, fn, check) => {
+    try {
+      const r = fn();
+      if (check && !check(r)) preInit.push(`${name}: unexpected result ${r}`);
+    } catch (e) {
+      preInit.push(`${name}: threw ${e && e.message}`);
+    }
+  };
+  tryit('sfx', () => audio.sfx('whoosh', { pan: 0.2 }));
+  tryit('sfx(unknown)', () => audio.sfx('nope'));
+  tryit('sfx(no opts)', () => audio.sfx('clang'));
+  tryit('instrument', () => audio.instrument('ranat', { note: 3 }));
+  tryit('voice', () => audio.voice('สวัสดี', { voice: 'comic' }), (d) => typeof d === 'number' && d > 0);
+  tryit('voice(empty)', () => audio.voice(''), (d) => d === 0);
+  tryit('voice(null)', () => audio.voice(null), (d) => typeof d === 'number');
+  tryit('music.play', () => audio.music.play('battle'));
+  tryit('music.play(bad)', () => audio.music.play('nope'));
+  tryit('music.setIntensity', () => audio.music.setIntensity(0.4));
+  tryit('music.stop', () => audio.music.stop(1));
+  tryit('ambience.start', () => audio.ambience.start());
+  tryit('ambience.setLevel', () => audio.ambience.setLevel(0.5));
+  tryit('ambience.stop', () => audio.ambience.stop());
+  tryit('lampHum', () => audio.lampHum(0.4));
+  tryit('lampHum(0)', () => audio.lampHum(0));
+  tryit('setMuted', () => { audio.setMuted(true); audio.setMuted(false); });
+  tryit('muted getter', () => audio.muted, (m) => m === false);
+  tryit('setVolume', () => audio.setVolume(0.85));
+  tryit('update', () => audio.update(0.016));
+  tryit('music.mood', () => audio.music.mood);
+}
+
+// ---------------------------------------------------------------------------
+// Interactive UI
+
+const status = $('status');
+let lastInst = 'ranat';
+let meterAn = null;
+
+async function ensureInit() {
+  const ok = await audio.init();
+  if (!meterAn && audio.engine) {
+    meterAn = audio.context.createAnalyser();
+    meterAn.fftSize = 1024;
+    audio.engine.master.connect(meterAn);
+  }
+  return ok;
+}
+window.addEventListener('pointerdown', () => { ensureInit(); }, { once: true });
+$('init').onclick = ensureInit;
+$('mute').onclick = () => { audio.setMuted(!audio.muted); $('mute').classList.toggle('on', audio.muted); $('mute').textContent = audio.muted ? 'Muted' : 'Mute'; };
+$('vol').oninput = (e) => audio.setVolume(+e.target.value);
+
+const btn = (parent, label, fn, title) => {
+  const b = document.createElement('button');
+  b.textContent = label;
+  if (title) b.title = title;
+  b.onclick = async () => { await ensureInit(); fn(b); };
+  parent.appendChild(b);
+  return b;
+};
+
+const moodBtns = {};
+for (const m of MOOD_NAMES) moodBtns[m] = btn($('moods'), m, () => audio.music.play(m));
+$('mstop').onclick = () => audio.music.stop(1.5);
+$('intensity').oninput = (e) => { audio.music.setIntensity(+e.target.value); $('intVal').textContent = (+e.target.value).toFixed(2); };
+
+$('astart').onclick = async () => { await ensureInit(); audio.ambience.start(); };
+$('astop').onclick = () => audio.ambience.stop();
+$('alevel').oninput = (e) => audio.ambience.setLevel(+e.target.value);
+$('lamp').oninput = async (e) => { await ensureInit(); audio.lampHum(+e.target.value); };
+
+const sfxOpts = () => ({ pan: +$('span').value, vol: +$('svol').value, pitch: +$('spitch').value });
+for (const n of SFX_NAMES) btn($('sfx'), n, () => audio.sfx(n, sfxOpts()));
+
+const playInst = (name, note) => { lastInst = name; audio.instrument(name, note == null ? { pan: 0 } : { note, pan: 0 }); };
+for (const n of INSTRUMENT_NAMES) btn($('inst'), n, () => playInst(n, $('auto').checked ? null : Math.round(+$('note').value)));
+$('demo').onclick = async () => {
+  await ensureInit();
+  [0, 1, 2, 4, 3, 1, 2, 0].forEach((d, i) => setTimeout(() => playInst(lastInst, d), i * 260));
+};
+window.addEventListener('keydown', async (e) => {
+  if (e.target.tagName === 'INPUT') return;
+  const k = +e.key;
+  if (k >= 1 && k <= 9) { await ensureInit(); playInst(lastInst, k - 1); }
+});
+
+const SAMPLES = [
+  'สวัสดีครับ วันนี้เราจะเล่นหนังตะลุงกัน!',
+  'ไอ้เท่ง! มานี่เดี๋ยวนี้นะ',
+  'ข้าคือยักษ์ผู้ยิ่งใหญ่ ฮ่า ฮ่า ฮ่า',
+  'เจ้าจงไปเถิด ขอให้โชคดี',
+  'Hello there, little shadow!',
+  'Why is the lamp so bright tonight?',
+];
+SAMPLES.forEach((s, i) => btn($('samples'), `#${i + 1}`, () => { $('text').value = s; }, s));
+for (const v of Object.keys(VOICES)) btn($('voices'), v, () => {
+  const d = audio.voice($('text').value, { voice: v, rate: +$('rate').value, pan: +$('vpan').value });
+  $('vdur').textContent = `${v}: returned duration ${d.toFixed(2)} s`;
+});
+
+// meter + status
+const mctx = $('meter').getContext('2d');
+const mbuf = new Float32Array(1024);
+let peakHold = 0;
+function frame() {
+  audio.update(1 / 60);
+  if (audio.engine) {
+    const st = audio.engine.stats();
+    const cs = cacheSize();
+    status.textContent = `${audio.context.state} · ${audio.context.sampleRate} Hz · mood ${st.mood || '–'} · tracks ${st.tracks} · shots ${st.shots} · voices ${st.voices} · buffers ${cs.count} (${cs.mb} MB)`;
+    for (const [m, b] of Object.entries(moodBtns)) b.classList.toggle('on', m === st.mood);
+    if (meterAn) {
+      meterAn.getFloatTimeDomainData(mbuf);
+      let p = 0, s = 0;
+      for (const x of mbuf) { p = Math.max(p, Math.abs(x)); s += x * x; }
+      const rms = Math.sqrt(s / mbuf.length);
+      peakHold = Math.max(p, peakHold * 0.97);
+      const w = 160, toX = (v) => Math.max(0, Math.min(1, (20 * Math.log10(v + 1e-9) + 60) / 60)) * w;
+      mctx.fillStyle = '#0e0a08'; mctx.fillRect(0, 0, w, 18);
+      mctx.fillStyle = '#8fd18b'; mctx.fillRect(0, 3, toX(rms), 12);
+      mctx.fillStyle = peakHold > 0.97 ? '#ff8a7a' : '#f0a64a'; mctx.fillRect(toX(peakHold) - 1, 1, 2, 16);
+    }
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// ---------------------------------------------------------------------------
+// Self-test: offline renders through the full engine graph
+
+const SR = 44100;
+const dB = (x) => (x > 0 ? 20 * Math.log10(x) : -Infinity);
+const f1 = (x) => (Number.isFinite(x) ? x.toFixed(1) : '-inf');
+
+function analyze(buf, { gapFrom = 0, gapTo = Infinity, tailThr = 0.003 } = {}) {
+  const chs = [];
+  for (let c = 0; c < buf.numberOfChannels; c++) chs.push(buf.getChannelData(c));
+  const n = buf.length, sr = buf.sampleRate, win = Math.floor(sr * 0.05);
+  let peak = 0, sum = 0, nan = 0, clip = 0;
+  const wr = [];
+  for (let i0 = 0; i0 < n; i0 += win) {
+    let ws = 0, cnt = 0;
+    for (let i = i0; i < Math.min(n, i0 + win); i++) {
+      for (const ch of chs) {
+        const x = ch[i];
+        if (x !== x) { nan++; continue; }
+        const ax = Math.abs(x);
+        if (ax > peak) peak = ax;
+        if (ax >= 0.999) clip++;
+        ws += x * x; cnt++;
+      }
+    }
+    sum += ws;
+    wr.push(Math.sqrt(ws / Math.max(1, cnt)));
+  }
+  const rms = Math.sqrt(sum / (n * chs.length));
+  const st = Math.max(...wr);
+  let last = -1, first = -1;
+  wr.forEach((r, i) => { if (r > tailThr) { last = i; if (first < 0) first = i; } });
+  // longest near-silent stretch inside [gapFrom, gapTo)
+  let gap = 0, run = 0;
+  wr.forEach((r, i) => {
+    const t = i * 0.05;
+    if (t < gapFrom || t >= gapTo) { run = 0; return; }
+    if (r < 0.0015) { run++; gap = Math.max(gap, run); } else run = 0;
+  });
+  const winRms = (a, b) => {
+    const s = wr.slice(Math.floor(a / 0.05), Math.floor(b / 0.05));
+    return s.length ? Math.sqrt(s.reduce((x, y) => x + y * y, 0) / s.length) : 0;
+  };
+  return { peak, rms, st, nan, clip, first: first * 0.05, len: (last + 1) * 0.05, gap: gap * 0.05, winRms };
+}
+
+/** render `dur` seconds with engine.update() every `tick` s; events: [[time, fn(eng)]] */
+async function render(dur, setup, { tick = 0.1, events = [], volume = 1 } = {}) {
+  const off = new OfflineAudioContext(2, Math.ceil(dur * SR), SR);
+  const eng = new AudioEngine(off);
+  eng.master.gain.value = volume;
+  const evs = [...events].sort((a, b) => a[0] - b[0]);
+  setup && setup(eng, off);
+  eng.update(0.3);
+  const tb = performance.now();
+  for (let k = 1; k * tick < dur - 0.01; k++) {
+    const tt = k * tick;
+    off.suspend(tt).then(() => {
+      while (evs.length && evs[0][0] <= tt + 1e-6) evs.shift()[1](eng, off);
+      eng.update(0.3);
+      off.resume();
+    });
+  }
+  const buf = await off.startRendering();
+  return { buf, ms: performance.now() - tb, eng };
+}
+
+const results = [];
+function report(group, name, status, a, notes = '') {
+  const row = { group, name, status, peak: a ? dB(a.peak) : NaN, st: a ? dB(a.st) : NaN, rms: a ? dB(a.rms) : NaN, len: a ? a.len : NaN, notes };
+  results.push(row);
+  console.log(`[selftest] ${status.padEnd(4)} ${group}/${name}  peak ${f1(row.peak)} dB  st ${f1(row.st)} dB  rms ${f1(row.rms)} dB  len ${a ? a.len.toFixed(2) : '-'}s  ${notes}`);
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td>${group}</td><td>${name}</td><td class="${status}">${status}</td><td>${f1(row.peak)}</td><td>${f1(row.st)}</td><td>${f1(row.rms)}</td><td>${a ? a.len.toFixed(2) : ''}</td><td>${notes}</td>`;
+  $('results').tBodies[0].appendChild(tr);
+}
+/** generic verdict: NaN / silence / clipping are failures; loudness window is a warning */
+function verdict(a, { min = -30, max = -8, metric = 'st' } = {}) {
+  if (a.nan) return ['FAIL', `NaN x${a.nan}`];
+  if (a.peak < 0.003) return ['FAIL', 'silent'];
+  if (a.clip) return ['FAIL', `clipped x${a.clip}`];
+  const st = dB(a[metric]);
+  if (st < min) return ['WARN', `quiet (<${min})`];
+  if (st > max) return ['WARN', `loud (>${max})`];
+  return ['PASS', ''];
+}
+
+async function selftest() {
+  $('results').tBodies[0].innerHTML = '';
+  results.length = 0;
+  const T0 = performance.now();
+  console.log('[selftest] start');
+
+  report('api', 'pre-init calls', preInit.length ? 'FAIL' : 'PASS', null, preInit.join('; ') || '21 calls, no exceptions');
+
+  // --- sfx
+  const sfxDur = { gong: 7, curtain: 2.2, cheer: 3.4, ghost: 3, roar: 2.4, 'lamp-ignite': 1.8, magic: 3, chime: 3, laugh: 2.4, 'animal-horse': 2.2, 'animal-buffalo': 2.2 };
+  const quietOK = new Set(['hover', 'step', 'click', 'buzz']);
+  for (const name of SFX_NAMES) {
+    const dur = sfxDur[name] || 1.6;
+    const { buf } = await render(dur, (e) => e.sfx(name), { tick: 0.5 });
+    const a = analyze(buf);
+    let [st, note] = verdict(a, quietOK.has(name) ? { min: -46, max: -14 } : {});
+    report('sfx', name, st, a, note);
+  }
+  // pan / pitch / unknown
+  {
+    const { buf } = await render(1, (e) => e.sfx('clang', { pan: -1 }), { tick: 0.5 });
+    const L = buf.getChannelData(0), R = buf.getChannelData(1);
+    let el = 0, er = 0;
+    for (let i = 0; i < L.length; i++) { el += L[i] * L[i]; er += R[i] * R[i]; }
+    report('sfx', 'pan=-1', el > er * 4 ? 'PASS' : 'FAIL', analyze(buf), `L/R energy ${(10 * Math.log10(el / Math.max(er, 1e-12))).toFixed(1)} dB`);
+    const r2 = await render(1, (e) => e.sfx('definitely-unknown'), { tick: 0.5 });
+    const a2 = analyze(r2.buf);
+    report('sfx', 'unknown name', a2.peak === 0 ? 'PASS' : 'FAIL', a2, 'no-op');
+    const r3 = await render(1.5, (e) => e.sfx('whoosh', { pitch: 2, vol: 0.5 }), { tick: 0.5 });
+    const a3 = analyze(r3.buf);
+    report('sfx', 'whoosh pitch=2 vol=.5', verdict(a3, { min: -40 })[0], a3);
+  }
+
+  // --- instruments (3 notes each, melodic walk)
+  for (const name of INSTRUMENT_NAMES) {
+    const ev = [[0.5, (e) => e.instrument(name)], [1.0, (e) => e.instrument(name)]];
+    const { buf } = await render(3, (e) => e.instrument(name), { tick: 0.1, events: ev });
+    const a = analyze(buf);
+    const [st, note] = verdict(a);
+    report('instrument', name, st, a, note);
+  }
+  {
+    // explicit notes map to different pitches
+    const { buf } = await render(1.2, (e) => { e.instrument('ranat', { note: 0 }); }, { tick: 0.5 });
+    const { buf: b2 } = await render(1.2, (e) => { e.instrument('ranat', { note: 5 }); }, { tick: 0.5 });
+    const zc = (b) => { const d = b.getChannelData(0); let z = 0; for (let i = 1; i < 20000; i++) if (d[i - 1] < 0 && d[i] >= 0) z++; return z; };
+    const r = zc(b2) / Math.max(1, zc(buf));
+    report('instrument', 'note 0 vs 5 (octave)', r > 1.6 && r < 2.5 ? 'PASS' : 'WARN', analyze(b2), `zero-cross ratio ${r.toFixed(2)} (expect ~2)`);
+  }
+
+  // --- voices
+  const line = 'สวัสดีครับ วันนี้เราจะเล่นหนังตะลุงกัน!';
+  for (const v of Object.keys(VOICES)) {
+    let d = 0;
+    const { buf } = await render(5.5, (e) => { d = e.voice(line, { voice: v }); }, { tick: 0.5 });
+    const a = analyze(buf, { tailThr: 0.002 });
+    let [st, note] = verdict(a);
+    const diff = a.len - d;
+    const tail = VOICES[v].send ? 0.4 + VOICES[v].send * 1.5 : 0.5; // reverb tail after the speech
+    if (st === 'PASS' && (diff > tail || diff < -0.3)) { st = 'WARN'; note = 'duration mismatch'; }
+    report('voice', v, st, a, `${note} returned ${d.toFixed(2)}s`);
+  }
+  {
+    const est = audio.voice('Hello there, little shadow!', { voice: 'male' });
+    let d = 0;
+    await render(1, (e) => { d = e.voice('Hello there, little shadow!', { voice: 'male' }); }, { tick: 0.5 });
+    report('voice', 'estimate == real', Math.abs(est - d) < 0.05 ? 'PASS' : 'WARN', null, `estimate ${est.toFixed(2)} vs ${d.toFixed(2)}`);
+    const n1 = audio.voice('ไป', {}), n2 = audio.voice('ไปกินข้าวที่ตลาดกับแม่และน้องสาวตอนเย็นนี้นะ', {});
+    report('voice', 'length follows text', n2 > n1 * 5 ? 'PASS' : 'FAIL', null, `${n1.toFixed(2)}s vs ${n2.toFixed(2)}s`);
+  }
+
+  // --- music moods
+  const moodStats = {};
+  for (const m of MOOD_NAMES) {
+    const dur = m === 'overture' ? 14 : 12;
+    const r = await render(dur, (e) => { e.music.setIntensity(0.3); e.music.play(m); });
+    const a = analyze(r.buf, { gapFrom: 2, gapTo: dur - 0.5 });
+    let [st, note] = verdict(a, { min: -32, max: -18, metric: 'rms' });
+    if (st === 'PASS' && a.gap > 1.2) { st = 'WARN'; note = `gap ${a.gap.toFixed(2)}s`; }
+    moodStats[m] = a;
+    report('music', m, st, a, `${note} hits ${r.eng.music.hitCount} gap ${a.gap.toFixed(2)}s render ${(r.ms / 1000).toFixed(2)}s (${((r.ms / 1000 / dur) * 100).toFixed(0)}% RT)`);
+  }
+  // intensity: denser + faster
+  {
+    const lo = await render(10, (e) => { e.music.setIntensity(0); e.music.play('battle'); });
+    const hi = await render(10, (e) => { e.music.setIntensity(1); e.music.play('battle'); });
+    const al = analyze(lo.buf), ah = analyze(hi.buf);
+    const ratio = hi.eng.music.hitCount / Math.max(1, lo.eng.music.hitCount);
+    report('music', 'battle I=0', verdict(al, { min: -32, max: -18, metric: 'rms' })[0], al, `hits ${lo.eng.music.hitCount}`);
+    report('music', 'battle I=1', ah.clip || ah.nan ? 'FAIL' : ratio > 1.3 ? 'PASS' : 'WARN', ah, `hits ${hi.eng.music.hitCount} (x${ratio.toFixed(2)} vs I=0)`);
+  }
+  // crossfade
+  {
+    const r = await render(11, (e) => e.music.play('calm'), { events: [[4, (e) => e.music.play('battle')], [8, (e) => e.music.play('comic')]] });
+    const a = analyze(r.buf, { gapFrom: 1.5, gapTo: 10.5 });
+    const tracks = r.eng.music.tracks.length;
+    const ok = !a.nan && !a.clip && a.gap < 0.5;
+    report('music', 'crossfade calm>battle>comic', ok ? (tracks <= 2 ? 'PASS' : 'WARN') : 'FAIL', a, `gap ${a.gap.toFixed(2)}s, live tracks at end ${tracks}`);
+  }
+  // stop
+  {
+    const r = await render(9, (e) => e.music.play('overture'), { events: [[3, (e) => e.music.stop(1)]] });
+    const a = analyze(r.buf);
+    const tail = a.winRms(7, 9);
+    report('music', 'stop(1)', dB(tail) < -60 ? 'PASS' : 'FAIL', a, `rms 7-9 s: ${f1(dB(tail))} dB`);
+  }
+
+  // --- ambience + lamp
+  {
+    const r = await render(14, (e) => { e.ambience.start(); }, { events: [[9, (e) => e.ambience.setLevel(0.1)]] });
+    const a = analyze(r.buf);
+    const on = a.winRms(4, 9), low = a.winRms(11, 14);
+    let [st, note] = verdict({ ...a, on }, { min: -48, max: -30, metric: 'on' });
+    if (st === 'PASS' && !(low < on * 0.4)) { st = 'WARN'; note = 'setLevel had little effect'; }
+    report('ambience', 'night village', st, a, `${note} rms@0.7 ${f1(dB(on))} dB, @0.1 ${f1(dB(low))} dB`);
+  }
+  {
+    const r = await render(5, (e) => e.lampHum(1), { events: [[3, (e) => e.lampHum(0)]] });
+    const a = analyze(r.buf);
+    const on = a.winRms(1, 3), off = a.winRms(4.6, 5);
+    report('lamp', 'hum 1 -> 0', !a.nan && dB(on) > -56 && dB(on) < -36 && dB(off) < -70 ? 'PASS' : 'WARN', a, `rms on ${f1(dB(on))} dB, after off ${f1(dB(off))} dB`);
+  }
+
+  // --- mix: sfx must sit above the music
+  {
+    const hits = [];
+    for (let t = 1; t < 7; t += 0.5) hits.push([t, (e) => e.sfx(['clang', 'hit', 'whoosh', 'block'][Math.floor(t * 2) % 4])]);
+    const mus = await render(8, (e) => { e.music.setIntensity(0.6); e.music.play('battle'); });
+    const sfx = await render(8, null, { events: hits });
+    const both = await render(8, (e) => { e.music.setIntensity(0.6); e.music.play('battle'); e.ambience.start(); }, { events: [...hits, [2, (e) => e.voice('ข้าจะสู้กับเจ้า!', { voice: 'demon' })]] });
+    const am = analyze(mus.buf), as = analyze(sfx.buf), ab = analyze(both.buf);
+    const margin = dB(as.st) - dB(am.rms);
+    report('mix', 'music+sfx+voice+amb', ab.nan || ab.clip ? 'FAIL' : 'PASS', ab, `sfx short-term ${f1(dB(as.st))} vs music rms ${f1(dB(am.rms))} → +${margin.toFixed(1)} dB`);
+    report('mix', 'sfx over music', margin >= 8 ? 'PASS' : 'WARN', null, `sfx short-term is ${margin.toFixed(1)} dB above music rms (want >= 8)`);
+  }
+
+  // --- stress / CPU estimate
+  {
+    const ev = [];
+    for (let i = 0; i < 70; i++) ev.push([0.2 + Math.random() * 9.5, (e) => e.sfx(SFX_NAMES[Math.floor(Math.random() * SFX_NAMES.length)], { pan: Math.random() * 2 - 1 })]);
+    for (let i = 0; i < 20; i++) ev.push([0.2 + Math.random() * 9.5, (e) => e.instrument(INSTRUMENT_NAMES[i % INSTRUMENT_NAMES.length])]);
+    for (let i = 0; i < 4; i++) ev.push([1 + i * 2.2, (e) => e.voice('ฮ่า ฮ่า เจ้าหนีไม่พ้นหรอก', { voice: ['demon', 'comic', 'female', 'god'][i] })]);
+    const r = await render(10, (e) => { e.music.setIntensity(1); e.music.play('battle'); e.ambience.start(); e.lampHum(0.6); }, { events: ev });
+    const a = analyze(r.buf);
+    const pct = (r.ms / 10000) * 100;
+    report('stress', 'battle@1 + amb + lamp + 90 one-shots', a.nan || a.clip ? 'FAIL' : pct < 60 ? 'PASS' : 'WARN', a, `offline render ${(r.ms / 1000).toFixed(2)}s for 10s audio (~${pct.toFixed(0)}% of one core)`);
+  }
+
+  // --- realtime smoke test on the singleton
+  {
+    const ok = await audio.init();
+    const errs = [];
+    const orig = console.warn;
+    console.warn = (...a) => { errs.push(a.join(' ')); orig(...a); };
+    try {
+      audio.music.play('overture');
+      audio.sfx('gong');
+      audio.instrument('ranat');
+      const d = audio.voice('ทดสอบเสียง', { voice: 'child' });
+      audio.ambience.start();
+      audio.lampHum(0.3);
+      await new Promise((r) => setTimeout(r, 1500));
+      const st = audio.engine.stats();
+      audio.setMuted(true);
+      audio.sfx('clang'); // muted: must be skipped
+      await new Promise((r) => setTimeout(r, 500));
+      const suspended = audio.context.state;
+      audio.setMuted(false);
+      await new Promise((r) => setTimeout(r, 300));
+      audio.music.stop(0.2);
+      audio.ambience.stop(0.2);
+      audio.lampHum(0);
+      const pass = ok && st.mood === 'overture' && st.tracks === 1 && errs.length === 0 && d > 0;
+      report('realtime', 'init + play + mute', pass ? 'PASS' : 'FAIL', null, `init=${ok} state=${audio.context.state} muted-state=${suspended} ${JSON.stringify(st)} warnings=${errs.length}`);
+    } finally {
+      console.warn = orig;
+    }
+  }
+
+  const cs = cacheSize();
+  const n = { PASS: 0, WARN: 0, FAIL: 0 };
+  for (const r of results) n[r.status]++;
+  const sum = `SELFTEST ${n.FAIL ? 'FAILED' : 'OK'}: ${n.PASS} pass, ${n.WARN} warn, ${n.FAIL} fail · ${((performance.now() - T0) / 1000).toFixed(1)} s · buffer cache ${cs.count} (${cs.mb} MB)`;
+  console.log('[selftest] ' + sum);
+  $('summary').textContent = sum;
+  $('summary').className = n.FAIL ? 'FAIL' : n.WARN ? 'WARN' : 'PASS';
+  return n;
+}
+
+$('runtest').onclick = () => selftest();
+if (SELFTEST) {
+  selftest().catch((e) => console.error('[selftest] crashed', e && e.stack || e)).finally(() => { window.__ready = true; });
+}
+</script>
+</body>
+</html>

@@ -44,7 +44,7 @@ const DEFAULTS = {
   wasmUrl: MEDIAPIPE_URLS.wasm,
   modelUrl: MEDIAPIPE_URLS.model,
   // 1€ filter tuning (units: image heights, seconds)
-  palmFilter: { minCutoff: 1.2, beta: 6, dCutoff: 1 },
+  palmFilter: { minCutoff: 1.0, beta: 6, dCutoff: 1 },
   shapeFilter: { minCutoff: 1.6, beta: 3, dCutoff: 1 },
 };
 

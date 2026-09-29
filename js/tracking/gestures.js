@@ -99,6 +99,7 @@ export function createFeatures() {
     thumbOut: 0, // 0 = thumb tucked in / alongside, 1 = thumb clearly out
     thumbUp: 0, // cos(angle between thumb direction and screen up)
     thumbTop: 0, // how far the thumb tip is above every other finger landmark, palm sizes
+    thumbExt: 0, // how far the thumb tip reaches past every finger joint along the thumb's own direction (3D), palm sizes
     tips: [[0, 0], [0, 0], [0, 0], [0, 0], [0, 0]], // hand-local fingertips
     tipIso: [[0, 0], [0, 0], [0, 0], [0, 0], [0, 0]], // fingertips in iso screen coords
   };
@@ -252,6 +253,15 @@ export function extractFeatures(P, handedness, out = createFeatures()) {
     let minY = Infinity;
     for (let i = 5; i < 21; i++) if (P[i][1] < minY) minY = P[i][1];
     out.thumbTop = (minY - P[4][1]) / size;
+    // protrusion: thumb MCP→tip length minus the furthest finger joint along that direction
+    const vx = P[4][0] - P[2][0], vy = P[4][1] - P[2][1], vz = P[4][2] - P[2][2];
+    const vl = Math.sqrt(vx * vx + vy * vy + vz * vz) || 1e-9;
+    let far = -Infinity;
+    for (let j = 5; j < 21; j++) {
+      const pr = ((P[j][0] - P[2][0]) * vx + (P[j][1] - P[2][1]) * vy + (P[j][2] - P[2][2]) * vz) / vl;
+      if (pr > far) far = pr;
+    }
+    out.thumbExt = (vl - far) / size;
   }
 
   // Fingertips in hand-local 2D coords (palm centre origin, fingers toward -y, palm-size units).
@@ -300,8 +310,9 @@ export function classifyGesture(f, out = { name: 'none', score: 0, scores: creat
 
   const thumbUp = Math.min(
     1 - smoothstep(0.35, 0.6, c[0]), // thumb fairly straight
-    smoothstep(0.45, 0.75, f.thumbUp), // pointing up (within ~50°)
-    smoothstep(0.0, 0.2, f.thumbTop), // and standing above the fist
+    smoothstep(0.42, 0.72, f.thumbUp), // pointing up (within ~55° of vertical)
+    smoothstep(0.08, 0.22, f.thumbExt), // sticking out past the fist, not wrapped on it
+    smoothstep(-0.3, -0.1, f.thumbTop), // and not below the knuckles
   );
   const four = min4(sI, sM, sR, sP);
   const fourCurled = min4(cI, cM, cR, cP);
@@ -701,7 +712,7 @@ export const POSES = {
   point: { curl: [0.7, 0.02, 1, 1, 1], spread: 0.3, thumbOut: -0.4 },
   victory: { curl: [0.75, 0.02, 0.03, 1, 1], spread: 0.9, thumbOut: -0.5 },
   horns: { curl: [0.7, 0.03, 1, 1, 0.04], spread: 0.6, thumbOut: -0.5 },
-  thumbsUp: { curl: [0.05, 1, 1, 1, 1], spread: 0.2, thumbOut: 0.75, roll: 55 * DEG },
+  thumbsUp: { curl: [0.05, 1, 1, 1, 1], spread: 0.2, thumbOut: 0.75, roll: 38 * DEG },
   jeeb: { curl: [0.3, 0.45, 0.02, 0.04, 0.06], spread: 0.9, thumbOut: 0.1, pinch: 1 },
   wong: { curl: [0.6, -0.25, -0.25, -0.25, -0.25], spread: 0, thumbOut: -0.2 },
   relaxed: { curl: [0.35, 0.35, 0.4, 0.45, 0.5], spread: 0.4, thumbOut: 0.2 },

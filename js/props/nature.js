@@ -299,13 +299,27 @@ function drawBodhi(ctx, { rng: r, w: W, h: H }) {
     addPts(branchP, taper([fork, mid, [x, y + 10]], 34 - (i > 4 ? 12 : 0), 7));
   });
   leather(ctx, branchP);
+  // backing canopy: one lace-cut mass behind the leaves
+  const canopy = new Path2D();
+  clusters.forEach(([x, y, R], i) => addPts(canopy, blobPts(x, y, R * 0.95, R * 0.75, { seed: 70 + i, wobble: 0.1 })));
+  leather(ctx, canopy);
+  dye(ctx, canopy, INK.green, 0.55);
+  const lace = new Path2D();
+  for (let y = 40, row = 0; y < 460; y += 9, row++) {
+    for (let x = 30 + (row % 2) * 5; x < W - 30; x += 10) {
+      const a = Math.atan2(y - (G - 270), x - cx) + (row % 2 ? 0.6 : -0.6);
+      addPts(lace, almondPts(x, y, 7.5, 3.4, a));
+    }
+  }
+  ctx.save(); ctx.clip(canopy); ctx.globalCompositeOperation = 'destination-out'; ctx.fill(lace); ctx.restore();
+  leather(ctx, branchP);
   // leaves: clouds around each cluster, hanging a little
   const leaves = [];
   clusters.forEach(([x, y, R], ci) => {
-    const n = Math.round(R * 0.36);
+    const n = Math.round(R * 0.5);
     for (let k = 0; k < n; k++) {
       const a = (k / n) * TAU + r() * 0.4;
-      const rr = R * (0.35 + 0.65 * Math.sqrt(r()));
+      const rr = R * (0.45 + 0.6 * Math.sqrt(r()));
       const px = x + Math.cos(a) * rr * 1.1, py = y + Math.sin(a) * rr * 0.85;
       const la = Math.atan2(py - y, px - x) * 0.6 + Math.PI / 2 * 0.4 + (r() - 0.5) * 0.6;
       leaves.push({ x: px - Math.cos(la) * 10, y: py - Math.sin(la) * 10, s: 24 + r() * 8, a: la, ci, k });
@@ -320,7 +334,7 @@ function drawBodhi(ctx, { rng: r, w: W, h: H }) {
   const slitP = new Path2D();
   leaves.forEach((l, i) => {
     const p = lpts[i];
-    dye(ctx, poly(inset(p, 1.6)), cols[(l.k * 7 + l.ci) % cols.length], 0.72);
+    dye(ctx, poly(inset(p, 1.6)), r() < 0.06 ? INK.vermilion : cols[(l.k * 5 + l.ci * 3) % 6], 0.72);
     const c = Math.cos(l.a), s = Math.sin(l.a);
     slitP.moveTo(l.x + c * l.s * 0.1, l.y + s * l.s * 0.1);
     slitP.lineTo(l.x + c * l.s * 1.05, l.y + s * l.s * 1.05);
@@ -523,33 +537,37 @@ function drawLotus(ctx, { rng: r, w: W, h: H }) {
 }
 
 // ======================================================= mural rocks
-// A faceted เขามอ rock block: angular stepped outline + inset contours.
-function rockBlock(ctx, x0, x1, yb, h, { seed = 1, color = INK.teal, steps = 3, alpha = 0.4 } = {}) {
+// เขามอ — Thai mural rocks are piles of faceted blocks seen a little from
+// above: a pale top face, a dyed front face streaked with fine lines and a
+// dark side face. Stacked back to front they make a stepped mountain.
+function prism(ctx, x, yb, w, h, { seed = 1, front = INK.teal, top = INK.cream, depth = 0.3, slant = 0 } = {}) {
   const r = rng(seed);
-  const w = x1 - x0;
-  const pts = [[x0, yb]];
-  // left side rising in steps
-  pts.push([x0 + w * 0.04, yb - h * 0.55], [x0 + w * 0.12, yb - h * 0.62], [x0 + w * 0.1, yb - h * 0.82]);
-  // top: angular bumps
-  for (let k = 0; k < steps; k++) {
-    const t0 = 0.18 + (k / steps) * 0.64, t1 = t0 + 0.64 / steps;
-    const hh = h * (0.9 + r() * 0.1 - Math.abs(k - (steps - 1) / 2) * 0.06);
-    pts.push([x0 + w * t0, yb - hh], [x0 + w * (t0 + t1) / 2, yb - hh - h * 0.06 - r() * h * 0.04], [x0 + w * t1, yb - hh + h * 0.04]);
+  const dx = w * depth, dy = w * depth * 0.62;
+  const yt = yb - h;
+  const sl = slant * h; // right corner lower by sl
+  const j = () => (r() - 0.5) * 3;
+  const bul = w * 0.05;
+  const fr = [[x + j(), yb], [x - bul, yb - h * 0.5], [x + j(), yt + 6], [x + 5, yt + j() * 0.3], [x + w - 5, yt + sl], [x + w + j() * 0.3, yt + sl + 6], [x + w + bul, yb - (h - sl) * 0.5], [x + w, yb]];
+  const tp = [[x + 5, yt], [x + w - 5, yt + sl], [x + w + dx - 3, yt + sl - dy], [x + dx + 3, yt - dy]];
+  const sd = [[x + w - 1, yt + sl + 6], [x + w + dx - 3, yt + sl - dy + 2], [x + w + dx + bul * 0.5, yb - dy - (h - sl) * 0.5], [x + w + dx, yb - dy - 2], [x + w, yb]];
+  const all = [fr[0], fr[1], fr[2], fr[3], tp[3], tp[2], sd[1], sd[2], sd[3], fr[7]];
+  leather(ctx, poly(curve(all, true, 4, 0.2)));
+  dye(ctx, poly(inset(fr, 2.5)), front, 0.5);
+  dye(ctx, poly(inset(tp, 2)), top, 0.78);
+  dye(ctx, poly(inset(sd, 2)), INK.indigo, 0.25);
+  gold(ctx, inset(tp, 2), 1, { closed: true, smoothIt: false });
+  gold(ctx, [[x + 3, yb - 2], [x + 2, yb - h * 0.5], [x + 3, yt + 7], [x + w - 3, yt + sl + 4], [x + w - 2, yb - (h - sl) * 0.5], [x + w - 3, yb - 2]], 0.9);
+  dotLine(ctx, [[x + 8, yt + 8], [x + w - 8, yt + sl + 7]], { spacing: 4.2, r: 1, seed, smoothIt: false });
+  // streaks down the front face
+  const n = Math.max(1, Math.floor(w / 13));
+  for (let k = 1; k <= n; k++) {
+    const sx = x + (k / (n + 1)) * w + j();
+    const len = h * (0.35 + r() * 0.45);
+    slit(ctx, [[sx, yt + 12 + r() * 6], [sx + j() * 0.6, yt + 12 + len]], 0.9, { smoothIt: false });
+    if (k % 2) dotLine(ctx, [[sx + 4, yt + 16], [sx + 4, yt + 12 + len * 0.6]], { spacing: 4.4, r: 0.75, seed: seed + k, smoothIt: false });
   }
-  pts.push([x0 + w * 0.9, yb - h * 0.8], [x0 + w * 0.88, yb - h * 0.6], [x0 + w * 0.96, yb - h * 0.52], [x1, yb]);
-  const sm = curve(pts, true, 3, 0.25);
-  hide(ctx, sm, 0.8, seed);
-  dye(ctx, poly(inset(sm, 3)), color, alpha);
-  gold(ctx, inset(sm, 3), 1.1, { closed: true, smoothIt: false });
-  rimDots(ctx, sm, 6.5, { spacing: 4.2, r: 1, seed });
-  if (h > 70) gold(ctx, inset(sm, 11), 0.8, { closed: true, smoothIt: false, alpha: 0.7 });
-  // facet strokes (mural hatching)
-  for (let k = 0; k < Math.floor(w / 24); k++) {
-    const x = x0 + w * (0.2 + (k / Math.max(1, Math.floor(w / 24))) * 0.6);
-    const y = yb - h * (0.3 + r() * 0.3);
-    slit(ctx, [[x, y], [x - 6, y + h * 0.22]], 1, { smoothIt: false });
-  }
-  return sm;
+  dotLine(ctx, [[x + w + dx * 0.5, yt - dy * 0.5 + 8], [x + w + dx * 0.5, yb - dy * 0.5 - 8]], { spacing: 5, r: 0.8, seed: seed + 9, smoothIt: false });
+  return { top: [x + w / 2 + dx / 2, yt + sl / 2 - dy / 2], w };
 }
 
 function tuft(ctx, x, y, s, seed = 1) {
@@ -560,53 +578,69 @@ function tuft(ctx, x, y, s, seed = 1) {
   list.forEach((p) => dye(ctx, poly(p), INK.green, 0.6));
 }
 
-function drawMountain(ctx, { rng: r, w: W, h: H }) {
-  // ภูเขาสินเทา — mural mountain: piled faceted blocks rising to a peak,
-  // a cave at its foot, a waterfall and little trees on the crags.
-  const G = H;
-  const cols = [INK.teal, INK.green, INK.jade, INK.gold, INK.teal, INK.indigo];
-  const blocks = [
-    // back peaks
-    [200, 420, G - 250, 270, 4], [120, 260, G - 170, 250, 3], [360, 520, G - 150, 250, 3],
-    // middle
-    [30, 190, G - 60, 250, 3], [420, 600, G - 50, 230, 3], [250, 370, G - 120, 180, 2],
-    // front
-    [0, 150, G, 150, 2], [150, 330, G, 160, 3], [330, 470, G, 140, 2], [470, 620, G, 120, 2],
-  ];
-  const outs = blocks.map(([x0, x1, yb, h, st], i) => rockBlock(ctx, x0, x1, yb, h, { seed: 20 + i, color: cols[i % cols.length], steps: st, alpha: 0.38 }));
-  // summit crags
-  rockBlock(ctx, 262, 350, G - 505, 70, { seed: 60, color: INK.gold, steps: 2, alpha: 0.4 });
-  // trees on the crags
-  for (const [x, y, s] of [[300, G - 572, 36], [168, G - 412, 26], [460, G - 390, 28], [90, G - 305, 22], [540, G - 278, 22]]) {
-    hide(ctx, taper([[x, y + 14], [x, y - s * 0.3]], 4, 2), 0, 0);
-    tuft(ctx, x, y - s * 0.2, s, x);
+function crag(ctx, cx, W, G, H, { seed = 1, rows = 5, rowStep = 64, cave = true, trees = true } = {}) {
+  const r = rng(seed);
+  const fronts = [INK.teal, INK.green, INK.jade, INK.teal, INK.brown, INK.green];
+  const tops = [INK.cream, INK.gold, INK.cream, INK.yellow];
+  const env = (x) => H * Math.max(Math.pow(Math.max(0, 1 - Math.abs(x - cx + W * 0.06) / (W * 0.5)), 1.1), 0.8 * Math.pow(Math.max(0, 1 - Math.abs(x - cx - W * 0.24) / (W * 0.3)), 1.1));
+  const perched = [];
+  for (let row = 0; row < rows; row++) {
+    const yb = G - (rows - 1 - row) * rowStep;
+    let x = 4 + (row % 2) * 14 + r() * 10;
+    while (x < W - 30) {
+      const w = 34 + r() * 40;
+      const hmax = Math.min(rowStep * 2.2, env(x + w / 2) - (G - yb));
+      if (hmax > 26) {
+        const h = Math.max(26, hmax * (0.65 + r() * 0.35));
+        const k = Math.floor(r() * 99);
+        const pr = prism(ctx, x, yb, Math.min(w, W - 20 - x), h, { seed: seed * 100 + row * 20 + k, front: fronts[k % fronts.length], top: tops[k % tops.length], slant: (r() - 0.5) * 0.35, depth: 0.26 });
+        if (row < rows - 1 && r() < 0.45) perched.push(pr);
+      }
+      x += w - 6 + r() * 4;
+    }
   }
-  // cave at the foot of the middle block
-  const cv = [[196, G], [196, G - 60], [206, G - 88], [230, G - 104], [256, G - 88], [266, G - 60], [266, G]];
-  const cvp = curve(cv, false, 6);
-  gold(ctx, cvp.map(([x, y]) => [lerp(x, 231, -0.12), y - 6]), 1.4);
-  rimDots(ctx, [...cv.map(([x, y]) => [lerp(x, 231, -0.25), y - 10]), [266 + 8, G], [196 - 8, G]], 0, { spacing: 3.8, r: 0.9 });
-  cut(ctx, poly(cvp));
-  // waterfall from a notch down the right side
-  const wf = [[420, G - 330], [440, G - 330], [446, G - 140], [452, G - 20], [414, G - 20], [418, G - 140]];
+  if (trees) perched.slice(0, 7).forEach(({ top, w }, i) => {
+    hide(ctx, taper([[top[0], top[1] + 4], [top[0], top[1] - 12]], 4, 2.4, { smoothIt: false }), 0, 0);
+    tuft(ctx, top[0], top[1] - 8, 18 + (w % 12), seed + i);
+  });
+  return perched;
+}
+
+function drawMountain(ctx, { rng: r, w: W, h: H }) {
+  // ภูเขาสินเทา — a mural mountain of stacked faceted blocks rising to a
+  // central peak, with a hermit's cave at the foot and a waterfall.
+  const G = H, cx = W / 2;
+  crag(ctx, cx, W, G, H - 30, { seed: 7, rows: 13, rowStep: 44 });
+  // cave (ถ้ำ) at the foot
+  const cv = curve([[cx - 44, G], [cx - 44, G - 60], [cx - 30, G - 94], [cx, G - 110], [cx + 30, G - 94], [cx + 44, G - 60], [cx + 44, G]], false, 6);
+  const rim = curve([[cx - 58, G], [cx - 58, G - 64], [cx - 40, G - 106], [cx, G - 126], [cx + 40, G - 106], [cx + 58, G - 64], [cx + 58, G]], false, 6);
+  hide(ctx, [...rim, [cx + 58, G]], 0, 0);
+  dye(ctx, poly(rim), INK.brown, 0.4);
+  gold(ctx, rim.slice(1, -1).map(([x, y]) => [lerp(x, cx, 0.1), y + 6]), 1.2);
+  dotLine(ctx, rim.slice(1, -1).map(([x, y]) => [lerp(x, cx, 0.18), y + 11]), { spacing: 3.8, r: 0.95, smoothIt: false });
+  cut(ctx, poly(cv));
+  // stalactite teeth
+  for (let k = -3; k <= 3; k++) hide(ctx, [[cx + k * 10 - 4, G - 104 + Math.abs(k) * 4], [cx + k * 10 + 4, G - 104 + Math.abs(k) * 4], [cx + k * 10, G - 90 + Math.abs(k) * 4]], 0, 0);
+  // waterfall ribbon from a notch on the right
+  const wf = [[cx + 128, G - 370], [cx + 150, G - 370], [cx + 160, G - 200], [cx + 170, G - 18], [cx + 124, G - 18], [cx + 128, G - 200]];
   const wfp = smooth(wf);
-  ctx.save(); ctx.clip(wfp);
+  leather(ctx, wfp);
   dye(ctx, wfp, INK.cream, 0.5);
-  for (let x = 412; x < 456; x += 5) slit(ctx, [[x, G - 330], [x + 1, G - 240], [x - 1, G - 140], [x + 2, G - 20]], 1.3);
+  ctx.save(); ctx.clip(wfp);
+  for (let x = cx + 120; x < cx + 172; x += 5) slit(ctx, [[x, G - 370], [x + 2, G - 280], [x - 1, G - 160], [x + 3, G - 18]], 1.4);
   ctx.restore();
-  for (let k = 0; k < 5; k++) hideMany(ctx, [kanokPts(418 + k * 8, G - 14, 14, -Math.PI / 2 + (k - 2) * 0.3, k > 2)]);
-  void outs;
-  age(ctx, W, H, 0.3);
+  for (let k = 0; k < 6; k++) hideMany(ctx, [kanokPts(cx + 126 + k * 9, G - 8, 16, -Math.PI / 2 + (k - 2.5) * 0.3, k > 2)]);
+  age(ctx, W, H, 0.28);
 }
 
 function drawRock(ctx, { w: W, h: H }) {
   const G = H;
-  rockBlock(ctx, 40, 150, G - 14, 86, { seed: 5, color: INK.teal, steps: 2, alpha: 0.4 });
-  rockBlock(ctx, 0, 90, G, 70, { seed: 6, color: INK.green, steps: 2, alpha: 0.4 });
-  rockBlock(ctx, 96, 170, G, 50, { seed: 7, color: INK.gold, steps: 1, alpha: 0.35 });
-  tuft(ctx, 60, G - 60, 18, 2);
-  tuft(ctx, 158, G - 46, 14, 3);
-  age(ctx, W, H, 0.3);
+  prism(ctx, 38, G - 20, 72, 66, { seed: 3, front: INK.teal, top: INK.cream, slant: 0.18, depth: 0.26 });
+  prism(ctx, 4, G, 64, 52, { seed: 4, front: INK.green, top: INK.gold, slant: -0.14, depth: 0.26 });
+  prism(ctx, 84, G, 60, 40, { seed: 5, front: INK.jade, top: INK.cream, slant: 0.22, depth: 0.26 });
+  tuft(ctx, 70, G - 100, 18, 2);
+  tuft(ctx, 128, G - 52, 13, 3);
+  age(ctx, W, H, 0.28);
 }
 
 // =============================================================== sky
@@ -682,40 +716,72 @@ function drawSun(ctx, { w: W, h: H }) {
 }
 
 function drawCloud(ctx, { rng: r, w: W, h: H }) {
-  // เมฆลายไทย — a drifting scroll cloud: lobes that end in spiral curls.
+  // เมฆลายไทย — a mural cloud: a row of humps whose outline is echoed by
+  // nested scallop lines, a spiral curl at the head and a trailing tail.
   const base = H - 40;
-  const lobes = [[64, base - 20, 38], [118, base - 50, 50], [186, base - 62, 58], [256, base - 44, 48], [310, base - 18, 36], [150, base - 6, 36], [226, base - 4, 40]];
+  const humps = [[92, base - 12, 34], [150, base - 22, 42], [214, base - 26, 46], [276, base - 14, 36], [326, base - 2, 26]];
+  const topAt = (x) => {
+    let y = base - 4;
+    for (const [hx, hy, R] of humps) if (Math.abs(x - hx) < R) y = Math.min(y, hy - Math.sqrt(R * R - (x - hx) * (x - hx)) * 0.92);
+    return y;
+  };
   const p = new Path2D();
-  lobes.forEach(([x, y, R], i) => addPts(p, blobPts(x, y, R, R * 0.86, { seed: i + 2, wobble: 0.05, n: 30 })));
-  // curling tails
-  const tails = [spiral(28, base - 4, 26, 3, Math.PI * 0.2, -1.05, 30), spiral(W - 26, base - 4, 26, 3, Math.PI * 0.8, 1.05, 30)];
-  tails.forEach((sp) => addPts(p, taper(sp.slice().reverse(), 3, 16, { smoothIt: false })));
-  addPts(p, [[40, base + 4], [W - 40, base + 4], [W - 60, base + 22], [60, base + 22]]);
+  humps.forEach(([x, y, R], i) => addPts(p, blobPts(x, y, R, R * 0.92, { seed: i + 2, wobble: 0.03, n: 32 })));
+  addPts(p, [[58, base - 10], [340, base - 10], [352, base + 10], [58, base + 14]]);
+  // head curl (left) and tail (right)
+  const head = spiral(56, base - 6, 26, 4, Math.PI * 0.5, -1.15, 34);
+  addPts(p, taper(head, 20, 5));
+  const tail = [[330, base + 8], [356, base + 10], [376, base], [384, base - 16], [374, base - 26], [364, base - 18], [370, base - 10]];
+  addPts(p, taper(tail, 12, 3));
   leather(ctx, p);
-  // inner glow and spiral curls in every lobe
-  lobes.forEach(([x, y, R], i) => {
-    const inner = blobPts(x, y, R - 9, (R - 9) * 0.86, { seed: i + 2, wobble: 0.05, n: 30 });
-    dye(ctx, smooth(inner), i % 2 ? INK.cream : INK.white, 0.8);
-  });
-  lobes.forEach(([x, y, R], i) => {
-    const d = i % 2 ? 1 : -1;
-    const sp = spiral(x + d * R * 0.1, y + R * 0.05, R * 0.62, R * 0.08, i * 1.3, 1.6 * d, 40);
-    line(ctx, sp, INK.leather, 3.2);
-    gold(ctx, sp, 1);
-    dotLine(ctx, offsetLine(sp.slice(0, -8), 4 * d), { spacing: 3.8, r: 0.9, seed: i, smoothIt: false });
-    line(ctx, blobPts(x, y, R - 9, (R - 9) * 0.86, { seed: i + 2, wobble: 0.05, n: 30 }), INK.leather, 2, { closed: true });
-  });
-  tails.forEach((sp, i) => { gold(ctx, sp.slice(4), 0.9); dotLine(ctx, sp.slice(2, -6), { spacing: 3.6, r: 0.9, seed: 20 + i, smoothIt: false }); });
-  dotLine(ctx, [[56, base + 13], [W - 56, base + 13]], { spacing: 4, r: 1, smoothIt: false });
-  age(ctx, W, H, 0.12);
+  // glowing body inside a leather rim
+  const body = new Path2D();
+  humps.forEach(([x, y, R], i) => addPts(body, blobPts(x, y, R - 7, (R - 7) * 0.92, { seed: i + 2, wobble: 0.03, n: 32 })));
+  addPts(body, [[62, base - 12], [336, base - 12], [340, base + 3], [62, base + 5]]);
+  dye(ctx, body, INK.cream, 0.9);
+  // nested scallop lines following the top edge
+  for (const [d, kind] of [[10, 'dark'], [16, 'gold'], [23, 'dots'], [30, 'dark'], [37, 'gold']]) {
+    const pts = [];
+    for (let x = 64; x <= 336; x += 3) {
+      const y = topAt(x) + d;
+      if (y < base - 2) pts.push([x, y]); else if (pts.length) { drawRun(ctx, pts.splice(0), kind, d); }
+    }
+    if (pts.length) drawRun(ctx, pts, kind, d);
+  }
+  // little curls in the valleys between humps
+  for (let k = 0; k < humps.length - 1; k++) {
+    const x = (humps[k][0] + humps[k][2] + humps[k + 1][0] - humps[k + 1][2]) / 2;
+    const y = topAt(x) + 6;
+    const sp = spiral(x, y + 6, 7, 1.5, -Math.PI / 2, 1, 18);
+    line(ctx, sp, INK.leather, 2);
+    hole(ctx, x, y + 6, 1);
+  }
+  // head spiral detail
+  const hc = spiral(56, base - 6, 18, 3, Math.PI * 0.5, -1.1, 30);
+  gold(ctx, hc, 1.1);
+  dotLine(ctx, spiral(56, base - 6, 24, 8, Math.PI * 0.5, -0.9, 30), { spacing: 3.6, r: 0.9, smoothIt: false });
+  gold(ctx, curve(tail, false, 8).slice(2, -2), 0.9);
+  // underside: flat band with a dot row
+  gold(ctx, [[62, base + 2], [338, base + 2]], 1, { smoothIt: false });
+  dotLine(ctx, [[62, base + 8], [344, base + 8]], { spacing: 4, r: 1, smoothIt: false });
+  age(ctx, W, H, 0.1);
+}
+
+function drawRun(ctx, pts, kind, d) {
+  if (pts.length < 3) return;
+  if (kind === 'dots') dotLine(ctx, pts, { spacing: 3.6, r: 0.9, seed: d, smoothIt: false });
+  else if (kind === 'gold') gold(ctx, pts, 1.1, { smoothIt: false });
+  else line(ctx, pts, INK.leather, 2.2, { smoothIt: false });
 }
 
 function drawCampfire(ctx, { rng: r, w: W, h: H }) {
   const G = H, cx = W / 2;
   // flames: nested kanok tongues — vermilion outside, orange, yellow core
-  const tongues = [[-34, 0.7, -0.5], [-18, 1.0, -0.22], [0, 1.25, 0], [18, 0.95, 0.24], [34, 0.68, 0.5]];
-  const outer = tongues.map(([dx, s, a], i) => kanokPts(cx + dx, G - 46, 120 * s, -Math.PI / 2 + a, i % 2 === 0));
-  hideMany(ctx, outer);
+  const tongues = [[-40, 0.55, -0.62], [-26, 0.82, -0.36], [-10, 1.08, -0.14], [4, 1.28, 0.02], [18, 1.0, 0.2], [32, 0.78, 0.42], [44, 0.52, 0.66]];
+  const outer = tongues.map(([dx, s, a], i) => kanokPts(cx + dx, G - 40, 118 * s, -Math.PI / 2 + a, i % 2 === 0));
+  const bed = blobPts(cx, G - 48, 54, 30, { seed: 3, wobble: 0.08 });
+  hideMany(ctx, [...outer, bed], false);
+  dye(ctx, smooth(bed), INK.vermilion, 0.92);
   outer.forEach((pp) => dye(ctx, poly(pp), INK.vermilion, 0.92));
   tongues.forEach(([dx, s, a], i) => {
     const mid = kanokPts(cx + dx * 0.8, G - 48, 90 * s, -Math.PI / 2 + a * 0.8, i % 2 === 0);
@@ -729,7 +795,7 @@ function drawCampfire(ctx, { rng: r, w: W, h: H }) {
   for (let k = 0; k < 14; k++) sp.push([cx + (r() - 0.5) * 60, G - 60 - r() * 90]);
   ctx.save(); ctx.clip(poly(outer.flat()));
   ctx.restore();
-  outer.forEach((pp) => dotLine(ctx, inset(pp, 3), { closed: true, spacing: 4.4, r: 0.9, smoothIt: false }));
+  holes(ctx, sp, 1.3);
   // logs crossed
   const logs = [[[cx - 62, G - 8], [cx + 50, G - 46]], [[cx + 62, G - 8], [cx - 50, G - 46]], [[cx - 70, G - 18], [cx + 70, G - 20]]];
   logs.forEach(([a, b], i) => {
@@ -822,83 +888,159 @@ function lobePts(x, y, len, wid, ang, seed = 1) {
 }
 
 function drawForestTree(ctx, { rng: r, w: W, h: H }) {
+  // ต้นไม้ป่า — tall pointed crown (like a pipal leaf) bordered with flame
+  // fins, its body cut into dense lace of little leaves, with curling kanok
+  // branches, flowers, birds and a monkey over the lace; trunk, roots and a
+  // golden deer at the foot.
   const G = H, cx = W / 2;
-  // ---- ground mound with roots and grass
-  hide(ctx, [[cx - 170, G], [cx - 120, G - 22], [cx - 40, G - 30], [cx + 40, G - 30], [cx + 120, G - 22], [cx + 170, G]], 0.8, 1);
-  for (const [a, b] of [[[cx - 20, G - 60], [cx - 110, G - 8]], [[cx + 20, G - 60], [cx + 118, G - 10]], [[cx - 8, G - 40], [cx - 52, G - 4]], [[cx + 10, G - 40], [cx + 60, G - 4]]]) hide(ctx, taper([a, mix(a, b, 0.5).map((v, i) => v + (i ? 6 : 0)), b], 22, 4), 0, 0);
-  for (const [x, s] of [[cx - 150, 22], [cx - 96, 30], [cx + 104, 28], [cx + 150, 20]]) tuft(ctx, x, G - 10, s, x);
-  // ---- trunk and main branches curling into kanok scrolls
-  const trunkSpine = [[cx, G - 10], [cx - 6, G - 120], [cx + 8, G - 230], [cx, G - 330]];
-  const trunk = taper(trunkSpine, 74, 44);
-  hideS(ctx, trunk);
-  const branches = [
-    [[cx, G - 300], [cx - 70, G - 350], [cx - 150, G - 360], [cx - 190, G - 400]],
-    [[cx, G - 300], [cx + 76, G - 350], [cx + 156, G - 362], [cx + 196, G - 404]],
-    [[cx, G - 330], [cx - 40, G - 420], [cx - 96, G - 480], [cx - 120, G - 540]],
-    [[cx, G - 330], [cx + 44, G - 424], [cx + 100, G - 484], [cx + 124, G - 546]],
-    [[cx, G - 330], [cx - 6, G - 460], [cx + 4, G - 580], [cx, G - 650]],
-  ];
-  const brP = new Path2D();
-  branches.forEach((b, i) => addPts(brP, taper(b, i < 2 ? 28 : 30, 10)));
-  leather(ctx, brP);
-  // curling branch tips (kanok scroll ends) peeking out
-  for (const [x, y, d] of [[cx - 214, G - 330, -1], [cx + 214, G - 330, 1], [cx - 140, G - 268, -1], [cx + 142, G - 266, 1]]) {
-    const sp = spiral(x, y, 22, 3, d < 0 ? 0 : Math.PI, 1.1 * d, 30);
-    hide(ctx, taper(sp, 9, 3), 0, 0);
-    hideMany(ctx, [kanokPts(x - d * 18, y - 16, 22, -Math.PI / 2 - d * 0.6, d > 0)]);
-  }
-  // hollow in the trunk with a little owl
-  const hl = blobPts(cx + 4, G - 190, 14, 20, { seed: 4 });
-  cut(ctx, smooth(hl));
-  const owl = [[cx - 6, G - 174], [cx - 8, G - 192], [cx - 5, G - 202], [cx - 7, G - 210], [cx - 1, G - 204], [cx + 9, G - 204], [cx + 15, G - 210], [cx + 13, G - 202], [cx + 16, G - 192], [cx + 14, G - 174]];
-  hideS(ctx, owl);
-  holes(ctx, [[cx, G - 198], [cx + 8, G - 198]], 2.2);
-  bark(ctx, trunkSpine, 70, 42, { seed: 5, lines: 4 });
-  rimDots(ctx, hl, -3, { spacing: 3.4, r: 0.85 });
-  // ---- foliage lobes, back to front
-  const lobes = [
-    // [x, y, len, wid, angle, colour]
-    [cx, G - 640, 190, 170, -Math.PI / 2, INK.green],
-    [cx - 118, G - 540, 170, 140, -Math.PI / 2 - 0.55, INK.jade],
-    [cx + 122, G - 546, 170, 140, -Math.PI / 2 + 0.55, INK.jade],
-    [cx - 190, G - 400, 150, 130, -Math.PI + 0.35, INK.green],
-    [cx + 196, G - 404, 150, 130, -0.35, INK.green],
-    [cx - 70, G - 470, 130, 116, -Math.PI / 2 - 0.2, INK.green],
-    [cx + 74, G - 474, 130, 116, -Math.PI / 2 + 0.2, INK.green],
-    [cx - 150, G - 330, 104, 92, Math.PI - 0.2, INK.jade],
-    [cx + 154, G - 334, 104, 92, 0.2, INK.jade],
-    [cx, G - 520, 120, 104, -Math.PI / 2, INK.gold],
-  ];
-  lobes.forEach(([x, y, len, wid, ang, col], i) => {
-    const pts = lobePts(x, y, len, wid, ang, 30 + i);
-    hide(ctx, pts, 0.8, 40 + i);
-    const base = [x - Math.cos(ang) * len * 0.1, y - Math.sin(ang) * len * 0.1];
-    laceLobe(ctx, pts, base, { seed: 50 + i, color: col, alpha: col === INK.gold ? 0.5 : 0.62, veins: len > 150 ? 7 : 5, leaf: len > 150 ? 8 : 7 });
+  const cb = 612; // crown base
+  const half = [[cx, 18], [cx + 36, 70], [cx + 96, 150], [cx + 162, 250], [cx + 214, 350], [cx + 232, 432], [cx + 214, 510], [cx + 162, 570], [cx + 88, 606], [cx + 30, cb]];
+  const crown = curve([...half, [cx - 30, cb], ...half.slice(1, -1).reverse().map(([x, y]) => [2 * cx - x, y])], true, 6, 0.5);
+  // flame fins all round the crown edge, leaning up toward the tip
+  const edge = resample(crown, 21, true);
+  const fins = [];
+  edge.forEach(([x, y, a], i) => {
+    if (y > cb - 26) return;
+    const out = a - Math.PI / 2; // outward normal for a clockwise outline
+    const up = x < cx ? 0.55 : -0.55;
+    fins.push(kanokPts(x, y, 22 + (i % 2) * 6, out + up * (y < 120 ? 0.3 : 1), x > cx));
   });
-  // flowers (ดอก) and fruit clusters sprinkled over the crown
-  for (const [x, y, s] of [[cx - 40, G - 600, 11], [cx + 60, G - 650, 10], [cx - 150, G - 470, 10], [cx + 160, G - 480, 10], [cx - 210, G - 380, 9], [cx + 200, G - 360, 9], [cx, G - 440, 12], [cx - 100, G - 360, 9], [cx + 100, G - 370, 9]]) {
-    const f = [];
-    for (let k = 0; k < 5; k++) { const a = (k / 5) * TAU - Math.PI / 2; f.push(petalPts(x + Math.cos(a) * s * 0.2, y + Math.sin(a) * s * 0.2, s * 0.9, s * 1.1, a)); }
-    hideMany(ctx, f);
-    f.forEach((pp) => { dye(ctx, poly(pp), INK.vermilion, 0.92); gold(ctx, pp, 0.6, { closed: true, smoothIt: false }); });
-    dye(ctx, smooth(ellipsePts(x, y, s * 0.35, s * 0.35, 10)), INK.yellow, 0.95);
-    hole(ctx, x, y, Math.max(1, s * 0.12));
-  }
-  // hanging vines with little leaves under the side lobes
-  for (const [x, y, len, d] of [[cx - 172, G - 300, 120, 1], [cx + 176, G - 304, 110, -1], [cx - 110, G - 300, 70, -1]]) {
-    const v = [[x, y], [x + d * 10, y + len * 0.4], [x - d * 6, y + len * 0.75], [x + d * 4, y + len]];
-    hide(ctx, taper(v, 3, 1.5), 0, 0);
-    const vc = curve(v, false, 8);
-    for (let k = 3; k < vc.length - 1; k += 4) {
-      const lf = almondPts(vc[k][0], vc[k][1], 12, 6, Math.PI / 2 + (k % 8 < 4 ? 0.9 : -0.9));
-      hideS(ctx, lf);
-      dye(ctx, smooth(lf), INK.green, 0.7);
+  hideMany(ctx, fins);
+  fins.forEach((f, i) => { dye(ctx, poly(inset(f, 1.2)), i % 2 ? INK.vermilion : INK.gold, 0.8); gold(ctx, inset(f, 1.2), 0.6, { closed: true, smoothIt: false }); hole(ctx, ...mix(f[0], f[Math.floor(f.length / 2)], 0.45), 1.1); });
+  // ---- trunk and roots
+  hide(ctx, [[cx - 170, G], [cx - 120, G - 22], [cx - 40, G - 30], [cx + 40, G - 30], [cx + 120, G - 22], [cx + 170, G]], 0.8, 1);
+  for (const [a, b] of [[[cx - 18, G - 70], [cx - 118, G - 6]], [[cx + 18, G - 70], [cx + 124, G - 8]], [[cx - 8, G - 44], [cx - 54, G - 2]], [[cx + 10, G - 44], [cx + 62, G - 2]]]) hide(ctx, taper([a, mix(a, b, 0.5).map((v, i) => v + (i ? 8 : 0)), b], 24, 4), 0, 0);
+  const trunkSpine = [[cx, G - 12], [cx - 8, G - 90], [cx + 6, G - 150], [cx, cb - 10]];
+  hideS(ctx, taper(trunkSpine, 70, 44));
+  // ---- the crown sheet
+  hide(ctx, crown, 0.6, 3);
+  // dye: green body, jade and gold zones
+  dye(ctx, poly(inset(crown, 3)), INK.green, 0.6);
+  ctx.save(); ctx.clip(poly(crown));
+  dye(ctx, smooth(blobPts(cx, 300, 90, 170, { seed: 5 })), INK.jade, 0.5);
+  dye(ctx, smooth(blobPts(cx, 120, 50, 80, { seed: 6 })), INK.gold, 0.45);
+  ctx.restore();
+  // lace: herringbone of little leaves radiating from the crown base
+  const inner = inset(crown, 13);
+  const src = [cx, cb + 40];
+  const lace = new Path2D();
+  for (let y = 36, row = 0; y < cb; y += 8.6, row++) {
+    for (let x = cx - 240 + (row % 2) * 5; x < cx + 240; x += 10) {
+      const jx = x + (r() - 0.5) * 1.6, jy = y + (r() - 0.5) * 1.6;
+      const base = Math.atan2(jy - src[1], jx - src[0]);
+      const la = base + ((row + Math.round(x / 10)) % 2 ? 0.62 : -0.62);
+      const s = 7.4 + r() * 1.2;
+      addPts(lace, almondPts(jx - Math.cos(la) * s * 0.5, jy - Math.sin(la) * s * 0.5, s, s * 0.44, la));
     }
   }
-  // two birds perched on the curls
-  bird(ctx, cx - 226, G - 350, 1);
-  bird(ctx, cx + 232, G - 352, -1);
-  age(ctx, W, H, 0.28);
+  ctx.save();
+  ctx.clip(poly(inner));
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.fill(lace);
+  ctx.restore();
+  gold(ctx, inset(crown, 4), 1.3, { closed: true, smoothIt: false });
+  rimDots(ctx, crown, 8, { spacing: 4, r: 1.05, seed: 7 });
+  gold(ctx, inset(crown, 11.5), 1, { closed: true, smoothIt: false });
+  // ---- kanok branches curling over the lace
+  const br = [];
+  const branch = (pts, w0, w1, curl, d) => {
+    const end = pts[pts.length - 1];
+    const prev = pts[pts.length - 2];
+    const a = Math.atan2(end[1] - prev[1], end[0] - prev[0]);
+    const R0 = curl;
+    // continue into a spiral that turns inward
+    const c0 = [end[0] + Math.cos(a + d * Math.PI / 2) * R0, end[1] + Math.sin(a + d * Math.PI / 2) * R0];
+    const sp = spiral(c0[0], c0[1], R0, R0 * 0.15, a - d * Math.PI / 2, 1.15 * d, 26);
+    const all = [...curve(pts, false, 10), ...sp.slice(1)];
+    br.push({ pts: all, w0, w1, d });
+  };
+  const B2 = (pts, w0, w1, curl) => { branch(pts, w0, w1, curl, -1); branch(pts.map(([x, y]) => [2 * cx - x, y]), w0, w1, curl, 1); };
+  branch([[cx, cb], [cx - 4, 470], [cx + 4, 330], [cx, 200], [cx - 6, 120]], 20, 5, 14, 1);
+  B2([[cx - 4, cb - 10], [cx - 60, 560], [cx - 128, 520], [cx - 176, 452]], 18, 6, 22);
+  B2([[cx - 2, 520], [cx - 50, 450], [cx - 110, 380], [cx - 150, 300]], 15, 5, 20);
+  B2([[cx, 400], [cx - 42, 330], [cx - 86, 250], [cx - 96, 176]], 13, 4, 16);
+  B2([[cx, 260], [cx - 30, 200], [cx - 46, 130]], 10, 3.5, 11);
+  const brP = new Path2D();
+  br.forEach(({ pts, w0, w1 }) => addPts(brP, taper(pts, w0, w1, { smoothIt: false })));
+  leather(ctx, brP);
+  dye(ctx, brP, INK.brown, 0.5);
+  br.forEach(({ pts, w0, d }, i) => {
+    gold(ctx, pts.slice(1, -4), Math.max(0.8, w0 * 0.07));
+    if (w0 > 12) dotLine(ctx, offsetLine(pts.slice(2, -12), w0 * 0.22 * d), { spacing: 4.2, r: 0.9, seed: i, smoothIt: false });
+    // kanok leaves budding off the outer side of each branch
+    const rr = resample(pts, 26, false);
+    rr.forEach(([x, y, a], k) => {
+      if (k === 0 || k > rr.length - 3) return;
+      const side = k % 2 ? 1 : -1;
+      const la = a + side * 1.0;
+      const lf = kanokPts(x, y, 16 - k * 0.4, la, side > 0);
+      hideMany(ctx, [lf]);
+      dye(ctx, poly(lf), k % 3 ? INK.jade : INK.gold, 0.8);
+      gold(ctx, inset(lf, 1.2), 0.6, { closed: true, smoothIt: false });
+    });
+  });
+  // ---- flowers and fruit over the lace
+  const flowers = [[cx - 60, 540], [cx + 62, 540], [cx - 150, 430], [cx + 150, 430], [cx - 70, 360], [cx + 72, 356], [cx - 130, 290], [cx + 132, 292], [cx - 40, 230], [cx + 40, 230], [cx, 150], [cx - 60, 170], [cx + 60, 172], [cx, 450]];
+  flowers.forEach(([x, y], i) => {
+    const s = 9 + (i % 3) * 1.5;
+    const f = [];
+    for (let k = 0; k < 5; k++) { const a = (k / 5) * TAU - Math.PI / 2 + i; f.push(petalPts(x + Math.cos(a) * s * 0.2, y + Math.sin(a) * s * 0.2, s * 0.95, s * 1.15, a)); }
+    hideMany(ctx, f);
+    f.forEach((pp) => { dye(ctx, poly(pp), i % 4 === 3 ? INK.gold : INK.vermilion, 0.92); gold(ctx, pp, 0.6, { closed: true, smoothIt: false }); });
+    dye(ctx, smooth(ellipsePts(x, y, s * 0.36, s * 0.36, 10)), INK.yellow, 0.95);
+    hole(ctx, x, y, 1.2);
+  });
+  for (const [x, y] of [[cx - 100, 500], [cx + 100, 500], [cx - 186, 380], [cx + 186, 380]]) {
+    for (const [dx, dy] of [[0, 0], [-6, 8], [6, 8], [0, 15]]) {
+      const f = ellipsePts(x + dx, y + dy, 4.6, 4.6, 10);
+      hideS(ctx, f);
+      dye(ctx, smooth(f), INK.orange, 0.95);
+    }
+    hide(ctx, taper([[x, y - 8], [x, y]], 1.5), 0, 0);
+  }
+  // ---- creatures: two birds, a monkey
+  bird(ctx, cx - 196, 424, 1);
+  bird(ctx, cx + 202, 426, -1);
+  bird(ctx, cx + 118, 262, -1);
+  monkey(ctx, cx - 104, 520, 1);
+  // ---- golden deer (กวางทอง) grazing at the foot
+  goldenDeer(ctx, cx + 170, G - 6, 1);
+  for (const [x, s] of [[cx - 150, 22], [cx - 96, 28], [cx + 100, 24], [cx + 230, 18], [cx - 210, 18]]) tuft(ctx, x, G - 8, s, x);
+  bark(ctx, trunkSpine, 66, 44, { seed: 5, lines: 4 });
+  age(ctx, W, H, 0.26);
+}
+
+function monkey(ctx, x, y, d) {
+  // sitting on a branch, tail hanging
+  const b = [[x - d * 8, y], [x - d * 12, y - 12], [x - d * 8, y - 24], [x - d * 2, y - 28], [x - d * 4, y - 34], [x - d * 1, y - 42], [x + d * 7, y - 44], [x + d * 13, y - 38], [x + d * 12, y - 32], [x + d * 6, y - 28], [x + d * 12, y - 20], [x + d * 22, y - 14], [x + d * 22, y - 10], [x + d * 10, y - 12], [x + d * 10, y - 2], [x + d * 16, y + 8], [x + d * 10, y + 10], [x + d * 2, y + 2]];
+  hideS(ctx, b);
+  hide(ctx, taper([[x - d * 8, y - 4], [x - d * 18, y + 14], [x - d * 10, y + 34], [x - d * 20, y + 44]], 4, 1.5), 0, 0);
+  dye(ctx, smooth(inset(b, 1.5)), INK.brown, 0.4);
+  hole(ctx, x + d * 7, y - 38, 0.9);
+  hole(ctx, x + d * 10, y - 34, 0.6);
+}
+
+function goldenDeer(ctx, x, yb, d) {
+  const s = 1;
+  const b = [
+    [x - d * 36, yb], [x - d * 34, yb - 22], [x - d * 40, yb - 36], [x - d * 36, yb - 48], [x - d * 20, yb - 52], [x + d * 8, yb - 52],
+    [x + d * 20, yb - 58], [x + d * 26, yb - 76], [x + d * 30, yb - 84], [x + d * 40, yb - 84], [x + d * 46, yb - 78], [x + d * 40, yb - 74],
+    [x + d * 34, yb - 70], [x + d * 28, yb - 50], [x + d * 24, yb - 40], [x + d * 26, yb - 22], [x + d * 28, yb], [x + d * 22, yb],
+    [x + d * 18, yb - 26], [x + d * 10, yb - 34], [x - d * 16, yb - 34], [x - d * 22, yb - 20], [x - d * 20, yb], [x - d * 26, yb], [x - d * 28, yb - 24], [x - d * 30, yb],
+  ].map(([px, py]) => [x + (px - x) * s, yb + (py - yb) * s]);
+  hide(ctx, b, 0, 0);
+  // antlers
+  for (const k of [0, 5]) {
+    const ax = x + d * (30 + k), ay = yb - 84;
+    hide(ctx, taper([[ax, ay], [ax - d * 4, ay - 14], [ax + d * 4, ay - 26]], 2.4, 1), 0, 0);
+    hide(ctx, taper([[ax - d * 3, ay - 10], [ax - d * 12, ay - 18]], 1.8, 0.8, { smoothIt: false }), 0, 0);
+  }
+  dye(ctx, poly(inset(b, 1.4)), INK.gold, 0.85);
+  const spots = [];
+  for (let k = 0; k < 9; k++) spots.push([x + d * (-26 + (k % 5) * 10 + (k > 4 ? 5 : 0)), yb - 46 + (k > 4 ? 7 : 0)]);
+  holes(ctx, spots, 1.2);
+  hole(ctx, x + d * 36, yb - 79, 1);
+  gold(ctx, [[x - d * 30, yb - 38], [x - d * 10, yb - 40], [x + d * 18, yb - 44]], 0.8);
 }
 
 function bird(ctx, x, y, d) {
@@ -929,7 +1071,7 @@ export const PROPS = [
   N('rock', 'ก้อนหิน', 'Rock', 170, 110, drawRock, { mass: 2.5 }),
   N('moon', 'พระจันทร์', 'Moon with the rabbit', 220, 220, drawMoon, (w, h) => ({ static: true, glow: [w / 2, h / 2, 170], mass: 1 })),
   N('sun', 'พระอาทิตย์', 'Sun', 280, 280, drawSun, (w, h) => ({ static: true, glow: [w / 2, h / 2, 260], mass: 1 })),
-  N('scroll-cloud', 'เมฆลายไทย', 'Thai scroll cloud', 380, 170, drawCloud, { static: true, mass: 0.5 }),
+  N('scroll-cloud', 'เมฆลายไทย', 'Thai scroll cloud', 396, 150, drawCloud, { static: true, mass: 0.5 }),
   N('campfire', 'กองไฟ', 'Campfire', 170, 190, drawCampfire, (w, h) => ({ glow: [w / 2, h - 60, 220], mass: 1.5 })),
   N('forest-tree', 'ต้นไม้ป่า', 'Forest tree (set piece)', 560, 780, drawForestTree, { static: true, mass: 4 }, { px: 1.6 }),
 ];

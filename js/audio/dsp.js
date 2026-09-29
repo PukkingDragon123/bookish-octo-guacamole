@@ -76,10 +76,18 @@ export function cachedBuffer(key, make) {
   }
   return b;
 }
-export function cacheSize() {
+export function cacheSize(detail = false) {
   let bytes = 0;
-  for (const b of bufCache.values()) bytes += b.length * b.numberOfChannels * 4;
-  return { count: bufCache.size, mb: +(bytes / 1048576).toFixed(1) };
+  const by = {};
+  for (const [k, b] of bufCache) {
+    const n = b.length * b.numberOfChannels * 4;
+    bytes += n;
+    const g = k.split('|').slice(0, 2).join('|');
+    by[g] = (by[g] || 0) + n;
+  }
+  const res = { count: bufCache.size, mb: +(bytes / 1048576).toFixed(1) };
+  if (detail) res.by = Object.fromEntries(Object.entries(by).sort((a, b) => b[1] - a[1]).map(([k, v]) => [k, +(v / 1048576).toFixed(2)]));
+  return res;
 }
 
 /** Create a buffer and fill it with JS: fill(channels[], sampleRate, length) */

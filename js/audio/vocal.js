@@ -155,9 +155,9 @@ export function vocalize(ctx, dest, t, spec) {
 export const VOICES = {
   male: { f0: 118, fs: 1.0, syl: 0.125, range: 1.0, src: 'sawtooth', noise: 0.03, vol: 1 },
   female: { f0: 215, fs: 1.17, syl: 0.115, range: 1.1, src: 'sawtooth', noise: 0.04, vol: 0.9 },
-  old: { f0: 132, fs: 1.04, syl: 0.165, range: 0.8, src: 'sawtooth', noise: 0.16, vib: { rate: 6.3, depth: 38 }, vol: 0.95 },
+  old: { f0: 132, fs: 1.04, syl: 0.165, range: 0.8, src: 'sawtooth', noise: 0.16, vib: { rate: 6.3, depth: 38 }, vol: 1.2 },
   comic: { f0: 245, fs: 1.25, syl: 0.095, range: 2.1, src: 'square', noise: 0.03, bounce: 0.32, vol: 0.75 },
-  demon: { f0: 64, fs: 0.78, syl: 0.165, range: 0.9, src: 'sawtooth', noise: 0.1, sub: 0.7, drive: 0.7, rough: { rate: 27, depth: 0.55 }, send: 0.35, vol: 0.9 },
+  demon: { f0: 64, fs: 0.78, syl: 0.165, range: 0.9, src: 'sawtooth', noise: 0.1, sub: 0.7, drive: 0.7, rough: { rate: 27, depth: 0.55 }, send: 0.35, vol: 1.35 },
   child: { f0: 300, fs: 1.35, syl: 0.105, range: 1.2, src: 'sawtooth', noise: 0.04, vol: 0.85 },
   monkey: { f0: 430, fs: 1.5, syl: 0.078, range: 2.4, src: 'sawtooth', noise: 0.05, bounce: 0.5, vowels: 'uuiiae', vol: 0.8 },
   god: { f0: 98, fs: 0.92, syl: 0.19, range: 0.7, src: 'sawtooth', noise: 0.05, chorus: 11, send: 0.6, vib: { rate: 4.5, depth: 9 }, vol: 0.9 },

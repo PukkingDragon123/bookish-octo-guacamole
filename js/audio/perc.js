@@ -183,7 +183,7 @@ const DEFS = {
     },
   },
   applause: {
-    dur: 2.8, chans: 2, variants: 2, peak: 0.85,
+    dur: 2.8, chans: 2, rate: 32000, variants: 2, peak: 0.85,
     render(ch, sr, r) {
       for (const a of ch) {
         const n = 900;
@@ -229,7 +229,7 @@ export const PERC_KINDS = Object.keys(DEFS);
 const PITCHED = {
   // โหม่ง: pair of bossed gongs — slow beating fundamental, long hum
   mong: {
-    dur: 5.5, rate: LO, peak: 0.85,
+    dur: 5.5, rate: 16000, peak: 0.85,
     render([a], sr, f, r) {
       addModes(a, sr, [
         { f, a: 1, d: 1.25, att: 0.004 },
@@ -246,7 +246,7 @@ const PITCHED = {
   },
   // big gong: blooming upper partials
   gong: {
-    dur: 7.5, rate: LO, peak: 0.85,
+    dur: 7.5, rate: 16000, peak: 0.85,
     render([a], sr, f, r) {
       addModes(a, sr, [
         { f, a: 1, d: 2.0, att: 0.006 },
@@ -281,7 +281,7 @@ const PITCHED = {
   },
   // ระนาด ranat: hardwood bars, partials ~1 : 3.9 : 9.2, hard mallet
   ranat: {
-    dur: 1.4, rate: 32000, peak: 0.85,
+    dur: 1.1, rate: 32000, peak: 0.85,
     render([a], sr, f, r) {
       const d1 = clamp(0.28 * Math.sqrt(500 / f), 0.1, 0.45);
       addModes(a, sr, [
@@ -296,7 +296,7 @@ const PITCHED = {
   },
   // จะเข้ jakhe: plucked floor zither, buzzy raised frets
   jakhe: {
-    dur: 2.0, rate: 32000, peak: 0.85,
+    dur: 1.7, rate: LO, peak: 0.85,
     render([a], sr, f, r) {
       addPluck(a, sr, { f, d: 0.9 * Math.pow(300 / f, 0.3), bright: 0.75, buzz: 0.6, rng: r });
       addNoise(a, sr, { rng: r, a: 0.25, d: 0.002, type: 'bandpass', f: 3000, Q: 1 });

@@ -389,3 +389,13 @@ export const SFX = {
 };
 
 export const SFX_NAMES = Object.keys(SFX);
+
+// Loudness calibration (from the offline self-test: short-term levels of
+// combat ~-16 dBFS, UI ticks ~-30..-40, animals/crowd ~-17..-20).
+export const SFX_TRIM = {
+  whoosh: 1.7, swish: 2, jump: 2.2, pop: 1.35, pick: 1.4, flip: 4.3, step: 3, hit: 2, block: 4, thud: 1.2,
+  clang: 1.5, ching: 1.4, chap: 4, thap: 1.15, curtain: 1.2, 'lamp-ignite': 0.8, chime: 0.9, sparkle: 0.67,
+  click: 5.6, hover: 9, buzz: 1.5, splash: 1.3, 'fire-crackle': 1.4, laugh: 1.65, cheer: 1.4, gasp: 1.25,
+  roar: 2, ghost: 0.34, 'animal-buffalo': 0.9, 'animal-ox': 0.73, 'animal-elephant': 0.35, 'animal-pig': 0.9,
+  'animal-rooster': 0.55, 'animal-duck': 0.8, 'animal-cat': 1.45, 'animal-horse': 0.5, 'animal-monkey': 0.62,
+};

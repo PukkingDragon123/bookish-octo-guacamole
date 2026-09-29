@@ -104,6 +104,30 @@ function hornPts(base, len, ang, bend, w0, { w1 = 0, n = 14, taper = 1, swell = 
   return [...L, c[n], ...R.reverse()];
 }
 
+// Spiral curl (moustache, brow tail, hair lock) as a centreline.
+function spiral(c, r0, a0, turns, dir = 1, n = 30) {
+  const out = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    const a = a0 + dir * t * turns * TAU, r = r0 * (1 - 0.8 * t);
+    out.push([c[0] + Math.cos(a) * r, c[1] + Math.sin(a) * r]);
+  }
+  return out;
+}
+
+// Stroke with a tapering width along a centreline (brush stroke), as an
+// outline polygon.
+function brush(pts, w0, w1 = 0.4) {
+  const c = pts, n = c.length - 1, L = [], R = [];
+  c.forEach((p, i) => {
+    const q = c[Math.min(n, i + 1)], o = c[Math.max(0, i - 1)];
+    const [tx, ty] = unit(q[0] - o[0], q[1] - o[1]);
+    const hw = lerp(w0, w1, i / n) / 2;
+    L.push([p[0] + ty * hw, p[1] - tx * hw]); R.push([p[0] - ty * hw, p[1] + tx * hw]);
+  });
+  return [...L, ...R.reverse()];
+}
+
 // Finishing for a flame/wing piece: gold edge, coloured heart, dotted rows.
 function flameDeco(ctx, pts, { cols = [INK.gold, INK.red, INK.green], seed = 1, d = [1.2, 3.6, 6.6] } = {}) {
   cols.forEach((c, i) => dye(ctx, smooth(inset(pts, d[i]), true), c, 0.9));
@@ -991,27 +1015,28 @@ function buildPhra() {
 // curled moustache, under a มงกุฎยอดกาบไผ่ (bamboo-sheath spire crown).
 function yakGeom(E, k) {
   const X = (x, y) => [E[0] + x * k, E[1] + y * k];
-  const face = [X(5, -20), X(11, -16.5), X(16, -11.5), X(14.6, -6), X(15.4, -1.5), X(19, 3), X(23, 7), X(25.6, 11), X(24.8, 15.2), X(21, 17),
-    X(18, 16.2), X(17.6, 17.6), X(21, 18.8), X(20.6, 21.2), X(18.5, 23.6), X(4, 23.6), X(0, 21), X(-5, 22.5), X(-10, 19), X(-8, 26), X(-6, 36), X(-6, 44), X(-19, 44),
+  const face = [X(5, -20), X(11, -16.5), X(16.4, -11.5), X(15, -6), X(15.4, -1.5), X(19, 3), X(23, 7), X(25.6, 11), X(24.8, 15.2), X(21, 17),
+    X(18, 16.2), X(17.6, 17.6), X(21.4, 18.6), X(21.2, 20.6), X(18.5, 21.4), X(4, 21.4), X(0, 20), X(-5, 22.5), X(-10, 19), X(-8, 26), X(-6, 36), X(-6, 44), X(-19, 44),
     X(-19, 26), X(-17, 6), X(-16, -8), X(-10, -19)];
-  const jaw = [X(-14, 15), X(-6, 19.5), X(0, 21), X(4, 22.4), X(19, 22.4), X(20.4, 25.4), X(18.4, 30.5), X(14.5, 35), X(7, 37.2), X(-2, 35.6), X(-9, 30.5), X(-14, 23)];
+  const jaw = [X(-14, 15), X(-6, 19.5), X(0, 21), X(4, 22.4), X(19, 23.6), X(20.4, 26.4), X(18.4, 31), X(14.5, 35), X(7, 37.2), X(-2, 35.6), X(-9, 30.5), X(-14, 23)];
   const helmet = [X(8.5, -18), X(10.5, -25), X(6, -32), X(-6, -37), X(-19, -36.5), X(-29, -30), X(-33, -18), X(-32, -4), X(-26, 2), X(-18, -8), X(-8, -15), X(2, -18)];
-  const spBase = X(-8, -35), spTop = X(-13, -92), tip = X(-15, -110);
+  const spBase = X(-8, -35), spTop = X(-12, -76), tip = X(-14, -94);
   const tiers = [];
   const leaves = [];
-  for (let i = 0; i < 5; i++) {
-    const t = i / 5;
-    const c = mix(spBase, spTop, t), c2 = mix(spBase, spTop, t + 0.2);
-    const w = lerp(15.5, 4, t) * k, w2 = lerp(15.5, 4, t + 0.2) * k;
-    tiers.push({ c, c2, w, w2, quad: [[c[0] - w, c[1]], [c[0] + w, c[1]], [c2[0] + w2 * 0.9, c2[1]], [c2[0] - w2 * 0.9, c2[1]]] });
-    const L = lerp(17, 8, t) * k, W0 = lerp(8, 4, t) * k;
-    leaves.push(hornPts([c[0] - w * 0.9, c[1] - 1.5 * k], L, -142 * DEG, 42 * DEG, W0, { swell: 1.5 * k }));
-    leaves.push(hornPts([c[0] + w * 0.9, c[1] - 1.5 * k], L, -38 * DEG, -42 * DEG, W0, { swell: 1.5 * k }));
+  const NT = 4;
+  for (let i = 0; i < NT; i++) {
+    const t = i / NT;
+    const c = mix(spBase, spTop, t), c2 = mix(spBase, spTop, t + 1 / NT);
+    const w = lerp(16, 4.5, Math.pow(t, 0.9)) * k, w2 = lerp(16, 4.5, Math.pow(t + 1 / NT, 0.9)) * k;
+    tiers.push({ c, c2, w, w2, quad: [[c[0] - w, c[1]], [c[0] + w, c[1]], [c2[0] + w2 * 0.92, c2[1]], [c2[0] - w2 * 0.92, c2[1]]] });
+    const L = lerp(19, 10, t) * k, W0 = lerp(9, 5, t) * k;
+    leaves.push(hornPts([c[0] - w * 0.85, c[1] - 1 * k], L, -150 * DEG, 62 * DEG, W0, { swell: 2 * k }));
+    leaves.push(hornPts([c[0] + w * 0.85, c[1] - 1 * k], L, -30 * DEG, -62 * DEG, W0, { swell: 2 * k }));
   }
-  const top = tiers[4];
-  const finial = [[top.c2[0] - 4 * k, top.c2[1] + 1], [top.c2[0] - 5 * k, top.c2[1] - 5 * k], tip, [top.c2[0] + 5 * k, top.c2[1] - 5 * k], [top.c2[0] + 4 * k, top.c2[1] + 1]];
+  const top = tiers[NT - 1];
+  const finial = [[top.c2[0] - 5 * k, top.c2[1] + 1], [top.c2[0] - 6.5 * k, top.c2[1] - 6 * k], [top.c2[0] - 2 * k, top.c2[1] - 12 * k], tip, [top.c2[0] + 2 * k, top.c2[1] - 12 * k], [top.c2[0] + 6.5 * k, top.c2[1] - 6 * k], [top.c2[0] + 5 * k, top.c2[1] + 1]];
   const cone = [...tiers.map((t) => [t.c[0] - t.w, t.c[1]]), [top.c2[0] - top.w2, top.c2[1]], [top.c2[0] + top.w2, top.c2[1]], ...tiers.map((t) => [t.c[0] + t.w, t.c[1]]).reverse()];
-  const karn = hornPts(X(-15, 12), 46 * k, 196 * DEG, 84 * DEG, 20 * k, { swell: 7 * k, taper: 0.8 });
+  const karn = hornPts(X(-15, 12), 44 * k, 194 * DEG, 88 * DEG, 20 * k, { swell: 7 * k, taper: 0.8 });
   const ear = [X(-8, -4), X(-6.5, 4), X(-8, 12), X(-11, 18), X(-14.5, 15), X(-15.5, 4), X(-13, -4)];
   return { X, face, jaw, helmet, tiers, leaves, finial, cone, karn, ear };
 }
@@ -1021,57 +1046,69 @@ function yakHead(ctx, E, k, G, { skin = INK.jade, seed = 200 } = {}) {
   // face & neck
   leather(ctx, smooth(face, true, 0.4));
   dye(ctx, smooth(inset(face, 1), true), skin, 0.95);
-  // shading lines on the brow, nose and cheek
-  goldL(ctx, [X(14.5, -7), X(9, -8.5), X(4, -7)], 0.7, { alpha: 0.9 });
-  ink(ctx, [X(18.4, 5), X(21, 9.5), X(20, 13.6)], INK.leather, 0.8);
-  ink(ctx, [X(19.6, 13.6), X(18.2, 15.4)], INK.leather, 1);
-  goldL(ctx, [X(12, 4), X(8.5, 9), X(9, 14)], 0.6, { alpha: 0.8 });
-  // teeth
+  // painted fierce lines: nose wings, cheek curl, forehead flame
+  ink(ctx, [X(18.4, 5), X(21, 9.5), X(20, 13.6)], INK.leather, 0.9);
+  ink(ctx, [X(19.6, 13.6), X(18.2, 15.4)], INK.leather, 1.1);
+  goldL(ctx, [X(16.5, 12.5), X(13, 10), X(10, 12.5), X(11.5, 15.6), X(14, 14)], 0.8);
+  goldL(ctx, spiral(X(6, 12), 4 * k, -0.4, 1.1, -1), 0.8);
+  goldL(ctx, [X(10, -15.5), X(6, -12.5), X(2, -14.5), X(-2, -12)], 0.7, { alpha: 0.9 });
+  dots(ctx, [X(13, -13.5), X(4, -16), X(-6, -15)], { sp: 2.4, r: 0.7, seed: seed + 9, punch: 0 });
+  // grimace: gums, teeth in two rows
+  const gum = smooth([X(3.5, 20.4), X(20.6, 20.4), X(20, 22), X(3.5, 22)], true);
+  dye(ctx, gum, INK.red, 0.95);
   const teeth = new Path2D();
-  for (let x = 5; x < 18.5; x += 2.3) { const a = X(x, 20.6), b = X(x + 1.9, 23.2); teeth.rect(a[0], a[1], b[0] - a[0], b[1] - a[1]); }
+  for (let x = 5; x < 19; x += 2.4) { const a = X(x, 20.8), b = X(x + 2, 22.6); teeth.rect(a[0], a[1], b[0] - a[0], b[1] - a[1]); }
   dye(ctx, teeth, INK.white, 0.98);
-  ink(ctx, [X(4, 20.4), X(19.5, 20.4)], INK.red, 1.3);
-  // upward tusk (เขี้ยว) from the mouth corner
-  const tusk = hornPts(X(4, 21.5), 13 * k, -70 * DEG, 40 * DEG, 3.6 * k);
+  // tusk curling up from the mouth corner, fang down at the front
+  const tusk = hornPts(X(5, 21.8), 14 * k, -76 * DEG, 52 * DEG, 3.8 * k);
   leather(ctx, smooth(tusk, true)); dye(ctx, smooth(inset(tusk, 0.5), true), INK.white, 0.98);
-  const fang = hornPts(X(16, 21), 7 * k, 96 * DEG, -20 * DEG, 3 * k);
+  const fang = hornPts(X(17, 21.6), 8 * k, 92 * DEG, -24 * DEG, 3.2 * k);
   leather(ctx, smooth(fang, true)); dye(ctx, smooth(inset(fang, 0.4), true), INK.white, 0.98);
-  // bulging eye
-  const eyeP = new Path2D(); eyeP.ellipse(E[0] + 1 * k, E[1], 6.4 * k, 5.6 * k, 0, 0, TAU);
+  // spiral moustache along the cheek
+  const mc = [X(18, 17.4), X(13, 18.2), X(7, 17.4), X(2, 15.4), ...spiral(X(1.5, 11.2), 4.2 * k, Math.PI / 2, 1.05, 1, 16).slice(1)];
+  const mous = brush(C(mc, false, 4), 3.6 * k, 0.8 * k);
+  leather(ctx, smooth(mous, true, 0.3));
+  goldL(ctx, C(mc, false, 4), 0.55, { alpha: 0.9 });
+  // bulging eye with red rim, black pupil, curled corner lines
+  const eyeP = new Path2D(); eyeP.ellipse(E[0] + 1 * k, E[1], 6.4 * k, 5.8 * k, 0, 0, TAU);
   dye(ctx, eyeP, INK.white, 0.98);
-  ctx.save(); ctx.globalCompositeOperation = 'source-atop'; ctx.strokeStyle = INK.red; ctx.lineWidth = 1.3 * k; ctx.stroke(eyeP); ctx.restore();
-  const pup = new Path2D(); pup.arc(E[0] + 2.8 * k, E[1] + 0.3 * k, 3.1 * k, 0, TAU);
+  ctx.save(); ctx.globalCompositeOperation = 'source-atop'; ctx.strokeStyle = INK.red; ctx.lineWidth = 1.4 * k; ctx.stroke(eyeP); ctx.restore();
+  const pup = new Path2D(); pup.arc(E[0] + 3 * k, E[1] + 0.2 * k, 3.2 * k, 0, TAU);
   dye(ctx, pup, INK.leather, 1);
-  hole(ctx, E[0] + 3.6 * k, E[1] - 0.8 * k, 0.9 * k);
-  // heavy flame brow
-  const brow = hornPts(X(15, -9.5), 30 * k, 190 * DEG, 50 * DEG, 5.2 * k, { swell: 1.5 * k, w1: 0.8 });
-  leather(ctx, smooth(brow, true, 0.4));
-  dye(ctx, smooth(inset(brow, 0.8), true), INK.leather2, 1);
-  dots(ctx, C(brow.slice(0, 15)), { sp: 2.2, r: 0.6, seed: seed + 1, punch: 0 });
-  goldL(ctx, C(brow.slice(16)), 0.7);
-  // curled moustache
-  const mous = hornPts(X(17.5, 17.2), 24 * k, 170 * DEG, 150 * DEG, 4.6 * k, { w1: 1.2, taper: 0.8 });
-  leather(ctx, smooth(mous, true, 0.4));
-  goldL(ctx, C(mous.slice(0, 15)), 0.65);
+  hole(ctx, E[0] + 3.8 * k, E[1] - 0.9 * k, 0.95 * k);
+  ink(ctx, [X(8, 0), X(11.5, 2.5), X(12.5, 6)], INK.leather, 1);
+  ink(ctx, [X(-5.5, 1), X(-9, 3.4), X(-10.5, 1), X(-9, -1)], INK.leather, 1);
+  goldL(ctx, [X(-4, 6.5), X(1, 7.8), X(6, 6.6)], 0.6);
+  // heavy flame brow: a thick sweep with three flame tongues at the back
+  const bc = [X(15.2, -8.4), X(9, -9.6), X(2, -10), X(-5, -9), X(-11, -7.6)];
+  const brow = brush(C(bc, false, 6), 5.4 * k, 2.4 * k);
+  leather(ctx, smooth(brow, true, 0.3));
+  for (let i = 0; i < 3; i++) {
+    const tg = hornPts(X(-2 - i * 4, -10 + i * 0.8), (8 + i * 2) * k, (-120 - i * 12) * DEG, -40 * DEG, 3.4 * k);
+    leather(ctx, smooth(tg, true, 0.4));
+    goldL(ctx, C(tg.slice(0, 15)), 0.5, { alpha: 0.9 });
+  }
+  dots(ctx, C(bc, false, 6), { sp: 2.3, r: 0.75, seed: seed + 1, punch: 0 });
   // ear
   leather(ctx, smooth(ear, true));
   dye(ctx, smooth(inset(ear, 0.8), true), skin, 0.95);
-  ink(ctx, [X(-9.5, -1), X(-9.5, 6), X(-11.5, 13)], INK.leather, 0.7);
+  ink(ctx, [X(-9.5, -1), X(-9.5, 6), X(-11.5, 13)], INK.leather, 0.8);
   // crown spire
-  for (const l of leaves) { leather(ctx, smooth(l, true, 0.4)); flameDeco(ctx, l, { cols: [INK.gold, INK.red], d: [1, 2.6], seed: seed + 3 }); }
+  for (const l of leaves) { leather(ctx, smooth(l, true, 0.4)); flameDeco(ctx, l, { cols: [INK.gold, INK.red], d: [1, 2.8], seed: seed + 3 }); }
   leather(ctx, smooth(cone, true, 0.3));
   tiers.forEach((t, i) => {
     dye(ctx, poly(t.quad), i % 2 ? INK.red : INK.green, 0.9);
-    dots(ctx, [mix(t.quad[0], t.quad[3], 0.5), mix(t.quad[1], t.quad[2], 0.5)], { sp: 2.4, r: 0.7, seed: seed + 10 + i, punch: 0.3 });
-    stripe(ctx, [[t.c[0] - t.w, t.c[1]], t.c, [t.c[0] + t.w, t.c[1]]], 3.4 * k * (1 - i * 0.12), { fill: INK.gold, edge: INK.white, ew: 0.5, seed: seed + 20 + i, sp: 2.2, r: 0.6 });
+    lace(ctx, t.quad, { sp: 3.6, r: 0.7, style: 'dot', seed: seed + 10 + i, punch: 0.3 });
+    stripe(ctx, [[t.c[0] - t.w, t.c[1]], t.c, [t.c[0] + t.w, t.c[1]]], 4 * k * (1 - i * 0.14), { fill: INK.gold, edge: INK.white, ew: 0.5, seed: seed + 20 + i, sp: 2.2, r: 0.65 });
+    fringe(ctx, [[t.c[0] - t.w * 0.9, t.c[1] - 2 * k], [t.c[0] + t.w * 0.9, t.c[1] - 2 * k]], Math.max(2.4, t.w * 0.3), { h: 1.5, gap: 1, edge: INK.white });
   });
-  leather(ctx, smooth(finial, true, 0.3));
-  dye(ctx, smooth(inset(finial, 0.8), true), INK.gold, 0.92);
-  gem(ctx, finial[0][0] + 4 * k, finial[0][1] - 3 * k, 2.4 * k);
+  leather(ctx, smooth(finial, true, 0.35));
+  flameDeco(ctx, finial, { cols: [INK.gold, INK.red], d: [1, 3], seed: seed + 40 });
+  gem(ctx, top0(finial)[0], top0(finial)[1], 2.6 * k);
   // helmet + band
   leather(ctx, smooth(helmet, true));
   dye(ctx, smooth(inset(helmet, 1.4), true), INK.red, 0.88);
-  scales(ctx, inset(helmet, 2.4), { sp: 5.2, dotR: 0.75 });
+  scales(ctx, inset(helmet, 2.4), { sp: 5.2, dotR: 0.8 });
   const band = [X(9.8, -20), X(-2, -19.5), X(-16, -15.5), X(-26, -7), X(-29, 0)];
   stripe(ctx, band, 6 * k, { fill: INK.gold, seed: seed + 7, sp: 2.5, r: 0.75, edge: INK.white });
   for (const t of [0.1, 0.35, 0.6]) { const q = C(band); const p = q[Math.floor(q.length * t)]; gem(ctx, p[0], p[1], 2.1 * k, { col: INK.green }); }
@@ -1085,26 +1122,29 @@ function yakHead(ctx, E, k, G, { skin = INK.jade, seed = 200 } = {}) {
   const drop = [X(-11.5, 17), X(-8.5, 23), X(-11.5, 30), X(-14.5, 23)];
   leather(ctx, smooth(drop, true)); dye(ctx, smooth(drop, true), INK.gold, 0.9); gem(ctx, ...X(-11.5, 23.4), 2 * k);
 }
+const top0 = (pts) => { const a = pts[0], b = pts[pts.length - 1]; return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2 - 4]; };
 
 function yakJaw(ctx, E, k, G, { skin = INK.jade, seed = 230 } = {}) {
   const { X, jaw } = G;
   leather(ctx, smooth(jaw, true, 0.4));
   dye(ctx, smooth(inset(jaw, 1), true), skin, 0.95);
+  dye(ctx, smooth([X(4, 22.4), X(19.2, 23.6), X(19, 25.6), X(4, 24.8)], true), INK.red, 0.95);
   const teeth = new Path2D();
-  for (let x = 5.5; x < 18.5; x += 2.3) { const a = X(x, 22.2), b = X(x + 1.9, 24.8); teeth.rect(a[0], a[1], b[0] - a[0], b[1] - a[1]); }
+  for (let x = 5.5; x < 18.5; x += 2.4) { const a = X(x, 22.6), b = X(x + 2, 24.6); teeth.rect(a[0], a[1], b[0] - a[0], b[1] - a[1]); }
   dye(ctx, teeth, INK.white, 0.98);
-  ink(ctx, [X(4, 25.2), X(19.5, 25.2)], INK.red, 1.3);
   // curly goatee
   for (let i = 0; i < 4; i++) {
     const c = hornPts(X(15 - i * 4, 34 - i * 0.6), (7 + i) * k, (110 + i * 12) * DEG, 120 * DEG, 2.4 * k);
     leather(ctx, smooth(c, true, 0.4));
+    goldL(ctx, C(c.slice(0, 15)), 0.45, { alpha: 0.8 });
   }
   goldL(ctx, [X(17, 29), X(10, 33), X(0, 32)], 0.6, { alpha: 0.8 });
+  goldL(ctx, spiral(X(7, 29), 3 * k, 0, 1, 1), 0.6);
 }
 
 function buildYak() {
-  const k = 1.3;
-  const E = [26, 143];
+  const k = 1.45;
+  const E = [24, 138];
   const G = yakGeom(E, k);
   const X = G.X;
   const J = {
@@ -1135,14 +1175,17 @@ function buildYak() {
       const body = inset(torsoPts, 2.6);
       dye(ctx, smooth(body, true), INK.red, 0.86);
       scales(ctx, body, { sp: 8, dotR: 1.05 });
-      // armour breast plates
-      for (const [cx, cy, sd] of [[-14, 250, 1], [38, 250, 2]]) {
-        const pl = blobPts(cx, cy, 17, 15, { seed: sd, wobble: 0.04 });
-        leather(ctx, smooth(pl, true));
-        panel(ctx, pl, { fill: INK.green, sp: 3.2, r: 0.9, seed: 310 + sd, d2: 2.8 });
-        lace(ctx, inset(pl, 5), { sp: 5, r: 0.85, style: 'quad', seed: 320 + sd, punch: 0.35 });
-        flower(ctx, cx, cy, 5.5, { n: 8 });
+      // straps crossing the chest and a central breastplate (ทับทรวง)
+      for (const [a, b] of [[[-44, 214], [40, 282]], [[64, 212], [-18, 282]]]) {
+        ink(ctx, [a, b], INK.leather, 6);
+        stripe(ctx, [a, mix(a, b, 0.5), b], 4.4, { fill: INK.gold, edge: INK.white, ew: 0.5, seed: 311, sp: 2.6, r: 0.75 });
       }
+      const pl = [[12, 222], [30, 240], [26, 262], [12, 276], [-2, 262], [-6, 240]];
+      leather(ctx, smooth(pl, true, 0.3));
+      panel(ctx, pl, { fill: INK.green, sp: 3.2, r: 0.9, seed: 312, d2: 2.8 });
+      dye(ctx, smooth(inset(pl, 5.5), true, 0.3), INK.gold, 0.85);
+      flower(ctx, 12, 249, 8, { n: 10 });
+      fringe(ctx, C([[-2, 262], [12, 276], [26, 262]]), 3.6, { flip: false, h: 1.2 });
       // belly band with a kala-flower
       stripe(ctx, [[-32, 284], [12, 289], [49, 284]], 9, { fill: INK.gold, edge: INK.white, seed: 330, sp: 3.2, r: 1.05 });
       fringe(ctx, [[-30, 279], [12, 284], [47, 279]], 4.6, { h: 1.3 });
@@ -1224,6 +1267,553 @@ function buildYak() {
   );
 }
 
+// ================================================================ หนุมาน Hanuman
+// White monkey warrior: cream-dyed, heavily punched hide so he glows white
+// on the screen; open-mouthed monkey face with fangs under a small crown
+// with a pointed top; long segmented tail.
+function hanGeom(E, k) {
+  const X = (x, y) => [E[0] + x * k, E[1] + y * k];
+  const face = [X(3, -20), X(11, -16.5), X(16.5, -11), X(15, -6.5), X(16.4, -3), X(20.5, -1), X(24.8, 1.2), X(28, 1.6), X(29, 5), X(26.4, 7.6),
+    X(27.8, 9.4), X(28.8, 12.6), X(27, 14.8), X(10, 14), X(4, 12.2), X(-2, 16), X(-10, 15), X(-8, 26), X(-6, 36), X(-6, 44), X(-19, 44), X(-19, 26), X(-18, 8),
+    X(-17, -6), X(-10, -18)];
+  const jaw = [X(-13, 11), X(-5, 14), X(3, 12.4), X(12, 14.2), X(24.5, 20.6), X(27, 23.8), X(24, 29.4), X(16.5, 33.6), X(6, 35), X(-4, 32), X(-11, 26), X(-14, 18)];
+  const band = [X(8.6, -19), X(-2, -18.6), X(-15, -15.5), X(-25, -9), X(-28, 0)];
+  const cap = [X(9, -17), X(11, -24), X(7, -31), X(-4, -36), X(-17, -35.5), X(-27, -29), X(-31, -18), X(-30, -6), X(-26, 0), X(-17, -8), X(-7, -14.5), X(2, -17.5)];
+  const crown = chadaGeom(X(-9, -34), X(-11, -56), X(-12, -74), 9.5 * k, { tiers: 3, topW: 2.4 * k, lip: 2 * k, pw: 1.2 });
+  const ear = [X(-7, -6), X(-3.5, -1), X(-4, 6), X(-7.5, 10.5), X(-12.6, 9), X(-14, 1), X(-11.5, -5)];
+  const karn = hornPts(X(-17, 8), 30 * k, 200 * DEG, 76 * DEG, 14 * k, { swell: 5 * k, taper: 0.8 });
+  return { X, face, jaw, band, cap, crown, spire: crown.outline, ear, karn };
+}
+
+// White fur: short cream crescents scattered in rows (ขน).
+function fur(ctx, pts, { sp = 5, seed = 71, col = INK.cream, punch = 0.3 } = {}) {
+  const path = smooth(pts, true);
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const [x, y] of pts) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+  const rr = rng(seed);
+  const P = new Path2D(), H = [];
+  for (let y = y0, row = 0; y < y1 + sp; y += sp * 0.8, row++) {
+    for (let x = x0 + (row % 2) * sp * 0.5; x < x1 + sp; x += sp) {
+      const jx = (rr() - 0.5) * sp * 0.4, jy = (rr() - 0.5) * sp * 0.4;
+      if (rr() < punch) { H.push([x + jx, y + jy, 0.75]); continue; }
+      const a = 1.1 + (rr() - 0.5) * 0.5;
+      P.moveTo(x + jx + Math.cos(a - 0.9) * 2.2, y + jy + Math.sin(a - 0.9) * 2.2);
+      P.arc(x + jx, y + jy, 2.2, a - 0.9, a + 0.9);
+    }
+  }
+  ctx.save();
+  ctx.clip(path);
+  ctx.globalCompositeOperation = 'source-atop';
+  ctx.strokeStyle = '#b89a6a'; ctx.lineWidth = 0.7; ctx.stroke(P);
+  ctx.restore();
+  ctx.save(); ctx.clip(path); spots(ctx, H, 0.75, { punch: true }); ctx.restore();
+  void col;
+}
+
+function hanHead(ctx, E, k, G, { skin = INK.white, seed = 500 } = {}) {
+  const { X, face, band, cap, crown, ear, karn } = G;
+  leather(ctx, smooth(karn, true, 0.45));
+  flameDeco(ctx, karn, { seed: seed + 30, cols: [INK.gold, INK.red, INK.green], d: [1.3, 3.8, 6.8] });
+  leather(ctx, smooth(face, true, 0.4));
+  dye(ctx, smooth(inset(face, 1), true), skin, 0.96);
+  // ลายหน้า: red and gold line-work over the muzzle and cheek
+  ink(ctx, [X(16.4, -3), X(15.2, 3), X(16.5, 9), X(20, 13), X(26.5, 13.4)], INK.red, 0.9);
+  goldL(ctx, [X(21, 0.6), X(24.5, 3.6), X(26.4, 7)], 0.9);
+  ink(ctx, [X(26.6, 6.2), X(24.6, 7.4), X(26, 8.6)], INK.leather, 1.1);
+  goldL(ctx, spiral(X(8, 6), 4.6 * k, -1.4, 1.15, 1), 0.95);
+  ink(ctx, spiral(X(8, 6), 2.6 * k, -1.4, 0.9, 1), INK.red, 0.7);
+  goldL(ctx, [X(-3, 10), X(2, 12.5), X(7, 10.5)], 0.7);
+  goldL(ctx, [X(3, -17.5), X(8, -14.5), X(12.5, -12)], 0.7);
+  // upper teeth and two fangs
+  const teeth = new Path2D();
+  for (let x = 9.6; x < 26; x += 2.3) { const a = X(x, 13.8 + (x - 9.6) * 0.04), b = X(x + 1.9, 16.2); teeth.rect(a[0], a[1], b[0] - a[0], b[1] - a[1]); }
+  leather(ctx, teeth); dye(ctx, teeth, INK.white, 1);
+  ink(ctx, [X(9, 13.8), X(18, 13.9), X(27.2, 14.4)], INK.red, 1.2 * k);
+  for (const [x, len] of [[22.5, 8.5], [11, 7]]) {
+    const f = hornPts(X(x, 14.4), len * k, 92 * DEG, -16 * DEG, 3.2 * k);
+    leather(ctx, smooth(f, true)); dye(ctx, smooth(inset(f, 0.4), true), INK.white, 1);
+  }
+  // big round eye: gold ring, black rim, glinting pupil
+  const ring = new Path2D(); ring.ellipse(E[0] + 1 * k, E[1] - 0.6 * k, 6 * k, 5.4 * k, 0, 0, TAU);
+  dye(ctx, ring, INK.gold, 0.96);
+  ctx.save(); ctx.globalCompositeOperation = 'source-atop'; ctx.strokeStyle = INK.leather; ctx.lineWidth = 0.9 * k; ctx.stroke(ring); ctx.restore();
+  const w = new Path2D(); w.ellipse(E[0] + 1.3 * k, E[1] - 0.6 * k, 4.1 * k, 3.6 * k, 0, 0, TAU);
+  dye(ctx, w, INK.white, 1);
+  const pup = new Path2D(); pup.arc(E[0] + 2.8 * k, E[1] - 0.4 * k, 2.5 * k, 0, TAU);
+  dye(ctx, pup, INK.leather, 1);
+  hole(ctx, E[0] + 3.4 * k, E[1] - 1.3 * k, 0.75 * k);
+  ink(ctx, [X(7.4, 0.5), X(10.5, 3), X(11.2, 6.4)], INK.leather, 0.9);
+  ink(ctx, [X(-4.6, -1), X(-8, 1.5), X(-9.4, -1)], INK.leather, 0.9);
+  // flame brow: five curling hair-flames sweeping up and back
+  for (let i = 0; i < 5; i++) {
+    const c = hornPts(X(14.5 - i * 4.2, -9.5 - i * 0.9), (9 + i * 1.6) * k, (-100 - i * 13) * DEG, -64 * DEG, 4.2 * k, { swell: 0.8 * k });
+    leather(ctx, smooth(c, true, 0.4));
+    dye(ctx, smooth(inset(c, 0.5), true), skin, 0.96);
+    goldL(ctx, C(c.slice(2, 14)), 0.55);
+  }
+  goldL(ctx, [X(15.5, -9), X(8, -12.5), X(0, -13.4), X(-8, -12)], 1, { alpha: 0.95 });
+  dots(ctx, [X(13, -10.5), X(2, -12), X(-9, -10)], { sp: 2.4, r: 0.7, seed: seed + 3, punch: 0.4 });
+  // fur on the head and cheek: punched dots
+  lace(ctx, [X(-17, -6), X(-8, -12), X(-5, 0), X(-8, 14), X(-17, 20)], { sp: 3.4, r: 0.75, style: 'dot', seed: seed + 5, punch: 0.6 });
+  // ear with a gold กุณฑล
+  leather(ctx, smooth(ear, true));
+  dye(ctx, smooth(inset(ear, 0.8), true), skin, 0.96);
+  ink(ctx, [X(-6, -2), X(-6.5, 4), X(-9.5, 7)], '#8a6a3a', 0.7);
+  const er = new Path2D(); er.arc(...X(-9, 13.5), 3.4 * k, 0, TAU);
+  ctx.save(); ctx.strokeStyle = INK.leather; ctx.lineWidth = 2.4 * k; ctx.stroke(er); ctx.strokeStyle = INK.gold; ctx.lineWidth = 1.3 * k; ctx.stroke(er); ctx.restore();
+  gem(ctx, ...X(-9, 17), 1.9 * k);
+  // crown: skull cap, band and a short tiered spire (ยอด)
+  leather(ctx, smooth(crown.outline, true, 0.4));
+  crown.rings.forEach((g, i) => {
+    dye(ctx, poly(g.quad), i % 2 ? INK.green : INK.red, 0.9);
+    stripe(ctx, [g.a, mix(g.a, g.b, 0.5), g.b], 3 * k, { fill: INK.gold, edge: INK.white, ew: 0.5, seed: seed + 20 + i, sp: 2.1, r: 0.55 });
+    fringe(ctx, [mix(g.a, g.b, 0.05), mix(g.a, g.b, 0.95)], Math.max(2.4, g.w0 * 0.4), { h: 1.55, gap: 1, edge: INK.white });
+  });
+  const sA = crown.sAt;
+  dye(ctx, smooth([sA(0.02, -3), sA(0.02, 3), sA(0.8, 0.9), sA(1, 0), sA(0.8, -0.9)], true), INK.gold, 0.92);
+  gem(ctx, ...sA(0.22, 0), 2.8 * k);
+  leather(ctx, smooth(cap, true));
+  dye(ctx, smooth(inset(cap, 1.3), true), INK.green, 0.9);
+  lace(ctx, inset(cap, 2), { sp: 4.2, r: 0.8, style: 'quad', seed: seed + 6, punch: 0.35 });
+  stripe(ctx, [X(8, -28), X(-4, -33), X(-18, -33), X(-28, -25)], 3.4 * k, { fill: INK.red, seed: seed + 8, sp: 2.4, r: 0.6, edge: INK.white });
+  stripe(ctx, band, 5.6 * k, { fill: INK.gold, seed: seed + 7, sp: 2.4, r: 0.7, edge: INK.white });
+  for (const t of [0.12, 0.4, 0.68]) { const q = C(band); const p = q[Math.floor(q.length * t)]; gem(ctx, p[0], p[1], 1.9 * k); }
+  fringe(ctx, [X(8.6, -22.6), X(-3, -22.4), X(-16, -19.4), X(-26, -12.5)], 3.8 * k, { h: 1.5, edge: INK.white });
+}
+
+function hanJaw(ctx, E, k, G, { skin = INK.white } = {}) {
+  const { X, jaw } = G;
+  leather(ctx, smooth(jaw, true, 0.4));
+  dye(ctx, smooth(inset(jaw, 1), true), skin, 0.96);
+  // open mouth: red interior with a curled tongue, lower teeth and fangs
+  dye(ctx, smooth([X(3, 12.6), X(12, 13), X(24.5, 20.2), X(22, 23.4), X(10, 20), X(2, 16)], true), INK.red, 0.96);
+  ink(ctx, [X(8, 17), X(14, 16.5), X(18, 18.6), X(16, 20.4)], INK.pink, 1.4 * k);
+  const teeth = new Path2D();
+  for (let x = 13; x < 23.5; x += 2.3) {
+    const y0 = 14.6 + (x - 12) * 0.52;
+    const a = X(x, y0 + 0.2), b = X(x + 1.9, y0 + 2.2);
+    teeth.rect(a[0], a[1], b[0] - a[0], b[1] - a[1]);
+  }
+  dye(ctx, teeth, INK.white, 1);
+  for (const [x, y] of [[22.5, 20], [13.5, 15.4]]) {
+    const f = hornPts(X(x, y), 7 * k, -100 * DEG, 16 * DEG, 3 * k);
+    leather(ctx, smooth(f, true)); dye(ctx, smooth(inset(f, 0.4), true), INK.white, 1);
+  }
+  ink(ctx, [X(12, 14.5), X(25, 21.4)], INK.red, 1.1 * k);
+  goldL(ctx, [X(24, 27), X(16, 31.5), X(5, 31.4)], 0.8);
+  goldL(ctx, spiral(X(9, 27), 2.6 * k, 0, 1, 1), 0.6);
+  lace(ctx, [X(-10, 20), X(0, 24), X(8, 32), X(0, 34), X(-10, 28)], { sp: 3.4, r: 0.7, style: 'dot', seed: 555, punch: 0.6 });
+}
+
+// Tail segment (tapering white tube with gold fur rings); `curl` adds the
+// curled tuft at the tip.
+function tailSeg(ctx, a, b, ra, rb, { seed = 1, skin = INK.white, curl = 0 } = {}) {
+  const pts = wob(paddle(a, b, ra, rb, { bulge: 0.02, ext: 1, extA: 1 }), 0.25, seed);
+  leather(ctx, smooth(pts, true));
+  dye(ctx, smooth(inset(pts, 1), true), skin, 0.95);
+  const f = frame(a, b);
+  for (let t = 0.2; t < 1; t += 0.28) {
+    const r = lerp(ra, rb, t);
+    const band = [f.at(t - 0.06, -r * 1.05), f.at(t, 0), f.at(t - 0.06, r * 1.05)];
+    ink(ctx, band, INK.goldLine, 1.1);
+    dots(ctx, offset(C(band), 1.8), { sp: 2.4, r: 0.6, seed: seed + t * 10, punch: 0.5 });
+  }
+  rim(ctx, pts, { seed, gold: false, d: 1.8, sp: 3.2, r: 0.85, punch: 0.6 });
+  if (curl) {
+    const c = [b, ...spiral([b[0] + curl * 9, b[1] - 8], 12, curl > 0 ? Math.PI * 0.9 : 0.1, 1.05, curl, 22)];
+    const tuft = brush(C(c, false, 3), rb * 2.2, 1.4);
+    leather(ctx, smooth(tuft, true, 0.35));
+    dye(ctx, smooth(inset(tuft, 0.8), true), skin, 0.95);
+    dots(ctx, C(c, false, 3), { sp: 2.6, r: 0.8, seed: seed + 7, punch: 0.6 });
+    return [...pts, ...tuft];
+  }
+  return pts;
+}
+
+function buildHanuman() {
+  const k = 1.25;
+  const E = [24, 94];
+  const G = hanGeom(E, k);
+  const X = G.X;
+  const J = {
+    neck: X(-12, 36), jaw: X(-11, 15),
+    shB: [-30, 150], elB: [-46, 210], wrB: [-44, 268],
+    shF: [44, 148], elF: [62, 207], wrF: [70, 264],
+    waist: [6, 232],
+    hipB: [-12, 252], knB: [-46, 318], anB: [-50, 404],
+    hipF: [24, 252], knF: [60, 318], anF: [64, 404],
+    tail: [[-22, 268], [-60, 266], [-94, 240], [-106, 198], [-92, 160]],
+  };
+  const skin = INK.white;
+  const head = {
+    box: bb(3, G.face, G.cap, G.spire, G.karn, [X(30, 0)]), z: -1, parent: 'torso', joint: J.neck, lim: [-22, 22], stiff: 0.65, mass: 0.9,
+    draw: (ctx) => hanHead(ctx, E, k, G, { skin }),
+  };
+  const jaw = {
+    box: bb(3, G.jaw), z: -1.5, parent: 'head', joint: J.jaw, lim: [-6, 26], stiff: 0.55, mass: 0.25, noRivet: true,
+    draw: (ctx) => hanJaw(ctx, E, k, G, { skin }),
+  };
+  // ---------------------------------------------------------------- torso
+  const torsoPts = wob([[-8, 132], [-20, 136], [-32, 142], [-40, 151], [-41, 164], [-35, 180], [-28, 198], [-23, 216], [-22, 232], [-23, 250], [-8, 256],
+    [8, 258], [24, 256], [36, 250], [35, 232], [38, 216], [44, 198], [50, 180], [55, 164], [54, 151], [44, 141], [30, 135], [18, 132], [6, 130]], 0.4, 601);
+  const collar = wob([[-41, 152], [-32, 142], [-18, 135], [-2, 131], [12, 130], [28, 133], [42, 139], [53, 147], [56, 158], [44, 168], [30, 175], [16, 179], [6, 180], [-6, 178], [-20, 172], [-32, 164], [-40, 158]], 0.3, 602);
+  const torso = {
+    box: bb(3, torsoPts, collar), z: 0, mass: 1.3,
+    draw(ctx) {
+      leather(ctx, smooth(torsoPts, true));
+      const body = inset(torsoPts, 1.4);
+      dye(ctx, smooth(body, true), skin, 0.95);
+      fur(ctx, body, { seed: 603 });
+      // chest muscles and belly lines in gold
+      goldL(ctx, [[-14, 196], [-4, 204], [8, 200]], 0.9);
+      goldL(ctx, [[14, 200], [26, 204], [38, 196]], 0.9);
+      goldL(ctx, [[2, 214], [6, 222], [10, 214]], 0.7);
+      // sash (สไบ) across the chest: red with gold edges
+      const sash = [[-40, 160], [-30, 158], [42, 238], [36, 250], [26, 246]];
+      leather(ctx, smooth(sash, true, 0.3));
+      panel(ctx, sash, { fill: INK.red, sp: 3, r: 0.85, seed: 604, d2: 2.4 });
+      for (let t = 0.15; t < 0.95; t += 0.18) flower(ctx, ...mix([-33, 162], [34, 244], t), 3.4, { n: 6 });
+      // belly band
+      stripe(ctx, [[-22, 228], [6, 232], [35, 228]], 7, { fill: INK.gold, edge: INK.white, seed: 605, sp: 3, r: 0.9 });
+      fringe(ctx, [[-20, 224.5], [6, 228.5], [33, 224.5]], 4, { h: 1.3 });
+      // collar
+      leather(ctx, smooth(collar, true));
+      dye(ctx, smooth(inset(collar, 1.5), true), INK.green, 0.9);
+      lace(ctx, inset(collar, 3), { sp: 4.6, r: 0.85, style: 'quad', seed: 606, punch: 0.35 });
+      stripe(ctx, [[-34, 150], [-18, 141], [6, 137], [30, 140], [49, 149]], 5, { fill: INK.gold, seed: 607, sp: 2.5, r: 0.75, edge: INK.white });
+      for (const x of [-22, -6, 10, 26, 40]) flower(ctx, x, 156 + (x === 10 ? 4 : 0) + Math.abs(x - 10) * 0.04, 3.8, { n: 8 });
+      fringe(ctx, [[-38, 162], [-24, 172], [-6, 180], [8, 182], [24, 178], [38, 170], [52, 160]], 5.4, { flip: true, h: 1.35, col: INK.gold, inner: INK.red });
+      dots(ctx, inset(collar, 2.3), { sp: 3, r: 0.8, closed: true, seed: 608, punch: 0.2 });
+      rim(ctx, torsoPts, { seed: 609, gold: false, d: 2, punch: 0.5 });
+    },
+  };
+  // ---------------------------------------------------------------- skirt
+  const flapF = hornPts([28, 262], 50, 36 * DEG, -96 * DEG, 20, { swell: 6, taper: 0.9 });
+  const flapB = hornPts([-16, 262], 52, 144 * DEG, 96 * DEG, 20, { swell: 6, taper: 0.9 });
+  const skirtCore = wob([[-24, 226], [6, 229], [36, 226], [39, 244], [40, 262], [34, 274], [22, 278], [16, 296], [7, 322], [0, 296], [-5, 278], [-18, 276], [-26, 268], [-27, 246]], 0.4, 651);
+  const skirt = {
+    box: bb(3, skirtCore, flapF, flapB), z: 1, parent: 'torso', joint: J.waist, lim: [-14, 14], stiff: 0.75, mass: 1.1,
+    draw(ctx) {
+      for (const [fl, sd] of [[flapB, 5], [flapF, 6]]) { leather(ctx, smooth(fl, true, 0.45)); flameDeco(ctx, fl, { seed: sd, cols: [INK.gold, INK.red, INK.green] }); }
+      leather(ctx, smooth(skirtCore, true, 0.45));
+      const hip = [[-23, 232], [36, 232], [38, 252], [33, 270], [6, 274], [-20, 270], [-25, 252]];
+      dye(ctx, smooth(hip, true), INK.red, 0.86);
+      brocade(ctx, hip, { sp: 8, seed: 5, dotR: 1 });
+      stripe(ctx, [[-25, 266], [6, 272], [37, 266]], 5, { fill: INK.gold, seed: 12, sp: 2.6, r: 0.75, edge: INK.white });
+      fringe(ctx, [[-24, 269.5], [6, 275.5], [36, 269.5]], 4, { flip: true, h: 1.2, inner: INK.green });
+      const apron = [[-2, 234], [16, 234], [17, 262], [15, 290], [11, 308], [7, 320], [3, 308], [-1, 290], [-3, 262]];
+      leather(ctx, smooth(apron, true));
+      panel(ctx, apron, { fill: INK.gold, alpha: 0.9, sp: 3, r: 0.8, seed: 8, d2: 2.2, edge: INK.white });
+      dye(ctx, smooth(inset(apron, 4), true), INK.green, 0.88);
+      for (let y = 246; y < 312; y += 12.5) flower(ctx, 7, y, 4.4 - (y - 246) * 0.015, { n: 8 });
+      stripe(ctx, [[-25, 231], [6, 234], [37, 231]], 7.5, { fill: INK.gold, seed: 10, sp: 3, r: 1, edge: INK.white });
+      const buckle = [[7, 224], [16, 233], [7, 242], [-2, 233]];
+      leather(ctx, smooth(buckle, true, 0.3));
+      dye(ctx, smooth(buckle, true, 0.3), INK.gold, 0.95);
+      flower(ctx, 7, 233, 5.6, { n: 8 });
+      rim(ctx, skirtCore, { seed: 11, gold: false, d: 2 });
+    },
+  };
+  // ---------------------------------------------------------------- limbs
+  const dB = unit(J.wrB[0] - J.elB[0], J.wrB[1] - J.elB[1]);
+  const dF = unit(J.wrF[0] - J.elF[0], J.wrF[1] - J.elF[1]);
+  const hf = handFrame(J.wrF, dF, 1), hb = handFrame(J.wrB, dB, 1);
+  const whiteLimb = (fn) => (ctx) => { fn(ctx); };
+  const tl = J.tail;
+  const tailR = [9, 8, 6.8, 5.6, 4.4];
+  const tailDefs = {};
+  for (let i = 0; i < 4; i++) {
+    const a = tl[i], b = tl[i + 1];
+    const last = i === 3;
+    const outline = paddle(a, b, tailR[i] + 1, tailR[i + 1] + 1, { ext: 1, extA: 1 });
+    const extraPts = last ? [[b[0] + 30, b[1] - 30], [b[0] - 8, b[1] - 30], [b[0] + 30, b[1] + 10]] : [];
+    tailDefs['tail' + i] = {
+      box: bb(4, outline, extraPts), z: -12 + i * 0.1, parent: i ? 'tail' + (i - 1) : 'skirt', joint: a, lim: i ? [-38, 38] : [-30, 30],
+      stiff: 0.3 - i * 0.04, mass: 0.45 - i * 0.07,
+      draw: (ctx) => tailSeg(ctx, a, b, tailR[i], tailR[i + 1], { seed: 700 + i, skin, curl: last ? 1 : 0 }),
+    };
+  }
+  const defs = {
+    torso, head, jaw, skirt, ...tailDefs,
+    upperArmB: { box: bb(4, paddle(J.shB, J.elB, 11, 8.5, { ext: 3, extA: 2 }), [add(J.shB, [-26, -26])]), z: -8, parent: 'torso', joint: J.shB, stiff: 0.12, draw: whiteLimb((ctx) => upperArm(ctx, J.shB, J.elB, { seed: 801, side: -1, skin, lz: false })) },
+    forearmB: { box: bb(4, paddle(J.elB, J.wrB, 8.5, 6.8, { ext: 5, extA: 1 })), z: -7, parent: 'upperArmB', joint: J.elB, lim: [-150, 12], stiff: 0.18, draw: (ctx) => forearm(ctx, J.elB, J.wrB, { seed: 802, skin, lz: false }) },
+    handB: { box: bb(3, [hb(-10, -8), hb(-10, 9), hb(38, -18), hb(34, 14), hb(18, 22)]), z: -9, parent: 'forearmB', joint: J.wrB, lim: [-55, 55], stiff: 0.3, mass: 0.6, draw: (ctx) => openHand(ctx, J.wrB, dB, { side: 1, seed: 803, curl: 0.8, skin }) },
+    thighB: { box: bb(4, paddle(J.hipB, J.knB, 14, 10.5, { ext: 2, extA: 3 })), z: -6, parent: 'skirt', joint: J.hipB, lim: [-80, 80], stiff: 0.45, draw: (ctx) => thigh(ctx, J.hipB, J.knB, { ra: 14, rb: 10.5, seed: 804, fill: INK.green, fill2: INK.red }) },
+    shinB: { box: bb(4, paddle(J.knB, J.anB, 9.5, 6.4, { ext: 4, extA: 2 }), footPts(J.anB, -1)), z: -7, parent: 'thighB', joint: J.knB, lim: [-8, 130], stiff: 0.5, draw: (ctx) => shin(ctx, J.knB, J.anB, -1, { ra: 9.5, rb: 6.4, seed: 805, skin, lz: false, guard: INK.green }) },
+    thighF: { box: bb(4, paddle(J.hipF, J.knF, 14, 10.5, { ext: 2, extA: 3 })), z: -4, parent: 'skirt', joint: J.hipF, lim: [-80, 80], stiff: 0.45, draw: (ctx) => thigh(ctx, J.hipF, J.knF, { ra: 14, rb: 10.5, seed: 806, fill: INK.green, fill2: INK.red }) },
+    shinF: { box: bb(4, paddle(J.knF, J.anF, 9.5, 6.4, { ext: 4, extA: 2 }), footPts(J.anF, 1)), z: -5, parent: 'thighF', joint: J.knF, lim: [-8, 130], stiff: 0.5, draw: (ctx) => shin(ctx, J.knF, J.anF, 1, { ra: 9.5, rb: 6.4, seed: 807, skin, lz: false, guard: INK.green }) },
+    upperArmF: { box: bb(4, paddle(J.shF, J.elF, 11, 8.5, { ext: 3, extA: 2 }), [add(J.shF, [26, -26])]), z: 4, parent: 'torso', joint: J.shF, stiff: 0.12, draw: (ctx) => upperArm(ctx, J.shF, J.elF, { seed: 808, side: 1, skin, lz: false }) },
+    forearmF: { box: bb(4, paddle(J.elF, J.wrF, 8.5, 6.8, { ext: 5, extA: 1 })), z: 6, parent: 'upperArmF', joint: J.elF, lim: [-150, 12], stiff: 0.18, draw: (ctx) => forearm(ctx, J.elF, J.wrF, { seed: 809, skin, lz: false }) },
+    handF: { box: bb(3, [hf(-10, -8), hf(-10, 9), hf(28, -13), hf(28, 12)]), z: 5, parent: 'forearmF', joint: J.wrF, lim: [-55, 55], stiff: 0.3, mass: 0.6, draw: (ctx) => fist(ctx, J.wrF, dF, { side: 1, seed: 810, skin }) },
+  };
+  return buildRig(
+    { id: 'hanuman', name: 'หนุมาน', en: 'Hanuman — the White Monkey', kind: 'monkey', voice: 'monkey', height: 424 },
+    defs,
+    {
+      rod: [[6, 138], [6, 232], 320],
+      handRods: { handF: hf(9, 0), handB: hb(10, 0) },
+      grips: { handF: hf(15, 0.5), handB: hb(12, 0) },
+      holds: { handF: 'trident' },
+      limbs: STD_LIMBS({ jaw: 'jaw', tail: ['tail0', 'tail1', 'tail2', 'tail3'] }),
+      lines: LINES.hanuman,
+    },
+  );
+}
+
+// ================================================================ พญา king
+// The city lord of 2.jpg: dark leather face with gold line-work, hooked
+// nose, moustache and pointed beard, a มงกุฎ flaring into a fan of flames,
+// a tall pointed back ornament over the far shoulder, green apron over a
+// red chevron sarong, walking cane in the near hand.
+function kingGeom(E, k) {
+  const X = (x, y) => [E[0] + x * k, E[1] + y * k];
+  const face = [X(4, -20), X(10, -16.5), X(13.2, -9.5), X(14.2, -4), X(17.6, 1.6), X(21.6, 7.6), X(23, 11.6), X(21, 13.6), X(17.2, 13.4),
+    X(16, 15), X(17.4, 16.8), X(15.6, 18), X(12, 18.4), X(4, 17.6), X(-2, 18.6), X(-10, 16), X(-8, 26), X(-6, 36), X(-6, 44), X(-19, 44), X(-19, 26), X(-17, 8),
+    X(-15, -6), X(-9, -18)];
+  const jaw = [X(-12, 14), X(-4, 17.4), X(4, 17.8), X(12, 18.6), X(16.4, 18.8), X(17, 21.4), X(15.6, 24.8), X(17, 30), X(14, 38), X(9, 44), X(5, 36), X(-2, 33), X(-10, 27), X(-14, 21)];
+  const helmet = [X(8.5, -17), X(10.5, -24), X(6, -31), X(-6, -35.5), X(-19, -35), X(-28, -29), X(-32, -18), X(-31, -4), X(-26, 2), X(-18, -7), X(-8, -14), X(2, -17)];
+  // fan crest: seven flame tongues radiating from the crown top
+  const fan = [];
+  const fc = X(-10, -34);
+  for (let i = 0; i < 7; i++) {
+    const a = (-150 + i * 18) * DEG;
+    const len = (30 + Math.sin((i / 6) * Math.PI) * 14) * k;
+    fan.push(hornPts([fc[0] + Math.cos(a) * 4, fc[1] + Math.sin(a) * 4], len, a, (i < 3 ? -18 : i > 3 ? 18 : 0) * DEG, 9 * k, { swell: 3 * k }));
+  }
+  const fanBack = [];
+  for (let i = 0; i <= 16; i++) {
+    const a = (-162 + i * 11.2) * DEG;
+    const r = (34 + Math.sin((i / 16) * Math.PI) * 14) * k * 0.92;
+    fanBack.push([fc[0] + Math.cos(a) * r, fc[1] + Math.sin(a) * r]);
+  }
+  fanBack.push([fc[0] + 12 * k, fc[1] + 4 * k], [fc[0] - 14 * k, fc[1] + 4 * k]);
+  const karn = hornPts(X(-15, 10), 34 * k, 196 * DEG, 80 * DEG, 16 * k, { swell: 6 * k, taper: 0.8 });
+  const ear = [X(-6.5, -5), X(-4, 2), X(-5, 11), X(-8, 17), X(-12, 14), X(-13, 3), X(-11, -5)];
+  return { X, face, jaw, helmet, fan, fanBack, fc, karn, ear };
+}
+
+function kingHead(ctx, E, k, G, { seed = 900 } = {}) {
+  const { X, face, helmet, fan, fanBack, fc, karn, ear } = G;
+  // fan crest behind the helmet
+  leather(ctx, smooth(fanBack, true, 0.4));
+  dye(ctx, smooth(inset(fanBack, 1.6), true), INK.red, 0.88);
+  lace(ctx, inset(fanBack, 3), { sp: 4.4, r: 0.85, style: 'quad', seed: seed + 1, punch: 0.35 });
+  fan.forEach((f, i) => { leather(ctx, smooth(f, true, 0.4)); flameDeco(ctx, f, { seed: seed + 10 + i, cols: [INK.gold, i % 2 ? INK.green : INK.red], d: [1.1, 3.2] }); });
+  for (let i = 1; i <= 3; i++) {
+    const arc = [];
+    for (let j = 0; j <= 12; j++) { const a = (-160 + j * 13.3) * DEG; const r = (8 + i * 7) * k; arc.push([fc[0] + Math.cos(a) * r, fc[1] + Math.sin(a) * r]); }
+    stripe(ctx, arc, 3 * k, { fill: INK.gold, edge: INK.white, ew: 0.5, seed: seed + 20 + i, sp: 2.2, r: 0.6 });
+  }
+  gem(ctx, fc[0], fc[1] - 6 * k, 3.4 * k);
+  // dark face with gold line-work (like the hermit of the sheet)
+  leather(ctx, smooth(face, true, 0.4));
+  goldL(ctx, [X(10.5, -6.8), X(4.5, -9.2), X(-3, -9.4), X(-10, -7)], 1.3);
+  goldL(ctx, [X(9.5, -5), X(3.5, -7.2), X(-3, -7.4)], 0.6, { alpha: 0.8 });
+  const up = [X(7.2, -0.5), X(3.8, -3), X(-1.4, -3.3), X(-6.5, -1.8), X(-11, -1.4)];
+  const lo = [X(7.2, -0.5), X(3.4, 1.6), X(-2, 1.8), X(-6.6, 0.5)];
+  dye(ctx, smooth([...up.slice(0, 4), ...lo.slice(1).reverse()], true), INK.white, 0.95);
+  ink(ctx, up, INK.leather, 1.1); ink(ctx, lo, INK.leather, 0.6);
+  const iris = new Path2D(); iris.arc(E[0] + 2.2 * k, E[1] - 0.8 * k, 2.1 * k, 0, TAU); dye(ctx, iris, INK.leather, 1);
+  hole(ctx, E[0] + 2.8 * k, E[1] - 1.4 * k, 0.55 * k);
+  goldL(ctx, [X(-1, -4.8), X(-6.5, -3.8), X(-10.5, -2.6)], 0.5, { alpha: 0.8 });
+  goldL(ctx, [X(14, -3), X(17.8, 3), X(21, 9), X(20.4, 12.4), X(17.4, 12.8)], 0.9); // nose line
+  goldL(ctx, [X(16.4, 10.4), X(14.8, 12), X(16.2, 12.8)], 0.7);
+  goldL(ctx, [X(8, 4), X(4, 9), X(6, 14)], 0.6, { alpha: 0.7 }); // cheek fold
+  dye(ctx, smooth([X(15.6, 15.4), X(17, 16.8), X(15.2, 17.8), X(12.6, 17.4), X(13.4, 15.6)], true), INK.red, 0.9);
+  // moustache sweeping back with a curl
+  const mc = [X(16.4, 14.6), X(12, 15), X(6, 14.4), X(1, 12.6), ...spiral(X(0, 9.4), 3.2 * k, Math.PI / 2, 1, 1, 12).slice(1)];
+  const mous = brush(C(mc, false, 4), 3.4 * k, 0.8 * k);
+  leather(ctx, smooth(mous, true, 0.3));
+  dots(ctx, C(mc.slice(0, 5), false, 4), { sp: 2, r: 0.6, seed: seed + 3, punch: 0 });
+  goldL(ctx, [X(-4, 23), X(-2, 30), X(-4, 38)], 0.6, { alpha: 0.7 });
+  // ear
+  leather(ctx, smooth(ear, true));
+  goldL(ctx, C(inset(ear, 1.4), true), 0.6, { closed: true });
+  goldL(ctx, [X(-7, -1.5), X(-7, 6), X(-9.5, 12)], 0.6);
+  // helmet + band
+  leather(ctx, smooth(helmet, true));
+  dye(ctx, smooth(inset(helmet, 1.4), true), INK.green, 0.88);
+  lace(ctx, inset(helmet, 2.2), { sp: 4.4, r: 0.8, style: 'quad', seed: seed + 6, punch: 0.3 });
+  const band = [X(9.8, -19.5), X(-2, -18.8), X(-16, -15.5), X(-26, -7), X(-29, 1)];
+  stripe(ctx, band, 6 * k, { fill: INK.gold, seed: seed + 7, sp: 2.5, r: 0.75, edge: INK.white });
+  for (const t of [0.1, 0.35, 0.6]) { const q = C(band); const p = q[Math.floor(q.length * t)]; gem(ctx, p[0], p[1], 2.1 * k); }
+  fringe(ctx, [X(9, -23.5), X(-3, -23.6), X(-17, -20.5), X(-28, -12)], 4 * k, { h: 1.6, edge: INK.white });
+  stripe(ctx, [X(7, -29), X(-5, -33.5), X(-19, -33), X(-28, -26)], 3.4 * k, { fill: INK.red, seed: seed + 8, sp: 2.4, r: 0.6, edge: INK.white });
+  const pk = krajangPath(...X(9.4, -23.5), 8 * k, 15 * k, -98 * DEG);
+  leather(ctx, pk); dye(ctx, pk, INK.gold, 0.9); hole(ctx, ...X(9.8, -30.5), 1);
+  // กรรเจียก, ear flower and pendant
+  leather(ctx, smooth(karn, true, 0.45));
+  flameDeco(ctx, karn, { seed: seed + 30, cols: [INK.gold, INK.red, INK.green], d: [1.3, 3.8, 6.8] });
+  flower(ctx, ...X(-9, 1), 4.6 * k, { n: 8 });
+  const drop = [X(-9, 16), X(-6.4, 21), X(-9, 27), X(-11.6, 21)];
+  leather(ctx, smooth(drop, true)); dye(ctx, smooth(drop, true), INK.gold, 0.9); gem(ctx, ...X(-9, 21.4), 1.8 * k);
+}
+
+function kingJaw(ctx, E, k, G, { seed = 950 } = {}) {
+  const { X, jaw } = G;
+  leather(ctx, smooth(jaw, true, 0.4));
+  // pointed beard of white dotted locks
+  for (let i = 0; i < 5; i++) {
+    const c = [X(15 - i * 3.6, 22 + i * 0.4), X(14 - i * 3.4, 30 + i * 0.4), X(11 - i * 2.2, 38 - i * 1.6)];
+    dots(ctx, c, { sp: 2.1, r: 0.72, seed: seed + i, punch: 0.25 });
+  }
+  goldL(ctx, [X(16, 20), X(8, 21), X(0, 19.6)], 0.6);
+  dye(ctx, smooth([X(12, 18.8), X(16, 19), X(15.6, 20.6), X(12, 20.4)], true), INK.red, 0.85);
+}
+
+function buildPhaya() {
+  const k = 1.18;
+  const E = [22, 98];
+  const G = kingGeom(E, k);
+  const X = G.X;
+  const J = {
+    neck: X(-12, 36), jaw: X(-10.5, 15),
+    shB: [-32, 156], elB: [-46, 218], wrB: [-42, 278],
+    shF: [46, 154], elF: [62, 214], wrF: [72, 270],
+    waist: [6, 240],
+    hipB: [-14, 262], knB: [-40, 338], anB: [-46, 418],
+    hipF: [26, 262], knF: [54, 338], anF: [60, 418],
+  };
+  const head = {
+    box: bb(3, G.face, G.helmet, G.fanBack, G.fan.flat(), G.karn, [X(26, 0)]), z: -1, parent: 'torso', joint: J.neck, lim: [-20, 20], stiff: 0.75, mass: 1,
+    draw: (ctx) => kingHead(ctx, E, k, G),
+  };
+  const jaw = {
+    box: bb(3, G.jaw), z: -1.5, parent: 'head', joint: J.jaw, lim: [-4, 18], stiff: 0.7, mass: 0.25, noRivet: true,
+    draw: (ctx) => kingJaw(ctx, E, k, G),
+  };
+  // ---------------------------------------------------------------- torso
+  const torsoPts = wob([[-8, 138], [-20, 142], [-32, 147], [-42, 156], [-44, 170], [-38, 188], [-31, 206], [-26, 224], [-24, 240], [-25, 262], [-10, 266],
+    [8, 268], [24, 266], [37, 262], [36, 240], [39, 224], [45, 206], [51, 188], [56, 170], [55, 157], [46, 147], [32, 141], [20, 138], [6, 136]], 0.4, 901);
+  const collar = wob([[-43, 158], [-34, 148], [-20, 141], [-4, 137], [12, 136], [28, 139], [42, 145], [54, 153], [57, 163], [45, 173], [31, 181], [17, 186], [7, 187], [-5, 185], [-19, 179], [-32, 170], [-41, 164]], 0.3, 902);
+  // tall pointed back ornament over the far shoulder (like 2.jpg)
+  const arch = wob([[-50, 178], [-58, 150], [-58, 118], [-50, 92], [-38, 72], [-28, 60], [-19, 72], [-10, 92], [-4, 118], [-6, 150], [-14, 176]], 0.4, 903);
+  const torso = {
+    box: bb(3, torsoPts, collar, arch), z: 0, mass: 1.4,
+    draw(ctx) {
+      leather(ctx, smooth(arch, true, 0.4));
+      dye(ctx, smooth(inset(arch, 1.4), true), INK.gold, 0.9);
+      dots(ctx, inset(arch, 2.6), { sp: 2.8, r: 0.85, closed: true, seed: 904, punch: 0.3 });
+      dye(ctx, smooth(inset(arch, 4.4), true), INK.red, 0.9);
+      dye(ctx, smooth(inset(arch, 8.5), true), INK.green, 0.9);
+      dots(ctx, inset(arch, 6.4), { sp: 3, r: 0.8, closed: true, seed: 905, punch: 0.3 });
+      lace(ctx, inset(arch, 10), { sp: 5, r: 0.8, style: 'quad', seed: 906, punch: 0.4 });
+      const dm = [[-31, 96], [-19, 116], [-31, 138], [-43, 116]];
+      leather(ctx, smooth(dm, true, 0.3));
+      panel(ctx, dm, { fill: INK.gold, sp: 2.6, r: 0.7, seed: 907, d2: 2.2, edge: INK.white });
+      flower(ctx, -31, 117, 7, { n: 8 });
+      fringe(ctx, [[-48, 150], [-31, 157], [-10, 150]], 4, { h: 1.3 });
+      leather(ctx, smooth(torsoPts, true));
+      const body = inset(torsoPts, 2.6);
+      lace(ctx, body, { sp: 5.4, r: 0.9, style: 'dot', seed: 908, punch: 0.35 });
+      // sash of office (สังวาล) and a jewelled belt band
+      for (const [a, b] of [[[-38, 162], [34, 236]], [[50, 160], [-20, 236]]]) {
+        ink(ctx, [a, b], INK.leather, 5);
+        stripe(ctx, [a, mix(a, b, 0.5), b], 3.8, { fill: INK.gold, edge: INK.white, ew: 0.5, seed: 909, sp: 2.4, r: 0.7 });
+      }
+      flower(ctx, 7, 202, 6.4, { n: 8 });
+      stripe(ctx, [[-24, 234], [6, 238], [36, 234]], 7, { fill: INK.red, seed: 910, sp: 3, r: 0.95 });
+      fringe(ctx, [[-22, 230.5], [6, 234.4], [34, 230.5]], 4.2, { h: 1.3 });
+      // collar
+      leather(ctx, smooth(collar, true));
+      dye(ctx, smooth(inset(collar, 1.5), true), INK.red, 0.9);
+      lace(ctx, inset(collar, 3), { sp: 4.8, r: 0.85, style: 'quad', seed: 911, punch: 0.3 });
+      stripe(ctx, [[-36, 156], [-19, 147], [7, 143], [32, 146], [50, 155]], 5, { fill: INK.gold, seed: 912, sp: 2.5, r: 0.75, edge: INK.white });
+      for (const x of [-24, -8, 8, 24, 40]) flower(ctx, x, 162 + (x === 8 ? 4 : 0) + Math.abs(x - 8) * 0.04, 3.8, { n: 8 });
+      fringe(ctx, [[-39, 168], [-24, 178], [-6, 186], [8, 188], [24, 184], [38, 176], [53, 165]], 5.4, { flip: true, h: 1.35, col: INK.gold, inner: INK.green });
+      dots(ctx, inset(collar, 2.3), { sp: 3, r: 0.8, closed: true, seed: 913, punch: 0.2 });
+      rim(ctx, torsoPts, { seed: 914, gold: false, d: 2.1 });
+    },
+  };
+  // ---------------------------------------------------------------- skirt
+  const sarong = wob([[-26, 234], [6, 237], [38, 234], [44, 256], [52, 282], [60, 306], [70, 322], [56, 326], [40, 322], [24, 326], [6, 330], [-12, 326],
+    [-30, 328], [-50, 336], [-68, 332], [-52, 318], [-40, 298], [-32, 270], [-29, 250]], 0.5, 951);
+  const skirt = {
+    box: bb(3, sarong, [[6, 372]]), z: 1, parent: 'torso', joint: J.waist, lim: [-12, 12], stiff: 0.75, mass: 1.3,
+    draw(ctx) {
+      leather(ctx, smooth(sarong, true, 0.4));
+      dye(ctx, smooth(inset(sarong, 1.6), true), INK.red, 0.9);
+      // white chevrons (ลายฟันปลา) in rows down the sarong
+      ctx.save(); ctx.clip(smooth(inset(sarong, 2.5), true));
+      for (let y = 262; y < 330; y += 12) {
+        const row = [];
+        for (let x = -70; x < 76; x += 8) row.push([x, y + ((x / 8) % 2 ? 0 : 5)]);
+        const P = new Path2D(); row.forEach(([x, yy], i) => (i ? P.lineTo(x, yy) : P.moveTo(x, yy)));
+        ink(ctx, P, INK.white, 1.6);
+        dots(ctx, offset(row, -4), { sp: 4, r: 0.8, seed: y, sm: false, punch: 0.3 });
+      }
+      ctx.restore();
+      const hem = [[-66, 330], [-48, 330], [-30, 324], [-12, 322], [6, 326], [24, 322], [40, 318], [58, 322], [68, 320]];
+      stripe(ctx, hem.map(([x, y]) => [x, y - 4]), 5, { fill: INK.gold, edge: INK.white, seed: 952, sp: 2.6, r: 0.75 });
+      rim(ctx, sarong, { seed: 953, gold: false, d: 2 });
+      // green triangular apron (ผ้าห้อย) over the belly, as in 2.jpg
+      const apron = wob([[-22, 244], [36, 244], [30, 280], [18, 306], [8, 330], [-4, 306], [-14, 280]], 0.3, 954);
+      leather(ctx, smooth(apron, true, 0.35));
+      dye(ctx, smooth(inset(apron, 1.4), true), INK.gold, 0.9);
+      dots(ctx, inset(apron, 2.6), { sp: 2.8, r: 0.85, closed: true, seed: 955, punch: 0.3 });
+      dye(ctx, smooth(inset(apron, 4.6), true), INK.green, 0.9);
+      dots(ctx, inset(apron, 6.2), { sp: 3, r: 0.8, closed: true, seed: 956, punch: 0.3 });
+      lace(ctx, inset(apron, 8), { sp: 5.4, r: 0.85, style: 'quad', seed: 957, punch: 0.35 });
+      flower(ctx, 8, 270, 8.5, { n: 10, fill: INK.red });
+      const tip = [[8, 326], [14, 346], [8, 372], [2, 346]];
+      leather(ctx, smooth(tip, true, 0.35));
+      dye(ctx, smooth(inset(tip, 1), true), INK.gold, 0.9);
+      gem(ctx, 8, 346, 3);
+      stripe(ctx, [[-26, 239], [6, 242], [38, 239]], 8, { fill: INK.gold, seed: 958, sp: 3, r: 1, edge: INK.white });
+      for (const x of [-14, 26]) gem(ctx, x, 240.4, 2.5, { col: INK.green });
+      const buckle = [[7, 231], [17, 241], [7, 251], [-3, 241]];
+      leather(ctx, smooth(buckle, true, 0.3));
+      dye(ctx, smooth(buckle, true, 0.3), INK.gold, 0.95);
+      flower(ctx, 7, 241, 6, { n: 8 });
+    },
+  };
+  // ---------------------------------------------------------------- limbs
+  const dB = unit(J.wrB[0] - J.elB[0], J.wrB[1] - J.elB[1]);
+  const dF = unit(J.wrF[0] - J.elF[0], J.wrF[1] - J.elF[1]);
+  const hf = handFrame(J.wrF, dF, 1), hb = handFrame(J.wrB, dB, 1);
+  const legShin = (K, A, fwd, seed) => (ctx) => shin(ctx, K, A, fwd, { seed, guard: null });
+  const plainThigh = (H, K, seed) => (ctx) => {
+    const pts = wob(paddle(H, K, 14, 10.5, { bulge: 0.08, ext: 2, extA: 3 }), 0.35, seed);
+    leather(ctx, smooth(pts, true));
+    dye(ctx, smooth(inset(pts, 2), true), INK.red, 0.88);
+    const f = frame(H, K);
+    ctx.save(); ctx.clip(smooth(inset(pts, 2.5), true));
+    for (let t = 0.1; t < 1; t += 0.16) {
+      const row = [f.at(t, -16), f.at(t + 0.05, -8), f.at(t, 0), f.at(t + 0.05, 8), f.at(t, 16)];
+      ink(ctx, row, INK.white, 1.4, { sm: false });
+    }
+    ctx.restore();
+    rim(ctx, pts, { seed });
+    stripe(ctx, [f.at(0.88, -12), f.at(0.9, 0), f.at(0.88, 12)], 5, { fill: INK.gold, edge: INK.white, seed: seed + 1, sp: 2.6, r: 0.7 });
+    fringe(ctx, [f.at(0.94, -10.5), f.at(0.96, 0), f.at(0.94, 10.5)], 3.4, { flip: true, h: 1.2 });
+  };
+  const defs = {
+    torso, head, jaw, skirt,
+    upperArmB: { box: bb(4, paddle(J.shB, J.elB, 11, 8.5, { ext: 3, extA: 2 }), [add(J.shB, [-26, -26])]), z: -8, parent: 'torso', joint: J.shB, stiff: 0.12, draw: (ctx) => upperArm(ctx, J.shB, J.elB, { seed: 1001, side: -1, flame: 0 }) },
+    forearmB: { box: bb(4, paddle(J.elB, J.wrB, 8.5, 6.8, { ext: 5, extA: 1 })), z: -7, parent: 'upperArmB', joint: J.elB, lim: [-150, 12], stiff: 0.18, draw: (ctx) => forearm(ctx, J.elB, J.wrB, { seed: 1002 }) },
+    handB: { box: bb(3, [hb(-10, -8), hb(-10, 9), hb(38, -18), hb(34, 14), hb(18, 22)]), z: -9, parent: 'forearmB', joint: J.wrB, lim: [-55, 55], stiff: 0.3, mass: 0.6, draw: (ctx) => openHand(ctx, J.wrB, dB, { side: 1, seed: 1003, curl: 0.45 }) },
+    thighB: { box: bb(4, paddle(J.hipB, J.knB, 14, 10.5, { ext: 2, extA: 3 })), z: -6, parent: 'skirt', joint: J.hipB, lim: [-70, 70], stiff: 0.5, draw: plainThigh(J.hipB, J.knB, 1004) },
+    shinB: { box: bb(4, paddle(J.knB, J.anB, 10, 6.6, { ext: 4, extA: 2 }), footPts(J.anB, -1)), z: -7, parent: 'thighB', joint: J.knB, lim: [-8, 120], stiff: 0.5, draw: legShin(J.knB, J.anB, -1, 1005) },
+    thighF: { box: bb(4, paddle(J.hipF, J.knF, 14, 10.5, { ext: 2, extA: 3 })), z: -4, parent: 'skirt', joint: J.hipF, lim: [-70, 70], stiff: 0.5, draw: plainThigh(J.hipF, J.knF, 1006) },
+    shinF: { box: bb(4, paddle(J.knF, J.anF, 10, 6.6, { ext: 4, extA: 2 }), footPts(J.anF, 1)), z: -5, parent: 'thighF', joint: J.knF, lim: [-8, 120], stiff: 0.5, draw: legShin(J.knF, J.anF, 1, 1007) },
+    upperArmF: { box: bb(4, paddle(J.shF, J.elF, 11, 8.5, { ext: 3, extA: 2 }), [add(J.shF, [26, -26])]), z: 4, parent: 'torso', joint: J.shF, stiff: 0.12, draw: (ctx) => upperArm(ctx, J.shF, J.elF, { seed: 1008, side: 1, flame: 0 }) },
+    forearmF: { box: bb(4, paddle(J.elF, J.wrF, 8.5, 6.8, { ext: 5, extA: 1 })), z: 6, parent: 'upperArmF', joint: J.elF, lim: [-150, 12], stiff: 0.18, draw: (ctx) => forearm(ctx, J.elF, J.wrF, { seed: 1009 }) },
+    handF: { box: bb(3, [hf(-10, -8), hf(-10, 9), hf(28, -13), hf(28, 12)]), z: 5, parent: 'forearmF', joint: J.wrF, lim: [-55, 55], stiff: 0.3, mass: 0.6, draw: (ctx) => fist(ctx, J.wrF, dF, { side: 1, seed: 1010 }) },
+  };
+  return buildRig(
+    { id: 'phaya', name: 'พญา', en: 'Phaya — the King', kind: 'hero', voice: 'old', height: 432 },
+    defs,
+    {
+      rod: [[6, 144], [6, 240], 320],
+      handRods: { handF: hf(9, 0), handB: hb(10, 0) },
+      grips: { handF: hf(15, 0.5), handB: hb(12, 0) },
+      holds: { handF: 'staff' },
+      limbs: STD_LIMBS({ jaw: 'jaw' }),
+      lines: LINES.phaya,
+    },
+  );
+}
+
 // ================================================================ dialogue
 const LINES = {
   phra: {
@@ -1297,7 +1887,78 @@ LINES.yak = {
   ],
 };
 
+LINES.hanuman = {
+  greet: [
+    { th: 'ข้าคือหนุมาน ทหารเอกแห่งพระราม', en: 'I am Hanuman, chief warrior of Lord Rama.' },
+    { th: 'สวัสดีขอรับ! วานรขาวมาแล้ว', en: 'Greetings! The white monkey has arrived.' },
+    { th: 'ลมพัดมาทางใด ข้าก็มาทางนั้น', en: 'Wherever the wind blows, there I come.' },
+    { th: 'ยินดีที่ได้พบ ขอให้มีโชคดีเถิด', en: 'Glad to meet you — may fortune be with you.' },
+  ],
+  fight: [
+    { th: 'ตรีเพชรของข้าไม่เคยพลาดเป้า', en: 'My trident never misses its mark.' },
+    { th: 'เจ๊ะ! หลบให้ทันนะ', en: 'Hup! Dodge if you can!' },
+    { th: 'ข้าเป็นบุตรพระพาย ไม่มีวันยอมแพ้', en: 'I am the son of the Wind — I never give up.' },
+    { th: 'รับฝ่ามือวานรไปเสีย!', en: 'Here comes the monkey paw!' },
+  ],
+  taunt: [
+    { th: 'จับข้าให้ได้สิ ช้าเหมือนเต่า', en: 'Catch me if you can — slow as a turtle!' },
+    { th: 'แฮ่! หางข้ายาวกว่าความอดทนของเจ้า', en: 'Heh! My tail is longer than your patience.' },
+    { th: 'หาวทีเป็นดาวเป็นเดือน ข้าจะกลัวใคร', en: 'I yawn out stars and moons — whom should I fear?' },
+  ],
+  dance: [
+    { th: 'ตีลังกาสักทีเถิด!', en: "Let's do a somersault!" },
+    { th: 'รำลิงให้ดู สนุกนักหนา', en: 'Watch my monkey dance — what fun!' },
+    { th: 'โหน โหน โยน โยน หางแกว่งไปมา', en: 'Swing, swing, the tail sways to and fro.' },
+  ],
+  flee: [
+    { th: 'ขึ้นต้นไม้ก่อนดีกว่า!', en: 'Up a tree, quickly!' },
+    { th: 'เหาะหนีไปก่อนละขอรับ', en: "I'll fly off for now!" },
+    { th: 'ไม่ได้หนีนะ แค่ถอยไปตั้งหลัก', en: "Not fleeing — just regrouping!" },
+  ],
+  idle: [
+    { th: 'กล้วยสักหวีคงดีไม่น้อย', en: 'A bunch of bananas would be rather nice.' },
+    { th: 'คิดถึงพระรามจังเลย', en: 'How I miss Lord Rama.' },
+    { th: 'เกาหัวแกรก แกรก', en: 'Scratch, scratch.' },
+  ],
+};
+
+LINES.phaya = {
+  greet: [
+    { th: 'เราคือเจ้าเมืองแห่งนี้ ยินดีต้อนรับ', en: 'We are the lord of this city. You are welcome.' },
+    { th: 'ท่านผู้มาเยือน ขอจงมีความสุขในเมืองเรา', en: 'Visitor, may you find happiness in our city.' },
+    { th: 'ราษฎรของเราอยู่ดีกินดีหรือไม่', en: 'Tell us — are our people well and well fed?' },
+    { th: 'มาเถิด นั่งพักใต้ร่มไม้ก่อน', en: 'Come, rest a while in the shade.' },
+  ],
+  fight: [
+    { th: 'ทหารทั้งหลาย จงปกป้องเมือง!', en: 'Soldiers, defend the city!' },
+    { th: 'แม้เราชราแล้ว แต่ใจยังกล้าหาญ', en: 'Though we are old, our heart is still brave.' },
+    { th: 'ไม้เท้านี้ยังมีแรงอยู่นะ', en: 'This cane still has some strength in it!' },
+  ],
+  taunt: [
+    { th: 'เจ้าช่างไม่รู้จักที่ต่ำที่สูง', en: 'You know nothing of your place.' },
+    { th: 'อวดดีนัก ระวังจะถูกขังคุก', en: 'Such arrogance — mind you are not locked away.' },
+    { th: 'หนุ่มเอ๋ย ใจร้อนนักมักเสียการ', en: 'Young one, a hot temper spoils everything.' },
+  ],
+  dance: [
+    { th: 'งานวัดปีนี้ครึกครื้นนัก', en: 'The temple fair is so lively this year.' },
+    { th: 'เราขอร่ายรำให้ราษฎรชม', en: 'We shall dance for the people to see.' },
+    { th: 'ช้า ๆ ได้พร้าเล่มงาม', en: 'Slowly, slowly — that is how a fine blade is made.' },
+  ],
+  flee: [
+    { th: 'ปิดประตูเมือง! เร็วเข้า!', en: 'Close the city gates! Hurry!' },
+    { th: 'เราขอกลับเข้าวังก่อน', en: 'We shall retire to the palace.' },
+    { th: 'โอย หลังเราไม่ดี ขอถอยก่อน', en: 'Oh, our poor back — we must withdraw.' },
+  ],
+  idle: [
+    { th: 'อากาศวันนี้ร้อนนัก ใครก็ได้พัดให้ที', en: 'It is so hot today — will someone fan us?' },
+    { th: 'ข้าวในนาปีนี้งามนัก', en: 'The rice in the fields is fine this year.' },
+    { th: 'เฮ้อ ภาระเจ้าเมืองนี้หนักหนา', en: 'Sigh — the duties of a ruler are heavy.' },
+  ],
+};
+
 export const PUPPETS = [
   { id: 'phra', name: 'พระเอก', en: 'Phra — the Prince', kind: 'hero', build: buildPhra },
   { id: 'yak', name: 'ยักษ์', en: 'Yak — the Demon', kind: 'demon', build: buildYak },
+  { id: 'hanuman', name: 'หนุมาน', en: 'Hanuman — the White Monkey', kind: 'monkey', build: buildHanuman },
+  { id: 'phaya', name: 'พญา', en: 'Phaya — the King', kind: 'hero', build: buildPhaya },
 ];

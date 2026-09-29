@@ -270,7 +270,7 @@ function drumBar(tr, s, t, P, { fillEvery = 4, add = 0, vol = 1 } = {}) {
 
 export const MOODS = {
   heaven: {
-    bpm: 56, push: 0, xfade: 3, mong: [-7, -5],
+    level: 1.5, bpm: 56, push: 0, xfade: 3, mong: [-7, -5],
     melody: { lo: 5, hi: 15, home: 5 },
     init(tr) {
       tr.drone = new Drone(tr.ctx, tr.out, tr.t, [tr.hz(-5), tr.hz(-2), tr.hz(0)], { vol: 0.5, bright: 900, fadeIn: 4 });
@@ -295,7 +295,7 @@ export const MOODS = {
   },
 
   overture: {
-    bpm: 128, push: 0.14, mong: [-7, -5],
+    level: 0.77, bpm: 128, push: 0.14, mong: [-7, -5],
     melody: { lo: 2, hi: 11, home: 5 },
     phrase(tr, s) {
       if (s < 32) return; // intro: gongs + drums call first
@@ -330,7 +330,7 @@ export const MOODS = {
   },
 
   calm: {
-    bpm: 72, push: 0.06, mong: [-7, -5],
+    level: 1.6, bpm: 72, push: 0.06, mong: [-7, -5],
     melody: { lo: 0, hi: 8, home: 2 },
     phrase(tr, s) {
       const sk = tr.comp.next();
@@ -347,7 +347,7 @@ export const MOODS = {
   },
 
   battle: {
-    bpm: 150, push: 0.2, mong: [-7, -5],
+    level: 0.68, bpm: 150, push: 0.2, mong: [-7, -5],
     melody: { lo: 2, hi: 11, home: 5 },
     phrase(tr, s) {
       const sk = tr.comp.next();
@@ -368,7 +368,7 @@ export const MOODS = {
   },
 
   dance: {
-    bpm: 108, push: 0.1, mong: [-7, -5],
+    level: 0.9, bpm: 108, push: 0.1, mong: [-7, -5],
     melody: { lo: 0, hi: 9, home: 2 },
     phrase(tr, s) {
       const sk = tr.comp.next();
@@ -389,7 +389,7 @@ export const MOODS = {
   },
 
   comic: {
-    bpm: 126, push: 0.1, mong: [-7, -5],
+    level: 1.0, bpm: 126, push: 0.1, mong: [-7, -5],
     melody: { lo: 1, hi: 10, home: 5 },
     phrase(tr, s) {
       const sk = tr.comp.next();
@@ -407,7 +407,7 @@ export const MOODS = {
   },
 
   sad: {
-    bpm: 56, push: 0.04, mong: [-6, -3],
+    level: 1.1, bpm: 56, push: 0.04, mong: [-6, -3],
     melody: { lo: 0, hi: 9, home: 4 },
     init(tr) {
       tr.drone = new Drone(tr.ctx, tr.out, tr.t, [tr.hz(-6), tr.hz(-1)], { vol: 0.35, bright: 520, fadeIn: 4 });
@@ -444,7 +444,7 @@ class Track {
     this.def = MOODS[mood];
     this.out = this.ctx.createGain();
     this.out.gain.setValueAtTime(0.0001, t0);
-    this.out.gain.linearRampToValueAtTime(1, t0 + fadeIn);
+    this.out.gain.linearRampToValueAtTime(this.def.level ?? 1, t0 + fadeIn);
     this.out.connect(music.out);
     // per-track reverb send (faded together with the track)
     this.wet = this.ctx.createGain();

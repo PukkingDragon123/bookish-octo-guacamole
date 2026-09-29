@@ -213,15 +213,30 @@ export class Ambience {
     lp.frequency.value = 1500;
     this.far.connect(lp);
     lp.connect(this.out);
-    const fs = ctx.createGain();
-    fs.gain.value = 0.5;
-    lp.connect(fs);
-    fs.connect(eng.revIn);
+    // the far layer's extra reverb send follows the ambience level too
+    this.wet = ctx.createGain();
+    this.wet.gain.value = 0;
+    lp.connect(this.wet);
+    this.wet.connect(eng.revIn);
     this.on = false;
     this.level = 0.7;
     this.beds = [];
     this.next = {};
     this.r = Math.random;
+  }
+  /** bake the looping beds ahead of time (prewarm) */
+  bake() {
+    insectLoop(this.ctx);
+    murmurLoop(this.ctx);
+    geckoBuf(this.ctx);
+    for (let v = 0; v < 3; v++) frogBuf(this.ctx, v);
+  }
+  _ramp(target, t, tc, linear = 0) {
+    for (const [g, k] of [[this.out.gain, 1], [this.wet.gain, 0.5]]) {
+      holdAt(g, t);
+      if (linear) g.linearRampToValueAtTime(target * k, t + linear);
+      else g.setTargetAtTime(target * k, t, tc);
+    }
   }
   start() {
     if (this.on) return;
@@ -234,8 +249,7 @@ export class Ambience {
     const b2 = mur.buffer(murmurLoop(ctx), { t, loop: true, offset: Math.random() * 10 });
     b2.connect(mur.out);
     this.beds = [ins, mur];
-    holdAt(this.out.gain, t);
-    this.out.gain.linearRampToValueAtTime(this.level, t + 3);
+    this._ramp(this.level, t, 0, 3);
     const now = ctx.currentTime;
     this.next = { frog: now + 1, gecko: now + rnd(Math.random, 12, 30), chat: now + 3, child: now + rnd(Math.random, 10, 25), dog: now + rnd(Math.random, 8, 30) };
   }
@@ -243,17 +257,14 @@ export class Ambience {
     if (!this.on) return;
     this.on = false;
     const t = this.ctx.currentTime;
-    holdAt(this.out.gain, t);
-    this.out.gain.setTargetAtTime(0, t, fade / 3);
+    this._ramp(0, t, Math.max(0.01, fade / 3));
     for (const b of this.beds) b.end(t + fade * 1.5);
     this.beds = [];
   }
   setLevel(x) {
     this.level = clamp(+x || 0, 0, 1);
     if (!this.on) return;
-    const t = this.ctx.currentTime;
-    holdAt(this.out.gain, t);
-    this.out.gain.setTargetAtTime(this.level, t, 0.25);
+    this._ramp(this.level, this.ctx.currentTime, 0.25);
   }
   tick(now) {
     if (!this.on) return;

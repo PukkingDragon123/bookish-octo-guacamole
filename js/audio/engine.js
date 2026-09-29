@@ -13,7 +13,7 @@ import {
 } from './dsp.js';
 import { Music, MOOD_NAMES } from './music.js';
 import { Ambience } from './ambience.js';
-import { SFX, SFX_NAMES } from './sfx.js';
+import { SFX, SFX_NAMES, SFX_TRIM } from './sfx.js';
 import { perc, pitched, playBuffer, PERC_KINDS } from './perc.js';
 import { leadNote, khaen } from './melodic.js';
 import { babble } from './vocal.js';
@@ -40,6 +40,7 @@ export const INSTRUMENTS = {
   krap: { alt: true },
 };
 export const INSTRUMENT_NAMES = Object.keys(INSTRUMENTS);
+const INST_TRIM = { 'khong-wong': 0.86, klong: 1.1, thap: 0.7, mong: 0.7, ching: 1.4, khlui: 1.2, khaen: 1.3, saw: 1.25, jakhe: 0.39, krap: 2 };
 export { SFX_NAMES, MOOD_NAMES };
 
 function flickerBuffer(ctx) {
@@ -76,7 +77,7 @@ class LampHum {
     this.level = level;
     if (!this.shot) return;
     holdAt(this.gain.gain, t);
-    this.gain.gain.setTargetAtTime(0.32 * level * level, t, 0.25);
+    this.gain.gain.setTargetAtTime(0.036 * level * level, t, 0.25);
     if (level === 0) {
       const s = this.shot;
       this.shot = null;
@@ -127,25 +128,30 @@ export class AudioEngine {
     // master chain
     this.master = g(1);
     this.pre = g(1);
+    // Web Audio compressors apply automatic makeup gain (+4.3 dB for the bus
+    // compressor, +1.7 dB for the limiter as measured in Chromium); the fixed
+    // trims after each cancel it so the chain is unity below threshold.
     const comp = (this.comp = ctx.createDynamicsCompressor());
-    comp.threshold.value = -20;
-    comp.knee.value = 10;
-    comp.ratio.value = 3;
-    comp.attack.value = 0.004;
+    comp.threshold.value = -18;
+    comp.knee.value = 12;
+    comp.ratio.value = 2.5;
+    comp.attack.value = 0.005;
     comp.release.value = 0.25;
-    this.post = g(0.8);
+    this.post = g(0.612);
     const lim = (this.limiter = ctx.createDynamicsCompressor());
-    lim.threshold.value = -4;
-    lim.knee.value = 2;
-    lim.ratio.value = 16;
-    lim.attack.value = 0.0015;
-    lim.release.value = 0.12;
+    lim.threshold.value = -3;
+    lim.knee.value = 0;
+    lim.ratio.value = 20;
+    lim.attack.value = 0.001;
+    lim.release.value = 0.1;
+    this.trim = g(0.821);
     this.clip = ctx.createWaveShaper();
     this.clip.curve = softClipCurve(0.88);
     this.pre.connect(comp);
     comp.connect(this.post);
     this.post.connect(lim);
-    lim.connect(this.clip);
+    lim.connect(this.trim);
+    this.trim.connect(this.clip);
     this.clip.connect(this.master);
     this.master.connect(ctx.destination);
 
@@ -163,7 +169,7 @@ export class AudioEngine {
     this.revOut.connect(this.pre);
 
     // buses
-    const levels = { music: 0.5, sfx: 0.95, amb: 0.55, voice: 0.9 };
+    const levels = { music: 0.32, sfx: 1, amb: 0.07, voice: 0.8 };
     const sends = { music: 0.26, sfx: 0.12, amb: 0.4, voice: 0.1 };
     this.buses = {};
     this.busSends = {};
@@ -217,7 +223,7 @@ export class AudioEngine {
     this.lastSfx.set(name, now);
     const X = {
       ctx: this.ctx, dest: this.buses.sfx, rev: this.revIn, t: now + 0.005,
-      pan: clamp(+pan || 0, -1, 1), vol: clamp(vol == null ? 1 : +vol, 0, 2), p: clamp(+pitch || 1, 0.25, 4),
+      pan: clamp(+pan || 0, -1, 1), vol: clamp(vol == null ? 1 : +vol, 0, 2) * (SFX_TRIM[name] ?? 1), p: clamp(+pitch || 1, 0.25, 4),
     };
     this.track(fn(X));
   }
@@ -232,7 +238,7 @@ export class AudioEngine {
     if (!def) return;
     const ctx = this.ctx, t = ctx.currentTime + 0.005;
     const dest = this.buses.sfx;
-    vol = clamp(vol == null ? 1 : +vol, 0, 2);
+    vol = clamp(vol == null ? 1 : +vol, 0, 2) * (INST_TRIM[name] ?? 1);
     pan = clamp(+pan || 0, -1, 1);
     // choose the note: given, or a melodic random walk from the last one
     let n;
@@ -295,13 +301,13 @@ export class AudioEngine {
   prewarm(sliceMs = 5) {
     const ctx = this.ctx;
     const jobs = [];
-    for (const k of PERC_KINDS) for (let v = 0; v < 4; v++) jobs.push(() => perc(ctx, k, v));
-    for (const p of [-10, -7, -6, -5, -3]) jobs.push(() => pitched(ctx, 'mong', degHz(p)));
+    for (const k of PERC_KINDS) for (let v = 0; v < 3; v++) jobs.push(() => perc(ctx, k, v));
+    for (const p of [-7, -5, -6, -3]) jobs.push(() => pitched(ctx, 'mong', degHz(p)));
     jobs.push(() => pitched(ctx, 'gong', 82), () => pitched(ctx, 'gong', degHz(-10)));
-    for (let p = -3; p <= 16; p++) jobs.push(() => pitched(ctx, 'ranat', degHz(p)));
-    for (let p = -8; p <= 12; p++) jobs.push(() => pitched(ctx, 'khong', degHz(p)));
-    for (let p = 3; p <= 18; p++) jobs.push(() => pitched(ctx, 'bell', degHz(p)));
-    for (let p = -6; p <= 9; p++) jobs.push(() => pitched(ctx, 'jakhe', degHz(p)));
+    for (const p of [10, 11, 12, 13, 15]) jobs.push(() => pitched(ctx, 'bell', degHz(p)));
+    for (let p = 0; p <= 9; p++) jobs.push(() => pitched(ctx, 'khong', degHz(p)));
+    // ambience beds last (the biggest bakes)
+    jobs.push(() => this.ambience.bake());
     const run = () => {
       const t0 = performance.now();
       try {
