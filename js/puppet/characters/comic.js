@@ -374,7 +374,8 @@ function legParts(G) {
 // deco(ctx) }. Shapes are smoothed and cut from leather.
 function buildFigure(meta, S) {
   const seed = hashStr(meta.id);
-  if (S.headScale && S.headScale !== 1) {
+  S.headScale = (S.headScale ?? 1) * (meta.kind === 'comic' ? 1.1 : 1.04);
+  if (S.headScale !== 1) {
     const k = S.headScale, c = S.neck;
     const wrap = (f) => f && ((ctx, info) => { ctx.save(); ctx.translate(c[0], c[1]); ctx.scale(k, k); ctx.translate(-c[0], -c[1]); f(ctx, info); ctx.restore(); });
     for (const part of [S.head, S.jaw]) {
@@ -382,6 +383,20 @@ function buildFigure(meta, S) {
       part.deco = wrap(part.deco);
     }
     S.jaw.pivot = scaleAbout([S.jaw.pivot], c, k)[0];
+  }
+  // quality pass: thinner limbs, arms swung clear of the body outline
+  const swing = (A, deg, thin) => {
+    const a = deg * DEG, rel = (p) => { const q = rotP([p[0] - A.S[0], p[1] - A.S[1]], a); return [q[0] + A.S[0], q[1] + A.S[1]]; };
+    const E = rel(A.E), W = rel(A.W);
+    const W2 = [W[0] + (W[0] - E[0]) * 0.12, W[1] + (W[1] - E[1]) * 0.12]; // longer forearm
+    return { ...A, E, W: W2, r: A.r.map((v) => v * thin),
+      decoF: A.decoF || ((ctx) => dots(ctx, [lerp(E, W2, 0.82), lerp(E, W2, 0.84)].map((q, i) => [q[0] + (i ? 5 : -5), q[1]]), 0.9, 3, 5)) };
+  };
+  S.armF = swing(S.armF, S.armOutF ?? -16, 0.82);
+  S.armB = swing(S.armB, S.armOutB ?? 14, 0.82);
+  for (const G of [S.legF, S.legB]) {
+    G.r = G.r.map((v, i) => v * (i ? 0.85 : 0.95));
+    G.decoS = G.decoS || ((ctx) => { dots(ctx, [[G.A[0] - 6, G.A[1] - 6], [G.A[0] + 6, G.A[1] - 7]], 1.0, 3, 7); dots(ctx, [[G.K[0] - 5, G.K[1] + 16], [G.K[0] + 5, G.K[1] + 15]], 0.9, 3.4, 8); });
   }
   const armF = armParts(S.armF), armB = armParts(S.armB);
   const legF = legParts(S.legF), legB = legParts(S.legB);
@@ -454,6 +469,7 @@ function buildFigure(meta, S) {
       legF: ['thighF', 'shinF'], legB: ['thighB', 'shinB'],
     },
     lines: meta.lines,
+    ...(S.idle ? { idle: S.idle } : {}),
   };
 }
 
@@ -532,6 +548,7 @@ function teng() {
   S.legB = { H: [-12, 266], K: [-16, 338], A: [-23, 398], r: [12, 7.5, 4.8], foot: { len: 30, toes: 4 } };
   S.rod = { a: [-2, 112], b: [-2, 238] };
   S.holds = {};
+  S.idle = { shoulderF: -150, elbowF: -50, wristF: 20, shoulderB: 10, elbowB: -30 }; // signature pose, canonical degrees
   return S;
 }
 
@@ -606,6 +623,7 @@ function nunui() {
   S.legB = { H: [-12, 268], K: [-15, 342], A: [-22, 398], r: [12.5, 8, 5], foot: { len: 30, toes: 3 } };
   S.rod = { a: [-2, 112], b: [0, 240] };
   S.holds = { handB: 'knife' };
+  S.idle = { shoulderF: -120, elbowF: -30, wristF: -10, shoulderB: -25, elbowB: -60 }; // signature pose, canonical degrees
   return S;
 }
 
@@ -689,6 +707,7 @@ function yodthong() {
   S.legB = { H: [-16, 270], K: [-26, 338], A: [-28, 398], r: [14, 9, 5.5], calf: 4.5, foot: { len: 32, toes: 4 } };
   S.rod = { a: [-2, 114], b: [0, 244] };
   S.holds = {};
+  S.idle = { shoulderF: -140, elbowF: -40, shoulderB: 15, elbowB: -20, head: -8 }; // signature pose, canonical degrees
   return S;
 }
 
@@ -765,6 +784,7 @@ function samor() {
   S.legB = { H: [-12, 268], K: [-15, 344], A: [-21, 400], r: [10.5, 6.5, 4.2], calf: 2.6, foot: { len: 30, toes: 4, h: 20 } };
   S.rod = { a: [-2, 112], b: [0, 238] };
   S.holds = { handB: 'knife' };
+  S.idle = { shoulderF: -110, elbowF: -70, shoulderB: 5, elbowB: -20, head: 6 }; // signature pose, canonical degrees
   return S;
 }
 
@@ -838,6 +858,7 @@ function srikaew() {
   S.legB = { H: [-14, 268], K: [-24, 342], A: [-32, 400], r: [13, 8.5, 5.2], calf: 4, foot: { len: 30, toes: 4 } };
   S.rod = { a: [-2, 114], b: [0, 240] };
   S.holds = {};
+  S.idle = { shoulderF: -125, elbowF: -55, shoulderB: 20, elbowB: -10 }; // signature pose, canonical degrees
   return S;
 }
 
@@ -922,6 +943,7 @@ function khwanmuang() {
   S.legB = { H: [-12, 268], K: [-13, 344], A: [-19, 400], r: [11, 7.5, 5], foot: { len: 30 } };
   S.rod = { a: [-2, 112], b: [0, 236] };
   S.holds = {};
+  S.idle = { shoulderF: -40, elbowF: -40, shoulderB: -30, elbowB: -45, jaw: 10 }; // signature pose, canonical degrees
   return S;
 }
 
@@ -992,6 +1014,7 @@ function phuyaiphoon() {
   S.legB = { H: [-18, 268], K: [4, 336], A: [-14, 398], r: [13, 8.5, 5.2], calf: 4, foot: { len: 32, toes: 3 } };
   S.rod = { a: [4, 118], b: [-2, 236] };
   S.holds = {};
+  S.idle = { shoulderF: -90, elbowF: -20, wristF: 20, shoulderB: 30, elbowB: -10, kneeF: 20, kneeB: 20 }; // signature pose, canonical degrees
   return S;
 }
 
@@ -1062,6 +1085,7 @@ function aitho() {
   S.legB = { H: [-12, 262], K: [-18, 338], A: [-26, 400], r: [11, 7, 4.5], calf: 3, foot: { len: 32, toes: 4 } };
   S.rod = { a: [2, 112], b: [0, 236] };
   S.holds = {};
+  S.idle = { shoulderF: -70, elbowF: -15, shoulderB: 50, elbowB: -30, hipF: -35, kneeF: 30, hipB: 25, kneeB: 50 }; // signature pose, canonical degrees
   return S;
 }
 
@@ -1069,7 +1093,7 @@ function aitho() {
 // A farmer in a woven งอบ hat and indigo ม่อฮ่อม shirt, a checked ผ้าขาวม้า
 // knotted at the waist, knee-length trousers, bare feet.
 function chaobanMan() {
-  const S = { headScale: 0.94, tints: { torso: [INK.indigo, 0.62], upperArmF: [INK.indigo, 0.62], upperArmB: [INK.indigo, 0.5] } };
+  const S = { headScale: 0.94, tints: { torso: [INK.blue, 0.9], upperArmF: [INK.blue, 0.9], upperArmB: [INK.blue, 0.8] } };
   S.neck = [-2, 92];
   const skull = [
     [-18, 30], [-4, 26], [12, 28], [26, 34], [32, 42], [34, 48], [33, 52], [38, 56], [44, 62], [44, 67],
@@ -1084,7 +1108,7 @@ function chaobanMan() {
   S.head = {
     shapes: [skull, hat, knob],
     deco(ctx) {
-      dye(ctx, smooth(hat), INK.horn, 0.55);
+      dye(ctx, smooth(hat), INK.yellow, 0.85);
       // woven palm leaf: radial ribs and rings
       for (let i = -5; i <= 5; i++) {
         const bx = i * 11.5;
@@ -1154,7 +1178,7 @@ function chaobanMan() {
 // A market woman: hair in a bun with a flower, lace-edged blouse, a long
 // striped ผ้าถุง.
 function chaobanWoman() {
-  const S = { headScale: 0.92, tints: { torso: [INK.pink, 0.45], upperArmF: [INK.pink, 0.45], upperArmB: [INK.pink, 0.35], skirt: [INK.crimson, 0.85] } };
+  const S = { headScale: 0.92, tints: { torso: [INK.pink, 0.9], upperArmF: [INK.pink, 0.9], upperArmB: [INK.pink, 0.8], skirt: [INK.vermilion, 0.95] } };
   S.neck = [-2, 80];
   const skull = [
     [-12, 4], [4, 0], [18, 3], [27, 11], [31, 20], [33, 28], [32, 32], [35, 36], [40, 42], [39, 46], [35, 47],
@@ -1280,8 +1304,8 @@ function dek() {
     tint: [INK.red, 0.9],
     shapes: [skirt, flap],
     deco(ctx) {
-      dye(ctx, smooth(skirt), INK.red, 0.9);
-      dye(ctx, smooth(flap), INK.red, 0.9);
+      dye(ctx, smooth(skirt), INK.vermilion, 1);
+      dye(ctx, smooth(flap), INK.orange, 1);
       dots(ctx, [[-22, 168], [0, 167], [26, 172]], 1.0, 3.8, 12);
       dots(ctx, [[18, 176], [21, 200], [23, 214]], 0.9, 3.6, 13);
     },

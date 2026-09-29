@@ -9,7 +9,7 @@ import {
 const TAU = Math.PI * 2;
 
 // ------------------------------------------------------------ helpers
-const C = (pts, steps = 8) => curve(pts, true, steps);
+const C = (pts, steps = 8) => (steps <= 2 ? pts.map((p) => p.slice()) : curve(pts, true, steps));
 const Q = (pts, steps = 8) => curve(pts, false, steps);
 
 function normals(c) {
@@ -288,7 +288,7 @@ export const PROPS = [
         const pot = C([[22, 6], [52, 6], [50, 12], [66, 24], [70, 38], [60, 52], [37, 58], [14, 52], [4, 38], [8, 24], [24, 12]], 6);
         const pi = panel(ctx, pot, { color: '#b4532a', border: 2.8, seed: sd() });
         clipped(ctx, pi, () => {
-          for (let k = 0; k < 7; k++) { const x = 14 + k * 8; dye(ctx, poly(krajangPath(x, 50, 6, 12)), INK.green, 0.9); gold(ctx, krajangPath(x, 50, 6, 12), 0.5); }
+          for (let k = 0; k < 7; k++) { const x = 14 + k * 8; dye(ctx, krajangPath(x, 50, 6, 12), INK.green, 0.9); gold(ctx, krajangPath(x, 50, 6, 12), 0.5); }
           gold(ctx, Q([[6, 26], [37, 22], [68, 26]]), 0.8);
           for (let k = 0; k < 8; k++) dotFlower(ctx, 10 + k * 7.6, 32, 0.8, 5, 2.3);
         });

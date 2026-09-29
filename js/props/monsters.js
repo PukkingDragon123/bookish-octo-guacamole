@@ -27,13 +27,15 @@ function chainParts(prefix, segs, parent, parentJ, { z = 0, dz = -0.01, lim = [-
 // พญานาค — five-headed naga with a flame-crested hood and a scaled body.
 function naga() {
   const N = 'naga';
+  scaleFigure(1.8);
   const pts = [];
   for (let i = 0; i <= 10; i++) pts.push([300 - i * 30, 250 + Math.sin(i * 0.9) * 16 - (i < 2 ? (2 - i) * 6 : 0)]);
   const radii = pts.map((_, i) => Math.max(4, 22 - i * 1.7));
   const segs = chain(N + '-s', pts, radii, (ctx, o, i, a, b) => {
     const belly = poly(inset(o, 3));
     dye(ctx, belly, INK.green, 0.55);
-    scales(ctx, o, { d: 4, spacing: 7, w: 0.7 });
+    scales(ctx, o, { d: 3.5, spacing: 4.6, w: 0.6 });
+    dotLine(ctx, offset(path([a, b]), -radii[i] * 0.5), { spacing: 3, r: 0.6, smoothIt: false });
     trim(ctx, o, { d: 2.8, seed: 20 + i });
     gold(ctx, offset(path([a, b]), radii[i] * 0.55), 0.6, { smoothIt: false });
     const k = Math.max(7, radii[i] * 0.9);
@@ -42,12 +44,12 @@ function naga() {
   // neck rising into the hood
   const neckPts = shape([[292, 262], [300, 228], [312, 180], [330, 150], [350, 150], [346, 190], [330, 236], [322, 272], [300, 276]], { wob: 0.8, seed: 3 });
   const heads = [];
-  for (let h = 0; h < 5; h++) {
-    const a = -Math.PI / 2 + (h - 2) * 0.42 + 0.3;
-    const cx = 340 + Math.cos(a) * 62, cy = 150 + Math.sin(a) * 62;
+  for (let h = 0; h < 7; h++) {
+    const a = -Math.PI / 2 + (h - 3) * 0.36 + 0.25;
+    const cx = 352 + Math.cos(a) * 70, cy = 150 + Math.sin(a) * 70;
     heads.push([cx, cy, a]);
   }
-  const hoodPts = shape([[300, 170], [300, 110], [330, 78], [370, 72], [400, 96], [410, 140], [388, 176], [350, 190]], { wob: 1, seed: 4 });
+  const hoodPts = shape([[296, 176], [292, 110], [318, 72], [360, 60], [404, 78], [424, 124], [410, 170], [370, 196], [330, 198]], { wob: 1, seed: 4 });
   const body = piece(N + '-hood', [neckPts, hoodPts, ...heads.map(([x, y]) => [[x - 36, y - 36], [x + 36, y + 26]])], (ctx) => {
     hide(ctx, neckPts);
     dye(ctx, poly(inset(neckPts, 3)), INK.green, 0.6);
@@ -55,7 +57,9 @@ function naga() {
     hide(ctx, hoodPts);
     field(ctx, hoodPts, INK.jade, { d: 3, alpha: 0.7 });
     trim(ctx, hoodPts, { rows: 2, seed: 5 });
-    dotFill(ctx, poly(inset(hoodPts, 9)), [300, 70, 412, 192], { pattern: 'flowers', spacing: 9, r: 0.8, seed: 6 });
+    dotFill(ctx, poly(inset(hoodPts, 9)), [290, 56, 426, 200], { pattern: 'flowers', spacing: 8, r: 0.7, seed: 6 });
+    for (let k = 0; k < 4; k++) dotLine(ctx, inset(hoodPts, 14 + k * 9), { closed: true, spacing: 3, r: 0.6, smoothIt: false, seed: k });
+    krajangRow(ctx, [[300, 186], [340, 200], [406, 176]], 8, { color: INK.gold, inner: INK.red });
     prajamYam(ctx, 352, 138, 14, { color: INK.red, petal: INK.gold });
     heads.forEach(([x, y, a], h) => {
       const c = Math.cos(a), s = Math.sin(a);
@@ -94,7 +98,7 @@ function dragon() {
   const segs = chain(N + '-s', pts, radii, (ctx, o, i, a, b) => {
     dye(ctx, poly(inset(o, 2.5)), INK.gold, 0.55);
     scales(ctx, o, { d: 4, spacing: 6.5 });
-    trim(ctx, o, { d: 2.8, seed: 40 + i });
+    trim(ctx, o, { d: 2.8, rows: 2, gap: 2.4, seed: 40 + i });
     for (let k = 0; k < 2; k++) {
       const t = 0.25 + k * 0.5;
       flame(ctx, a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t - radii[i] * 0.7, -Math.PI / 2 - 0.6, radii[i] * 1.3, 8, { fill: INK.red, seed: i * 3 + k });
@@ -107,7 +111,8 @@ function dragon() {
     for (const h of horns) { hide(ctx, h); dye(ctx, poly(inset(h, 0.8)), INK.gold, 0.7); }
     hide(ctx, headPts);
     field(ctx, headPts, INK.green, { d: 2.5, alpha: 0.7 });
-    trim(ctx, headPts, { seed: 51 });
+    trim(ctx, headPts, { rows: 2, seed: 51 });
+    scales(ctx, headPts, { d: 8, spacing: 5 });
     beastEye(ctx, 340, 124, 5, { style: 'bulge' });
     ink(ctx, [[330, 116], [342, 112], [354, 118]], 1.4);
     hole(ctx, 372, 134, 1.4);
@@ -197,6 +202,7 @@ function krasue() {
 // taloned legs.
 function garuda() {
   const N = 'khrut';
+  scaleFigure(1.25);
   const torso = shape([[190, 150], [214, 140], [232, 150], [236, 190], [230, 240], [236, 270], [196, 274], [186, 240], [182, 190]], { wob: 0.6, seed: 70 });
   const body = piece(N + '-torso', [torso], (ctx) => {
     hide(ctx, torso);
@@ -223,29 +229,32 @@ function garuda() {
   const wing = (id, root, far) => {
     const [x, y] = root;
     const sg = far ? -1 : 1;
-    const inner = shape([[x, y - 8], [x - 60, y - 60], [x - 100, y - 70], [x - 90, y - 40], [x - 40, y + 10], [x, y + 14]], { wob: 0.6, seed: far ? 80 : 81 });
+    const X = (d) => x - d * sg;
+    const inner = shape([[x, y - 8], [X(60), y - 60], [X(100), y - 70], [X(90), y - 40], [X(40), y + 10], [x, y + 14]], { wob: 0.6, seed: far ? 80 : 81 });
     const fs = [];
-    for (let k = 0; k < 7; k++) fs.push([[x - 90 + k * 8, y - 50 + k * 8], [x - 130 + k * 4, y - 70 + k * 16], [x - 160 + k * 6, y - 60 + k * 22]]);
+    for (let k = 0; k < 7; k++) fs.push([[X(90 - k * 8), y - 50 + k * 8], [X(130 - k * 4), y - 70 + k * 16], [X(160 - k * 6), y - 60 + k * 22]]);
     const w1 = piece(N + id, [inner], (ctx) => {
       hide(ctx, inner);
       field(ctx, inner, far ? INK.green : INK.red, { d: 2.5 });
-      trim(ctx, inner, { rows: 2, seed: 82 });
-      for (let k = 0; k < 4; k++) lozenges(ctx, [[x - 10, y - 2 + k * 3], [x - 80, y - 56 + k * 6]], { size: 2, gap: 7 });
-      if (far) dye(ctx, poly(inner), '#000', 0.3); else knot(ctx, x - 6, y, 2.4);
+      trim(ctx, inner, { rows: 3, seed: 82 });
+      dotFill(ctx, poly(inset(inner, 12)), [x - 110, y - 80, x + 110, y + 20], { pattern: 'flowers', spacing: 8, r: 0.65 });
+      krajangRow(ctx, far ? [[X(4), y + 12], [X(92), y - 38]].reverse() : [[X(4), y + 12], [X(92), y - 38]], 7, { color: INK.gold, inner: far ? INK.red : INK.green });
+      for (let k = 0; k < 4; k++) lozenges(ctx, [[X(10), y - 2 + k * 3], [X(80), y - 56 + k * 6]], { size: 2, gap: 7 });
+      if (far) dye(ctx, poly(inner), '#000', 0.3); else knot(ctx, X(6), y, 2.4);
     });
     const outlines = fs.flat().map(([a, b]) => [[a - 14, b - 14], [a + 14, b + 14]]).flat();
     const w2 = piece(N + id + '2', [outlines], (ctx) => {
       for (const f of fs) feather(ctx, f, 9, { color: far ? INK.jade : INK.gold, lace: true, seed: 83 });
-      if (!far) knot(ctx, x - 88, y - 44, 2);
+      if (!far) knot(ctx, X(88), y - 44, 2);
     });
-    return { w1, w2, j2: [x - 88, y - 44], j1: [x - 4, y] };
+    return { w1, w2, j2: [X(88), y - 44], j1: [X(4), y] };
   };
   const wF = wing('-wingF', [206, 168], false), wB = wing('-wingB', [220, 164], true);
   const leg = (id, x, far) => {
     const th = tube([[x, 256], [x + 10, 290], [x + 4, 318]], [13, 10, 6]);
     const sh = tube([[x + 4, 316], [x + 2, 346], [x + 4, 368]], [5, 4, 3.5]);
     const tal = [0, 1, 2].map((k) => tube([[x + 4, 368], [x + 12 + k * 5, 374], [x + 18 + k * 6, 380]], [2.6, 1.8, 0.6]));
-    const t = piece(N + id, [th], (ctx) => { hide(ctx, th); field(ctx, th, far ? INK.green : INK.red, { d: 2.4 }); trim(ctx, th, { seed: 84 }); for (let k = 0; k < 3; k++) kanok(ctx, x - 6, 272 + k * 12, 12, Math.PI - 0.4, false, { color: INK.gold }); if (far) dye(ctx, poly(th), '#000', 0.3); });
+    const t = piece(N + id, [th], (ctx) => { hide(ctx, th); trim(ctx, th, { d: 2.6, sp: 3, r: 0.55 }); spiral(ctx, x, 334, 6, { turns: 1.6 }); field(ctx, th, far ? INK.green : INK.red, { d: 2.4 }); trim(ctx, th, { seed: 84 }); for (let k = 0; k < 3; k++) kanok(ctx, x - 6, 272 + k * 12, 12, Math.PI - 0.4, false, { color: INK.gold }); if (far) dye(ctx, poly(th), '#000', 0.3); });
     const s = piece(N + id + '2', [sh, ...tal], (ctx) => { hide(ctx, sh); for (const c of tal) hide(ctx, c); dye(ctx, poly(inset(sh, 1)), INK.yellow, 0.7); slits(ctx, [[x + 4, 322], [x + 3, 360]], { len: 3, gap: 3, ang: 1.57 }); if (!far) knot(ctx, x + 4, 318, 1.8); });
     return { t, s, j: [x, 258], k: [x + 4, 318] };
   };
@@ -270,17 +279,19 @@ function garuda() {
 // เปรต — a towering, emaciated Pret with a needle-eye mouth and rib lace.
 function pret() {
   const N = 'pret';
-  const torso = shape([[100, 150], [118, 144], [124, 200], [122, 280], [128, 320], [96, 324], [94, 280], [90, 200]], { wob: 0.8, seed: 90 });
+  const torso = shape([[94, 150], [124, 144], [132, 200], [138, 250], [134, 300], [138, 328], [84, 330], [82, 300], [80, 250], [84, 200]], { wob: 0.8, seed: 90 });
   const body = piece(N + '-torso', [torso], (ctx) => {
     hide(ctx, torso);
     trim(ctx, torso, { seed: 91 });
-    for (let k = 0; k < 7; k++) { const y = 168 + k * 14; cut(ctx, poly(inset(tube([[96, y], [108, y + 4], [118, y]], [2.2, 2.6, 2]), 0))); }
+    for (let k = 0; k < 7; k++) { const y = 166 + k * 13; cut(ctx, poly(tube([[90, y], [108, y + 5], [126, y]], [2, 2.4, 1.8]))); dots(ctx, [[92, y + 6], [108, y + 11], [124, y + 6]], { spacing: 2.8, r: 0.5 }); }
+    krajangRow(ctx, [[138, 300], [110, 296], [82, 300]], 7, { color: INK.gold, inner: INK.crimson });
+    swirlFlames(ctx, 108, 272, 10, Math.PI / 2, { n: 3, len: 22, seed: 3 });
     dots(ctx, [[108, 150], [108, 270]], { spacing: 3.4, r: 0.8 });
     dye(ctx, poly(inset(torso, 3)), INK.teal, 0.3);
     slits(ctx, [[98, 290], [122, 292]], { len: 10, gap: 4, ang: 1.6 });
   });
-  const neck = tube([[108, 150], [112, 110], [114, 80]], [5, 4, 4]);
-  const headPts = shape([[98, 70], [104, 50], [118, 44], [130, 52], [134, 66], [130, 82], [118, 88], [106, 84]], { wob: 0.6, seed: 92 });
+  const neck = tube([[108, 150], [112, 110], [114, 80]], [7, 6, 6]);
+  const headPts = shape([[94, 72], [100, 46], [118, 38], [134, 48], [140, 66], [134, 86], [118, 94], [102, 88]], { wob: 0.6, seed: 92 });
   const hair = [0, 1, 2, 3, 4].map((k) => tube([[104 + k * 6, 50 - k], [100 + k * 6, 32 - k * 2], [96 + k * 8, 20 - k]], [1.4, 1, 0.4]));
   const head = piece(N + '-head', [neck, headPts, ...hair], (ctx) => {
     hide(ctx, neck); for (const h of hair) hide(ctx, h);
@@ -294,19 +305,19 @@ function pret() {
     slits(ctx, [[104, 60], [106, 80]], { len: 3, gap: 3, ang: 2.6 });
   });
   const arm = (id, x, far) => {
-    const up = tube([[x, 160], [x + 6, 220], [x + 8, 270]], [5, 3.6, 3.2]);
-    const fo = tube([[x + 8, 268], [x + 12, 330], [x + 14, 380]], [3.2, 2.6, 2.6]);
-    const fingers = [0, 1, 2, 3].map((k) => tube([[x + 14, 380], [x + 12 + k * 4, 400], [x + 10 + k * 5, 418]], [1.6, 1.2, 0.5]));
-    const a = piece(N + id, [up], (ctx) => { hide(ctx, up); dots(ctx, [[x + 1, 170], [x + 7, 260]], { spacing: 3.2, r: 0.55 }); if (far) dye(ctx, poly(up), '#000', 0.3); else knot(ctx, x, 164, 2); });
-    const b = piece(N + id + '2', [fo, ...fingers], (ctx) => { hide(ctx, fo); for (const f of fingers) hide(ctx, f); dots(ctx, [[x + 9, 280], [x + 13, 370]], { spacing: 3.2, r: 0.55 }); if (!far) knot(ctx, x + 8, 270, 1.8); });
+    const up = tube([[x, 160], [x + 6, 220], [x + 8, 270]], [9, 6.5, 5.5]);
+    const fo = tube([[x + 8, 268], [x + 12, 330], [x + 14, 380]], [5.5, 4.4, 4.2]);
+    const fingers = [0, 1, 2, 3].map((k) => tube([[x + 14, 380], [x + 12 + k * 4, 400], [x + 10 + k * 5, 418]], [2.4, 1.8, 0.7]));
+    const a = piece(N + id, [up], (ctx) => { hide(ctx, up); trim(ctx, up, { d: 2.4, sp: 3, r: 0.55 }); spiral(ctx, x + 2, 172, 5, { turns: 1.6 }); dots(ctx, [[x + 1, 170], [x + 7, 260]], { spacing: 3.2, r: 0.55 }); if (far) dye(ctx, poly(up), '#000', 0.3); else knot(ctx, x, 164, 2); });
+    const b = piece(N + id + '2', [fo, ...fingers], (ctx) => { hide(ctx, fo); trim(ctx, fo, { d: 2, g: 1, sp: 3, r: 0.5 }); for (const f of fingers) hide(ctx, f); dots(ctx, [[x + 9, 280], [x + 13, 370]], { spacing: 3.2, r: 0.55 }); if (!far) knot(ctx, x + 8, 270, 1.8); });
     return { a, b, j: [x, 164], k: [x + 8, 270] };
   };
   const leg = (id, x, far) => {
-    const th = tube([[x, 316], [x + 2, 400], [x + 2, 470]], [6, 4, 3.4]);
-    const sh = tube([[x + 2, 468], [x, 540], [x + 2, 596]], [3.4, 2.8, 2.8]);
-    const foot = tube([[x - 4, 598], [x + 14, 600], [x + 30, 602]], [3, 2.4, 1.4]);
-    const t = piece(N + id, [th], (ctx) => { hide(ctx, th); dots(ctx, [[x + 1, 330], [x + 2, 460]], { spacing: 3.4, r: 0.55 }); if (far) dye(ctx, poly(th), '#000', 0.3); else knot(ctx, x, 320, 2); });
-    const s = piece(N + id + '2', [sh, foot], (ctx) => { hide(ctx, sh); hide(ctx, foot); dots(ctx, [[x + 1, 480], [x + 1, 590]], { spacing: 3.4, r: 0.55 }); if (!far) knot(ctx, x + 2, 470, 1.8); });
+    const th = tube([[x, 316], [x + 2, 400], [x + 2, 470]], [11, 7.5, 6]);
+    const sh = tube([[x + 2, 468], [x, 540], [x + 2, 596]], [6, 4.8, 4.6]);
+    const foot = tube([[x - 4, 598], [x + 14, 600], [x + 30, 602]], [5, 4, 2]);
+    const t = piece(N + id, [th], (ctx) => { hide(ctx, th); trim(ctx, th, { d: 2.6, sp: 3, r: 0.55 }); spiral(ctx, x, 334, 6, { turns: 1.6 }); dots(ctx, [[x + 1, 330], [x + 2, 460]], { spacing: 3.4, r: 0.55 }); if (far) dye(ctx, poly(th), '#000', 0.3); else knot(ctx, x, 320, 2); });
+    const s = piece(N + id + '2', [sh, foot], (ctx) => { hide(ctx, sh); trim(ctx, sh, { d: 2, g: 1, sp: 3, r: 0.5 }); hide(ctx, foot); dots(ctx, [[x + 1, 480], [x + 1, 590]], { spacing: 3.4, r: 0.55 }); if (!far) knot(ctx, x + 2, 470, 1.8); });
     return { t, s, j: [x, 320], k: [x + 2, 470] };
   };
   const aF = arm('-armF', 114, false), aB = arm('-armB', 98, true), lF = leg('-legF', 116, false), lB = leg('-legB', 102, true);

@@ -475,6 +475,7 @@ class Track {
     this.dirty = true;
   }
   hit(kind, t, vol = 1, pan = 0, rate = 1, send = 0) {
+    this.music.hitCount++;
     return playBuffer(this.ctx, this.out, perc(this.ctx, kind), t, { vol, pan, rate, send, sendDest: this.eng.revIn });
   }
   lead(kind, pan = 0, vol = 1) {
@@ -553,6 +554,7 @@ export class Music {
     this.tracks = [];
     this.cur = null;
     this.target = 0;
+    this.hitCount = 0; // drum/cymbal strokes scheduled (diagnostics)
   }
   get mood() {
     return this.cur ? this.cur.mood : null;

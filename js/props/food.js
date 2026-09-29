@@ -16,7 +16,7 @@ const K = {
 };
 
 // ------------------------------------------------------------ helpers
-const C = (pts, steps = 8) => curve(pts, true, steps);
+const C = (pts, steps = 8) => (steps <= 2 ? pts.map((p) => p.slice()) : curve(pts, true, steps));
 const Q = (pts, steps = 8) => curve(pts, false, steps);
 
 function normals(c) {
