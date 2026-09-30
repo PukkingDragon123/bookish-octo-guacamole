@@ -129,18 +129,43 @@ export class KhonHand {
   }
 }
 
-// Golden strings from the heavens: a sagging, softly glowing thread.
+// Golden strings from the heavens: a softly swaying thread of light with
+// motes of gold running down it toward the puppet.
 export function drawString(ctx, ax, ay, bx, by, { alpha = 1, t = 0, width = 1.4 } = {}) {
-  const mx = (ax + bx) / 2 + Math.sin(t * 1.3 + ax * 0.01) * 4;
-  const my = (ay + by) / 2 + Math.hypot(bx - ax, by - ay) * 0.04;
+  if (alpha <= 0.01) return;
+  const L = Math.hypot(bx - ax, by - ay);
+  const mx = (ax + bx) / 2 + Math.sin(t * 1.3 + ax * 0.01) * (4 + L * 0.02);
+  const my = (ay + by) / 2 + L * 0.035;
+  const at = (u) => {
+    const v = 1 - u;
+    return [v * v * ax + 2 * v * u * mx + u * u * bx, v * v * ay + 2 * v * u * my + u * u * by];
+  };
   ctx.save();
-  ctx.globalAlpha = alpha;
   ctx.lineCap = 'round';
-  ctx.strokeStyle = 'rgba(255,214,120,0.25)';
-  ctx.lineWidth = width * 4;
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.globalAlpha = alpha;
+  const g = ctx.createLinearGradient(ax, ay, bx, by);
+  g.addColorStop(0, 'rgba(255,245,210,0.9)');
+  g.addColorStop(0.5, 'rgba(255,200,110,0.6)');
+  g.addColorStop(1, 'rgba(255,230,170,0.25)');
+  ctx.strokeStyle = 'rgba(255,190,90,0.12)';
+  ctx.lineWidth = width * 7;
   ctx.beginPath(); ctx.moveTo(ax, ay); ctx.quadraticCurveTo(mx, my, bx, by); ctx.stroke();
-  ctx.strokeStyle = 'rgba(255,238,180,0.95)';
+  ctx.strokeStyle = g;
   ctx.lineWidth = width;
   ctx.stroke();
+  // travelling motes
+  const n = Math.max(3, Math.round(L / 60));
+  for (let k = 0; k < n; k++) {
+    const u = (t * 0.35 + k / n) % 1;
+    const [x, y] = at(u);
+    const tw = 0.5 + 0.5 * Math.sin(t * 9 + k * 2.3);
+    const r = (1.2 + tw * 1.6) * width;
+    const rg = ctx.createRadialGradient(x, y, 0, x, y, r * 3);
+    rg.addColorStop(0, `rgba(255,250,225,${0.9 * tw})`);
+    rg.addColorStop(1, 'rgba(255,210,120,0)');
+    ctx.fillStyle = rg;
+    ctx.fillRect(x - r * 3, y - r * 3, r * 6, r * 6);
+  }
   ctx.restore();
 }

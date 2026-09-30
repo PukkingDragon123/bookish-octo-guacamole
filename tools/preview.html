@@ -17,7 +17,7 @@
 <div id="grid"></div>
 <script type="module">
 // Usage: tools/preview.html?m=js/props/market.js[&mode=lit|front|both][&size=320][&debug=1][&only=id,id]
-// or     tools/preview.html?sheet=1   (puppets cut from the uploaded sheets)
+// or     tools/preview.html?sheet=1   (puppets drawn from the uploaded sheets)
 import { assemble, drawRig, rigBounds, rodLine, M } from '../js/puppet/rig.js';
 import { makeCanvas } from '../js/art/leather.js';
 
@@ -141,7 +141,7 @@ function cell(item) {
 async function main() {
   let items = [];
   if (q.get('sheet')) {
-    const { loadSheetPuppets } = await import('../js/puppet/characters/sheetRigs.js');
+    const { loadSheetPuppets } = await import('../js/puppet/characters/sheetPuppets.js');
     const { puppets, props } = await loadSheetPuppets();
     items = [...puppets.map((r) => ({ ...r, rig: r })), ...props];
   } else {

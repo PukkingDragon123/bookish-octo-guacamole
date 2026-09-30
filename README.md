@@ -29,12 +29,13 @@ npx serve .        # or: python3 -m http.server
 - **Hand tracking** (`js/tracking/`): MediaPipe hands; palm = body, hand size =
   depth, tilt = lean, flip hand = turn, each finger a limb, poses trigger moves,
   two hands = two puppets. "Hand demo" shows it without a camera.
-- **Sandbox**: puppet house with ~18 puppets and ~110 props, fruit-fly NPCs with
+- **Sandbox**: puppet house with ~18 puppets and ~110 props, little เทวดา stagehands with
   roles (fighter, dancer, merchant, villager, comedian, monster, coward,
   follower, wanderer), procedural Thai music and sound (`js/audio/`).
-- **Art**: the hermit and princess are cut from the uploaded part sheets
-  (`tools/slice_sheet.py` → `assets/puppets/`); everything else is drawn
-  procedurally as leather (`js/art/leather.js`, see `docs/ART_GUIDE.md`).
+- **Art**: everything is drawn in code as cut leather (`js/art/leather.js`,
+  see `docs/ART_GUIDE.md`); the hermit and princess recreate the uploaded part
+  sheets (`js/puppet/characters/sheetPuppets.js`). Scenery is painted as
+  layered handmade paper.
 
 Controls: press **H** in game.
 

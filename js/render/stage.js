@@ -8,7 +8,7 @@ import { ShadowScreen, CLOTH_W, CLOTH_H } from './screen.js';
 import { paintBooth, bananaTrunkSprite, BAND } from './theatre.js';
 import { paintNight, paintHeaven, paintCloudSprites } from './sky.js';
 import { Curtain } from './curtain.js';
-import { makeCanvas, rng, goldGrad } from './paint.js';
+import { makeCanvas, rng, goldGrad, paperPiece, paperTexture } from './paint.js';
 
 export class Stage {
   constructor(root, camera) {
@@ -33,12 +33,13 @@ export class Stage {
   }
 
   async build(fonts) {
-    await document.fonts?.ready;
-    this.booth = paintBooth(0.8, fonts);
-    this.night = paintNight(0.45);
-    this.heaven = paintHeaven(0.4);
-    this.cloudSprites = paintCloudSprites(0.4);
-    this.audience = paintAudience();
+    await Promise.race([document.fonts?.ready, new Promise((r) => setTimeout(r, 2500))]);
+    const T = (name, f) => { const t = performance.now(); const r = f(); console.log('build', name, Math.round(performance.now() - t)); return r; };
+    this.booth = T('booth', () => paintBooth(0.8, fonts));
+    this.night = T('night', () => paintNight(0.45));
+    this.heaven = T('heaven', () => paintHeaven(0.4));
+    this.cloudSprites = T('clouds', () => paintCloudSprites(0.4));
+    this.audience = T('audience', () => paintAudience());
   }
 
   resize() {
@@ -257,19 +258,66 @@ function paintAudience() {
     }
   }
   people.sort((a, b) => a.y - b.y);
+  // cut-paper villagers: coloured sheets (shirt, head, hair) layered with
+  // soft cast shadows, deepening toward the front row
+  const shirts = ['#3b3560', '#5a2f45', '#6b4a2a', '#2f4a4f', '#4a3a60', '#6a3030', '#35503a'];
   for (const p of people) {
-    const path = personPath(p, R);
-    d.fillStyle = '#07050a';
-    d.fill(path);
+    const s = p.s, x = p.x, y = p.y;
+    const dim = 0.55 + (p.y - 1230) / 900;
+    const body = new Path2D();
+    body.moveTo(x - 80 * s, y + 220 * s);
+    body.bezierCurveTo(x - 86 * s, y + 40 * s, x - 50 * s, y + 20 * s, x, y + 18 * s);
+    body.bezierCurveTo(x + 50 * s, y + 20 * s, x + 86 * s, y + 40 * s, x + 80 * s, y + 220 * s);
+    body.closePath();
+    const head = new Path2D();
+    head.ellipse(x, y - 20 * s, 34 * s, 38 * s, 0, 0, Math.PI * 2);
+    const hair = new Path2D();
+    hair.ellipse(x, y - 30 * s, 35 * s, 32 * s, 0, Math.PI, Math.PI * 2.05);
+    if (p.kind < 0.25) { hair.moveTo(x + 14 * s, y - 60 * s); hair.arc(x, y - 62 * s, 15 * s, 0, Math.PI * 2); }
+    paperPiece(d, body, shade(shirts[Math.floor(R() * shirts.length)], dim * 0.7), { lift: 7 * s, edge: 'rgba(255,230,200,0.18)' });
+    paperPiece(d, head, shade('#8a5a3a', dim * 0.55), { lift: 5 * s, edge: null });
+    paperPiece(d, hair, shade('#1c1414', dim), { lift: 3 * s, edge: null, tex: 0.3 });
+    if (p.kind >= 0.25 && p.kind < 0.35) {
+      const hat = new Path2D();
+      hat.moveTo(x - 74 * s, y - 34 * s); hat.quadraticCurveTo(x, y - 96 * s, x + 74 * s, y - 34 * s); hat.closePath();
+      paperPiece(d, hat, shade('#b08a4a', dim * 0.7), { lift: 5 * s });
+    } else if (p.kind >= 0.35 && p.kind < 0.45) {
+      const fan = new Path2D();
+      fan.moveTo(x + 50 * s, y + 20 * s); fan.arc(x + 50 * s, y + 20 * s, 60 * s, -2.1, -1.0); fan.closePath();
+      paperPiece(d, fan, shade('#b8402a', dim * 0.7), { lift: 5 * s });
+    }
+    const all = new Path2D();
+    all.addPath(body); all.addPath(head); all.addPath(hair);
+    // nearer people hide the rim light of those behind them
     r.save();
-    r.clip(path);
-    r.strokeStyle = 'rgba(255,170,95,0.75)';
-    r.lineWidth = 7 * p.s;
-    r.translate(0, 5 * p.s);
-    r.stroke(path);
+    r.globalCompositeOperation = 'destination-out';
+    r.fill(all);
     r.restore();
+    // rim light: a warm crescent along the top edges (no blur)
+    const tmp = rimTmp(r);
+    const t2 = tmp.getContext('2d');
+    t2.setTransform(r.getTransform());
+    t2.clearRect(-1e4, -1e4, 2e4, 2e4);
+    t2.fillStyle = 'rgba(255,175,100,0.85)';
+    t2.fill(all);
+    t2.globalCompositeOperation = 'destination-out';
+    t2.translate(0, 7 * p.s);
+    t2.fill(all);
+    t2.globalCompositeOperation = 'source-over';
+    r.save(); r.setTransform(1, 0, 0, 1, 0, 0); r.drawImage(tmp, 0, 0); r.restore();
   }
   return { dark, rim, x0, y0, w, h };
+}
+
+let _rimTmp = null;
+function rimTmp(r) {
+  if (!_rimTmp || _rimTmp.width !== r.canvas.width) _rimTmp = makeCanvas(r.canvas.width, r.canvas.height);
+  return _rimTmp;
+}
+
+function shade(c, k) {
+  const v = [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
+  return `rgb(${v.map((x) => Math.round(Math.min(255, x * k))).join(',')})`;
 }
 
 function personPath(p, R) {

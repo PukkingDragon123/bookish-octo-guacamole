@@ -30,7 +30,7 @@ export class Game {
     this.pointer = { x: -100, y: -100, down: false, moved: 0, inside: false };
     this.drag = null;
     this.selected = null;
-    this.flies = Array.from({ length: 6 }, () => new Fly(700 + Math.random() * 200, 300));
+    this.flies = Array.from({ length: 6 }, (_, i) => new Fly(800 + Math.sin(i * 1.7) * 900, -330));
     this.view = 'stage';
     this.showMode = false;
     this.soundOn = true;
@@ -143,7 +143,7 @@ export class Game {
   toggleSound() {
     this.soundOn = !this.soundOn;
     audio?.setMuted(!this.soundOn);
-    this.root.querySelector('#b-sound').firstChild.textContent = this.soundOn ? '🔊' : '🔇';
+    this.ui.setButton('b-sound', !this.soundOn);
   }
   async toggleTracking() {
     if (this.tracker && this.tracker.running && this.tracker.mode !== 'synthetic') {
@@ -153,7 +153,7 @@ export class Game {
       return;
     }
     await this._handsP;
-    if (!HandTracker) { this.ui.toast('ระบบติดตามมือยังไม่พร้อม · hand tracking unavailable'); return; }
+    if (!HandTracker) { this.ui.toast('ระบบติดตามมือยังไม่พร้อม · hand tracking unavailable', 5000, { error: true }); return; }
     this.tracker?.stop();
     this.tracker = new HandTracker({ maxHands: 2 });
     this.ui.toast('กำลังเปิดกล้อง… · starting camera and hand model…', 6000);
@@ -165,7 +165,7 @@ export class Game {
       this.ui.toast('ยกมือขึ้น! กำมือ = ฟันดาบ · ชี้ = แทง · จีบ = รำ · Raise your hand to take the strings', 5000);
       if (!this.selected) this.select(this.scene.puppets()[0] || null);
     } catch (e) {
-      this.ui.toast(e.userMessage || e.message, 7000);
+      this.ui.toast(e.userMessage || e.message, 7000, { error: true });
       this.ui.setButton('b-hand', false);
     }
   }
@@ -434,9 +434,9 @@ export class Game {
     }
     // camera preview
     const ctx = this.ui.camCanvas.getContext('2d');
-    T.drawPreview(ctx, 0, 0, 440, 330);
+    T.drawPreview(ctx, 0, 0, 240, 180, { labels: false });
     const h0 = hands[0];
-    this.ui.gest.textContent = h0 ? `${h0.gesture?.name || '—'}  ${GESTURE_MOVES[h0.gesture?.name] || ''}` : 'ยกมือขึ้น · raise your hand';
+    this.ui.gest.style.opacity = h0 ? 1 : 0.2;
     return any;
   }
 
@@ -476,7 +476,6 @@ export class Game {
     this.ui.skip.classList.add('hidden');
     this.cam.flyTo(this.cam.framing('stage'), 1.2);
     this.ui.reveal(true);
-    this.ui.toggleHouse(true);
     audio?.music.play('calm');
     this.ui.toast('ลากตัวหนังจากหีบมาวางบนจอ · Drag puppets from the chest onto the screen. Press H for help.', 6000);
     if (!this.scene.puppets().length) this._introHermit(0.02);
@@ -579,6 +578,7 @@ export class Game {
   }
 
   render(dt) {
+    this.lastDt = dt;
     this.stage.render(this.scene, dt, (f) => this._overlay(f));
   }
 
@@ -608,30 +608,33 @@ export class Game {
     const t = this.time;
     const hs = this.handScreen && this.trackingActive ? this.handScreen : [this.pointer.x, this.pointer.y];
     const controlled = this.trackingActive ? [this.selected] : this.drag && this.drag.actor instanceof Puppet ? [this.drag.actor] : [];
-    // strings: puppets not held by the player hang from heaven or a fly
+    // strings appear only while something holds the puppet, and fade away
+    // when let go
+    this.strA ||= new Map();
+    const fdt = this.lastDt || 1 / 60;
     for (const a of S.actors) {
       if (!(a instanceof Puppet)) continue;
-      const hw = proj(a.handleWorld(), a.z);
       const fly = this.flies.find((fl) => fl.actor === a);
-      if (controlled.includes(a)) continue;
-      if (fly) {
-        const [fx, fy] = toScreen(fly.x, fly.y);
-        drawString(f, fx, fy, hw[0], hw[1], { alpha: 0.7, t, width: 1 });
-        for (const k of ['handF', 'handB']) { const w = a.limbWorld(k); if (w) { const s2 = proj(w, a.z); drawString(f, fx, fy, s2[0], s2[1], { alpha: 0.35, t, width: 0.7 }); } }
-      } else {
-        drawString(f, hw[0] + Math.sin(t * 0.5 + hw[0]) * 3, -10, hw[0], hw[1], { alpha: a.selected ? 0.55 : 0.18, t, width: a.selected ? 1.2 : 0.8 });
+      const mine = controlled.includes(a);
+      const st = this.strA.get(a) || { p: 0, f: 0 };
+      st.p = clamp(st.p + (mine ? fdt * 8 : -fdt * 2.2), 0, 1);
+      st.f = clamp(st.f + (fly ? fdt * 3 : -fdt * 2), 0, 1);
+      this.strA.set(a, st);
+      if (st.p > 0) {
+        const tips = this.hand.tips;
+        const tgt = [a.handleWorld(), a.limbWorld('handB'), a.limbWorld('handF'), a.limbWorld('head'), a.limbWorld('footB'), a.limbWorld('footF')];
+        const map = [[2, 0], [0, 1], [1, 2], [2, 3], [3, 4], [4, 5]];
+        for (const [fi, ti] of map) {
+          if (!tgt[ti] || !tips[fi]) continue;
+          const s2 = proj(tgt[ti], a.z);
+          drawString(f, tips[fi][0], tips[fi][1], s2[0], s2[1], { alpha: st.p * (ti === 0 ? 1 : 0.75), t: t + ti, width: ti === 0 ? 1.6 : 1.1 });
+        }
       }
-    }
-    // player's strings from the khon hand's fingertips
-    if (controlled[0]) {
-      const a = controlled[0];
-      const tips = this.hand.tips;
-      const tgt = [a.handleWorld(), a.limbWorld('handB'), a.limbWorld('handF'), a.limbWorld('head'), a.limbWorld('footB'), a.limbWorld('footF')];
-      const map = [[2, 0], [0, 1], [1, 2], [2, 3], [3, 4], [4, 5]];
-      for (const [fi, ti] of map) {
-        if (!tgt[ti] || !tips[fi]) continue;
-        const s2 = proj(tgt[ti], a.z);
-        drawString(f, tips[fi][0], tips[fi][1], s2[0], s2[1], { alpha: ti === 0 ? 1 : 0.7, t, width: ti === 0 ? 1.6 : 1 });
+      if (st.f > 0 && fly && fly.hand) {
+        const hw = proj(a.handleWorld(), a.z);
+        const [fx, fy] = fly.hand;
+        drawString(f, fx, fy, hw[0], hw[1], { alpha: st.f * 0.8, t, width: 1.1 });
+        for (const k of ['handF', 'handB']) { const w = a.limbWorld(k); if (w) { const s2 = proj(w, a.z); drawString(f, fx, fy, s2[0], s2[1], { alpha: st.f * 0.45, t: t + 3, width: 0.8 }); } }
       }
     }
     // selection marker + limb beads

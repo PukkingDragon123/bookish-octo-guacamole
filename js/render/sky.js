@@ -5,7 +5,7 @@
 //    ดาวเพดาน stars, devas), in the manner of a Thai temple mural where
 //    heaven is the top register separated by a band of clouds.
 
-import { makeCanvas, rng, goldGrad, grain, thaiCloud, ceilingStar, krajang, prajam } from './paint.js';
+import { makeCanvas, rng, goldGrad, grain, thaiCloud, ceilingStar, krajang, prajam, paperPattern } from './paint.js';
 
 export const NIGHT = { x0: -1500, y0: -700, x1: 3100, y1: 1500 };
 export const HEAVEN = { x0: -1500, y0: -3400, x1: 3100, y1: -250 };
@@ -19,6 +19,7 @@ function region(R, k, draw) {
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
   draw(ctx, W, H);
+  paperize(c);
   return { canvas: c, x0: R.x0, y0: R.y0, w: W, h: H };
 }
 
@@ -73,8 +74,9 @@ export function paintNight(k = 0.4) {
     ctx.ellipse(mx - 8, my - 30, 12, 38, -0.2, 0, 7);
     ctx.ellipse(mx + 45, my + 5, 20, 16, 0, 0, 7);
     ctx.fill();
-    // distant hills
-    ctx.fillStyle = '#1a1d42';
+    // distant hills, temple, trees: layered cut paper casting soft shadows
+    ctx.shadowColor = 'rgba(0,0,10,0.5)'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 7;
+    ctx.fillStyle = '#262a58';
     ctx.beginPath();
     ctx.moveTo(x0, 1150);
     for (let x = x0; x <= x1; x += 80) ctx.lineTo(x, 980 - Math.sin(x * 0.0021) * 110 - Math.sin(x * 0.007) * 40);
@@ -82,13 +84,14 @@ export function paintNight(k = 0.4) {
     // temple silhouette left (โบสถ์ + เจดีย์), faintly lit
     temple(ctx, -900, 1060);
     // tree line
-    ctx.fillStyle = '#0c0f24';
+    ctx.fillStyle = '#161a3a';
     ctx.beginPath();
     ctx.moveTo(x0, 1500);
     for (let x = x0; x <= x1; x += 30) ctx.lineTo(x, 1090 - Math.abs(Math.sin(x * 0.03)) * 50 - r() * 30);
     ctx.lineTo(x1, 1500); ctx.fill();
     // coconut palms
     for (const [x, h, lean] of [[-1150, 900, 0.1], [-600, 780, -0.15], [-420, 1020, 0.08], [2050, 960, -0.1], [2380, 820, 0.12], [2800, 1000, -0.05]]) palm(ctx, x, 1300, h, lean, r);
+    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
     // glowing fair stalls far away
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
@@ -332,4 +335,21 @@ export function paintCloudSprites(k = 0.5) {
     out.push({ canvas: c, w: w + 200, h: h + 200 });
   }
   return out;
+}
+
+// Whole-layer handmade-paper tooth, keeping the layer's own alpha.
+export function paperize(c, alpha = 0.42) {
+  const keep = makeCanvas(c.width, c.height);
+  keep.getContext('2d').drawImage(c, 0, 0);
+  const g = c.getContext('2d');
+  g.save();
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.globalCompositeOperation = 'multiply';
+  g.globalAlpha = alpha;
+  g.fillStyle = paperPattern(g);
+  g.fillRect(0, 0, c.width, c.height);
+  g.globalAlpha = 1;
+  g.globalCompositeOperation = 'destination-in';
+  g.drawImage(keep, 0, 0);
+  g.restore();
 }

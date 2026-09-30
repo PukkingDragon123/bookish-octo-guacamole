@@ -115,73 +115,146 @@ export function prajam(ctx, x, y, s, { petal = '#e8bf5c', center = '#a3201a', li
   ctx.restore();
 }
 
-// Thai mural cloud (เมฆ): a cluster of scalloped lobes with curled
-// spiral ends, cream fill and gold/ochre outlines.
+// Handmade paper: fibrous tooth + faint mottling, generated once.
+let _paper = null;
+export function paperPattern(ctx) {
+  if (!_paper) {
+    const S = 256;
+    const c = makeCanvas(S, S);
+    const g = c.getContext('2d');
+    const r = rng(41);
+    const d = g.createImageData(S, S);
+    for (let i = 0; i < d.data.length; i += 4) {
+      const v = 200 + r() * 55;
+      d.data[i] = v; d.data[i + 1] = v * 0.97; d.data[i + 2] = v * 0.9; d.data[i + 3] = 255;
+    }
+    g.putImageData(d, 0, 0);
+    // long fibres
+    for (let i = 0; i < 420; i++) {
+      const x = r() * S, y = r() * S, a = r() * Math.PI, L = 6 + r() * 26;
+      g.strokeStyle = r() < 0.5 ? 'rgba(120,95,60,0.18)' : 'rgba(255,255,245,0.35)';
+      g.lineWidth = 0.6 + r() * 0.8;
+      g.beginPath(); g.moveTo(x, y);
+      g.quadraticCurveTo(x + Math.cos(a) * L * 0.5 + (r() - 0.5) * 6, y + Math.sin(a) * L * 0.5 + (r() - 0.5) * 6, x + Math.cos(a) * L, y + Math.sin(a) * L);
+      g.stroke();
+    }
+    _paper = c;
+  }
+  return ctx.createPattern(_paper, 'repeat');
+}
+
+// Lay paper texture over the shape just filled (multiply keeps colour).
+export function paperTexture(ctx, path, alpha = 0.55) {
+  ctx.save();
+  ctx.clip(path);
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = paperPattern(ctx);
+  ctx.fill(path);
+  ctx.restore();
+}
+
+// Fill a path as a cut piece of paper: soft cast shadow, flat colour,
+// fibre texture and a bright deckled top edge where it catches the light.
+export function paperPiece(ctx, path, color, { shadow = 'rgba(40,20,10,0.35)', lift = 6, edge = 'rgba(255,248,230,0.55)', tex = 0.5 } = {}) {
+  // stacked offset copies fake a soft cast shadow without shadowBlur
+  ctx.save();
+  ctx.fillStyle = shadow;
+  ctx.globalAlpha = 0.45;
+  for (const k of [1, 0.6]) {
+    ctx.save();
+    ctx.translate(lift * 0.35 * k, lift * k);
+    ctx.fill(path);
+    ctx.restore();
+  }
+  ctx.restore();
+  ctx.fillStyle = color;
+  ctx.fill(path);
+  paperTexture(ctx, path, tex);
+  if (edge) {
+    ctx.save();
+    ctx.clip(path);
+    ctx.translate(0, Math.max(1, lift * 0.25));
+    ctx.strokeStyle = edge;
+    ctx.lineWidth = Math.max(1, lift * 0.35);
+    ctx.stroke(path);
+    ctx.restore();
+  }
+}
+
+function cloudPath(w, h, r, lobes) {
+  const circles = [];
+  for (let i = 0; i < lobes; i++) {
+    const t = lobes === 1 ? 0.5 : i / (lobes - 1);
+    const bump = Math.sin(t * Math.PI);
+    circles.push([(t - 0.5) * w * 0.82, h * 0.18 - bump * h * 0.28 + (r() - 0.5) * h * 0.1, h * (0.3 + bump * 0.32) * (0.85 + r() * 0.3)]);
+  }
+  const p = new Path2D();
+  for (const [cx, cy, rr] of circles) { p.moveTo(cx + rr, cy); p.arc(cx, cy, rr, 0, Math.PI * 2); }
+  p.rect(-w * 0.41, h * 0.05, w * 0.82, h * 0.3);
+  // curled tails (Thai cloud spirals), cut as part of the paper
+  for (const side of [-1, 1]) {
+    const sx = side * w * 0.43, sy = h * 0.22;
+    p.moveTo(sx, sy);
+    p.arc(sx, sy, h * 0.16, 0, Math.PI * 2);
+  }
+  return { p, circles };
+}
+
+// Thai mural cloud (เมฆ) as layered cut paper: three stacked sheets in
+// deepening tones, each casting a soft shadow, with a cut spiral line.
 export function thaiCloud(ctx, x, y, w, h, { seed = 1, fill = '#f4e7c8', shade = '#d9b98a', line = '#b0772c', glow = null, lobes = 7, curls = true, alpha = 1 } = {}) {
   const r = rng(seed);
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.translate(x, y);
-  const circles = [];
-  for (let i = 0; i < lobes; i++) {
-    const t = lobes === 1 ? 0.5 : i / (lobes - 1);
-    const cx = (t - 0.5) * w * 0.82;
-    const bump = Math.sin(t * Math.PI);
-    const rr = h * (0.3 + bump * 0.32) * (0.85 + r() * 0.3);
-    circles.push([cx, h * 0.18 - bump * h * 0.28 + (r() - 0.5) * h * 0.1, rr]);
-  }
-  const path = new Path2D();
-  for (const [cx, cy, rr] of circles) {
-    path.moveTo(cx + rr, cy);
-    path.arc(cx, cy, rr, 0, Math.PI * 2);
-  }
-  // flat base
-  path.rect(-w * 0.41, h * 0.05, w * 0.82, h * 0.3);
   if (glow) {
-    ctx.shadowColor = glow;
-    ctx.shadowBlur = h * 0.5;
+    const g = ctx.createRadialGradient(0, 0, h * 0.2, 0, 0, w * 0.6);
+    g.addColorStop(0, glow.replace(/[\d.]+\)$/, '0.35)'));
+    g.addColorStop(1, 'rgba(255,220,150,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(-w * 0.7, -h * 1.2, w * 1.4, h * 2.2);
   }
-  const g = ctx.createLinearGradient(0, -h * 0.6, 0, h * 0.4);
-  g.addColorStop(0, fill);
-  g.addColorStop(1, shade);
-  ctx.fillStyle = g;
-  ctx.fill(path);
-  ctx.shadowBlur = 0;
-  // outlines: arcs on the upper half of each lobe
-  ctx.strokeStyle = line;
-  ctx.lineWidth = Math.max(1, h * 0.035);
-  ctx.lineCap = 'round';
-  for (const [cx, cy, rr] of circles) {
-    ctx.beginPath();
-    ctx.arc(cx, cy, rr, Math.PI * 1.05, Math.PI * 1.95);
-    ctx.stroke();
-    // inner echo line
-    ctx.globalAlpha = alpha * 0.45;
-    ctx.beginPath();
-    ctx.arc(cx, cy + rr * 0.12, rr * 0.72, Math.PI * 1.15, Math.PI * 1.85);
-    ctx.stroke();
-    ctx.globalAlpha = alpha;
-  }
-  if (curls) {
-    // spiral tails at both ends
-    for (const side of [-1, 1]) {
-      const sx = side * w * 0.44, sy = h * 0.2;
-      ctx.beginPath();
-      for (let k = 0; k < 40; k++) {
-        const a = k * 0.28;
-        const rr = h * 0.22 * (1 - k / 44);
-        const px = sx + side * Math.cos(a) * rr, py = sy - Math.sin(a) * rr;
-        k ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+  const tones = [shade, mix(shade, fill, 0.5), fill];
+  const lift = Math.max(2, h * 0.05);
+  tones.forEach((col, k) => {
+    const s = 1 - k * 0.16;
+    ctx.save();
+    ctx.translate((r() - 0.5) * w * 0.05, -k * h * 0.12);
+    ctx.scale(s, s);
+    const { p, circles } = cloudPath(w, h, r, lobes);
+    paperPiece(ctx, p, col, { lift: lift / s, tex: 0.45 });
+    if (curls && k === tones.length - 1) {
+      ctx.strokeStyle = line;
+      ctx.globalAlpha = alpha * 0.55;
+      ctx.lineWidth = Math.max(1, h * 0.025);
+      ctx.lineCap = 'round';
+      for (const side of [-1, 1]) {
+        const sx = side * w * 0.43, sy = h * 0.22;
+        ctx.beginPath();
+        for (let q = 0; q < 34; q++) {
+          const a = q * 0.3, rr = h * 0.13 * (1 - q / 38);
+          const px = sx + side * Math.cos(a) * rr, py = sy - Math.sin(a) * rr;
+          q ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+        }
+        ctx.stroke();
       }
-      ctx.stroke();
+      for (const [cx, cy, rr] of circles.filter((_, i) => i % 2)) {
+        ctx.beginPath(); ctx.arc(cx, cy + rr * 0.15, rr * 0.62, Math.PI * 1.2, Math.PI * 1.8); ctx.stroke();
+      }
     }
-  }
-  // base line
-  ctx.beginPath();
-  ctx.moveTo(-w * 0.42, h * 0.35);
-  ctx.bezierCurveTo(-w * 0.2, h * 0.42, w * 0.2, h * 0.28, w * 0.42, h * 0.35);
-  ctx.stroke();
+    ctx.restore();
+  });
   ctx.restore();
+}
+
+function mix(a, b, t) {
+  const pa = hex(a), pb = hex(b);
+  return `rgb(${pa.map((v, i) => Math.round(v + (pb[i] - v) * t)).join(',')})`;
+}
+function hex(c) {
+  const m = c.match(/^#(..)(..)(..)$/);
+  return m ? m.slice(1).map((x) => parseInt(x, 16)) : [230, 210, 180];
 }
 
 // Eight-pointed golden star (ดาวเพดาน, temple ceiling star).

@@ -8,11 +8,14 @@ const progress = (p, m) => { bar.style.width = `${Math.round(p * 100)}%`; if (m)
 
 async function boot() {
   try {
+    const T0 = performance.now();
     const content = await loadContent(progress);
+    console.log('content ms', Math.round(performance.now() - T0));
     progress(0.92, 'สร้างโรงหนัง · raising the booth');
     const game = new Game(document.getElementById('app'), content);
     window.game = game;
     await game.init();
+    console.log('init ms', Math.round(performance.now() - T0));
     progress(1, '');
     const q = new URLSearchParams(location.search);
     if (q.get('intro') === '0') game._endIntro(); else game.startIntro();

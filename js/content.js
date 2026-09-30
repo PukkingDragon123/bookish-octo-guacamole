@@ -2,7 +2,7 @@
 // builds their sprites (drawing is cheap enough to do up front, spread
 // over animation frames so the loading screen stays alive).
 
-import { loadSheetPuppets } from './puppet/characters/sheetRigs.js';
+import { loadSheetPuppets } from './puppet/characters/sheetPuppets.js';
 
 const PUPPET_MODULES = ['./puppet/characters/classical.js', './puppet/characters/comic.js'];
 const PROP_MODULES = ['weapons', 'food', 'market', 'household', 'instruments', 'animals', 'monsters', 'buildings', 'boats', 'nature', 'vehicles'].map((n) => `./props/${n}.js`);
@@ -45,6 +45,7 @@ export async function loadContent(progress = () => {}) {
   let t0 = performance.now();
   for (let i = 0; i < entries.length; i++) {
     const [type, d] = entries[i];
+    const tb = performance.now();
     try {
       const built = await d.build();
       if (type === 'puppet') {
@@ -60,6 +61,8 @@ export async function loadContent(progress = () => {}) {
     } catch (e) {
       errors.push(`${d.id}: ${e.message}`);
     }
+    const bt = performance.now() - tb;
+    if (bt > 300) console.log('slow build', d.id, Math.round(bt));
     if (performance.now() - t0 > 40) {
       progress(0.1 + 0.8 * (i / entries.length), `วาดลาย ${d.name || d.id} · ${d.en || ''}`);
       await frame();

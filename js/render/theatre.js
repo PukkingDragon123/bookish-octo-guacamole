@@ -6,6 +6,7 @@
 // Everything static is painted once into an offscreen canvas (scene
 // units -> pixels at `k`), leaving the cloth area transparent.
 
+import { paperize } from './sky.js';
 import { makeCanvas, rng, goldGrad, grain, krajang, krajangLine, prajam, kanok, roundRect, jitterPts } from './paint.js';
 import { paintSprite, leather, dotLine, dotFill, slit, INK, curve, poly } from '../art/leather.js';
 
@@ -155,6 +156,8 @@ export function paintBooth(k = 0.75, fonts = {}) {
   ctx.globalCompositeOperation = 'destination-out';
   ctx.fillRect(BAND.inset, BAND.inset, 1600 - BAND.inset * 2, 1000 - BAND.inset * 2);
   ctx.restore();
+  paperize(c, 0.38);
+  paperShadow(c, 7 * k, 12 * k);
   return { canvas: c, k, x0: BOOTH.x0, y0: BOOTH.y0, w: W, h: H };
 }
 
@@ -569,4 +572,23 @@ export function bananaTrunkSprite() {
       slit(ctx, [[0, y + r() * 2], [410, y + r() * 3], [820, y + r() * 2], [1230, y + r() * 3], [1640, y + r() * 2]], 0.35);
     }
   }, { name: 'banana-trunk', pad: 4, px: 1 });
+}
+
+// Cheap cut-paper depth: a blurred, offset copy of the layer's own
+// silhouette tucked underneath it (downsample-blur, no per-shape shadows).
+export function paperShadow(c, dy = 6, blur = 10) {
+  const f = 8;
+  const sm = makeCanvas(Math.ceil(c.width / f), Math.ceil(c.height / f));
+  const g = sm.getContext('2d');
+  g.drawImage(c, 0, 0, sm.width, sm.height);
+  g.globalCompositeOperation = 'source-in';
+  g.fillStyle = 'rgba(20,6,2,0.55)';
+  g.fillRect(0, 0, sm.width, sm.height);
+  const ctx = c.getContext('2d');
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalCompositeOperation = 'destination-over';
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(sm, blur * 0.3, dy, c.width, c.height);
+  ctx.restore();
 }
