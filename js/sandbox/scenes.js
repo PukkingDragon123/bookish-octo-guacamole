@@ -12,9 +12,9 @@ export const SCENES = [
     id: 'himmaphan', name: 'ป่าหิมพานต์', en: 'Himmaphan forest by moonlight', weather: ['night'], lamp: 'oil', icon: 'forest',
     items: [
       ['moon', 1320, 0.3, { y: 180 }],
-      ['ton-yang', 150, 0.06], ['forest-tree', 330, 0.1], ['ton-sai', 1420, 0.08], ['bodhi-tree', 1180, 0.14],
-      ['himmaphan-tree', 780, 0.12], ['bamboo-clump', 60, 0.04], ['fern', 520, 0.03], ['fern', 1060, 0.03],
-      ['lotus-pond', 900, 0.02], ['hanging-vines', 460, 0.05, { y: 260 }], ['grass-tuft', 240, 0.02], ['grass-tuft', 1300, 0.02],
+      ['ton-yangna', 150, 0.06], ['forest-tree', 330, 0.1], ['ton-sai', 1420, 0.08], ['ton-pho', 1180, 0.14],
+      ['ton-himmaphan', 780, 0.12], ['kor-phai', 60, 0.04], ['fern', 520, 0.03], ['fern', 1060, 0.03],
+      ['lotus-pond', 900, 0.02], ['thao-wan', 460, 0.05, { y: 260 }], ['ya-kha', 240, 0.02], ['ya-kha', 1300, 0.02],
       ['kwang-thong', 640, 0.03], ['nok-yung', 1120, 0.03], ['kratai', 380, 0.02], ['khrut', 1000, 0.05, { y: 300 }],
       ['reusi', 300, 0.02, { f: 1, anim: 'wai' }], ['thewada', 760, 0.02, { f: -1, role: 'dancer' }],
     ],
@@ -23,7 +23,7 @@ export const SCENES = [
     id: 'floating-market', name: 'ตลาดน้ำยามเช้า', en: 'Floating market at dawn', weather: ['dawn'], lamp: 'oil', icon: 'boat',
     items: [
       ['sun', 240, 0.3, { y: 200 }],
-      ['coconut-palm', 90, 0.08], ['ton-maphrao', 1500, 0.06], ['banana-plant', 1330, 0.05], ['thai-house', 1200, 0.1],
+      ['ton-maphrao', 90, 0.08], ['ton-maphrao', 1500, 0.06], ['ton-kluai', 1330, 0.05], ['thai-house', 1200, 0.1],
       ['wave-band', 800, 0.015, { y: 900 }], ['rowing-boat', 420, 0.02, { y: 860 }], ['longtail-boat', 980, 0.025, { y: 870 }],
       ['banana-bunch', 400, 0.02, { y: 820 }], ['mango', 460, 0.02, { y: 820 }], ['durian', 1000, 0.02, { y: 830 }],
       ['rom-mae-kha', 640, 0.04],
@@ -35,7 +35,7 @@ export const SCENES = [
   {
     id: 'temple-fair', name: 'งานวัดยามค่ำ', en: 'Temple fair at dusk', weather: ['dusk'], lamp: 'oil', icon: 'temple',
     items: [
-      ['ubosot', 1160, 0.12], ['chedi', 380, 0.16], ['spirit-house', 90, 0.04], ['lilawadee', 1480, 0.05], ['ratchaphruek', 620, 0.1],
+      ['ubosot', 1160, 0.12], ['chedi', 380, 0.16], ['spirit-house', 90, 0.04], ['ton-leelawadee', 1480, 0.05], ['ton-ratchaphruek', 620, 0.1],
       ['khom-loi', 300, 0.1, { y: 200 }], ['khom-loi', 900, 0.12, { y: 150 }], ['khom-loi', 1300, 0.1, { y: 230 }],
       ['fx-torch', 200, 0.02, { y: 800 }], ['fx-light-gold', 800, 0.25, { y: 380 }], ['fx-fire', 1440, 0.02, { y: 880 }],
       ['ranat-ek', 1330, 0.03, { y: 860 }], ['klong-that', 1220, 0.03, { y: 860 }],
@@ -61,7 +61,7 @@ export const SCENES = [
     items: [
       ['sun', 1360, 0.3, { y: 190 }],
       ['thatched-hut', 1250, 0.1], ['yung-khao', 1480, 0.08], ['ton-tan', 120, 0.1], ['ton-tan', 260, 0.14], ['ton-mamuang', 960, 0.1],
-      ['ton-khao', 380, 0.02], ['ton-khao', 520, 0.02], ['ton-khao', 660, 0.02], ['rice-paddy', 820, 0.02], ['hun-lai-ka', 560, 0.03],
+      ['ton-khao', 380, 0.02], ['ton-khao', 520, 0.02], ['ton-khao', 660, 0.02], ['dong-ya', 820, 0.02], ['hun-lai-ka', 560, 0.03],
       ['kwai', 470, 0.04], ['luk-kwai', 330, 0.04], ['mae-kai', 1100, 0.02], ['luk-kai', 1160, 0.02], ['luk-kai', 1200, 0.02],
       ['ma-thai', 1320, 0.02], ['hippo', 760, 0.05], ['moo-deng', 880, 0.03],
       ['chaoban-man', 620, 0.02, { f: 1, role: 'wander' }], ['phuyaiphoon', 1040, 0.02, { f: -1, role: 'villager' }], ['dek', 1400, 0.02, { role: 'follower' }],
@@ -70,8 +70,8 @@ export const SCENES = [
   {
     id: 'moo-deng-pond', name: 'บึงหมูเด้ง', en: "Moo Deng's pond in the rain", weather: ['rain', 'flood'], lamp: 'oil', icon: 'hippo',
     items: [
-      ['bodhi-tree', 1360, 0.12], ['banana-plant', 180, 0.05], ['bamboo-clump', 60, 0.08], ['lotus-pond', 700, 0.02], ['kok-bua', 1000, 0.02],
-      ['grass-tuft', 420, 0.02], ['grass-tuft', 1180, 0.02], ['fern', 1480, 0.03],
+      ['ton-pho', 1360, 0.12], ['ton-kluai', 180, 0.05], ['kor-phai', 60, 0.08], ['lotus-pond', 700, 0.02], ['kor-bua', 1000, 0.02],
+      ['ya-kha', 420, 0.02], ['ya-kha', 1180, 0.02], ['fern', 1480, 0.03],
       ['hippo', 620, 0.04], ['moo-deng', 820, 0.02], ['pet', 1000, 0.02], ['han', 1120, 0.03], ['kop', 300, 0.02], ['tao', 480, 0.02],
       ['jorakhe', 1300, 0.04], ['pla-thong', 900, 0.03], ['pla-chon', 540, 0.03],
       ['dek', 240, 0.02, { f: 1, role: 'coward' }],
@@ -80,11 +80,13 @@ export const SCENES = [
   {
     id: 'village-games', name: 'ลานกีฬาหมู่บ้าน', en: 'Village games', weather: [], lamp: 'electric', icon: 'ball',
     items: [
-      ['sala', 1300, 0.12], ['ton-hukwang', 120, 0.08], ['ton-mamuang', 1520, 0.06], ['chaba-bush', 700, 0.03], ['bamboo-fence', 950, 0.05],
-      ['takraw', 420, 0.02, { y: 700 }], ['pingpong-table', 1080, 0.02], ['pingpong-paddle', 980, 0.02, { y: 800 }], ['pingpong-paddle-blue', 1180, 0.02, { y: 800 }], ['pingpong-ball', 1080, 0.02, { y: 700 }], ['jump-rope', 1420, 0.02, { y: 820 }],
-      ['aitho', 300, 0.02, { f: 1, role: 'takraw' }], ['dek', 540, 0.02, { f: -1, role: 'takraw' }],
+      ['sala', 1480, 0.16], ['ton-hukwang', 60, 0.12], ['ton-mamuang', 1560, 0.1], ['phum-chaba', 820, 0.08], ['ya-kha', 380, 0.02], ['ya-kha', 1330, 0.02],
+      ['jump-rope', 190, 0.02, { y: 820 }], ['takraw', 560, 0.02, { y: 700 }],
+      ['pingpong-table', 1080, 0.02], ['pingpong-paddle', 960, 0.02, { y: 800 }], ['pingpong-paddle-blue', 1200, 0.02, { y: 800 }], ['pingpong-ball', 1080, 0.02, { y: 700 }],
+      ['chaoban-woman', 190, 0.02, { f: 1, role: 'jumprope' }],
+      ['aitho', 440, 0.02, { f: 1, role: 'takraw' }], ['dek', 680, 0.02, { f: -1, role: 'takraw' }],
       ['chaoban-man', 900, 0.02, { f: 1, role: 'pingpong' }], ['yodthong', 1260, 0.02, { f: -1, role: 'pingpong' }],
-      ['chaoban-woman', 1450, 0.02, { f: -1, role: 'jumprope' }], ['ma-thai', 700, 0.03],
+      ['ma-thai', 760, 0.04],
     ],
   },
 ];

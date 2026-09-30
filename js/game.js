@@ -20,6 +20,7 @@ import { Magic } from './sandbox/magic.js';
 import { AnimalAI } from './sandbox/animalAI.js';
 import { Scenes } from './sandbox/scenes.js';
 import { Games } from './sandbox/games.js';
+import { swayFoliage } from './props/foliage.js';
 
 let audio = null;
 let HandTracker = null;
@@ -100,6 +101,7 @@ export class Game {
       a = this.scene.addProp(def, { x: cx, y: cy, z });
       if (a instanceof Puppet) a.def = def;
     }
+    (def.onSpawn || def.rig?.onSpawn)?.(a, this.scene);
     if (!opts.quiet && !this.intro && !this.menu) this.magic.arrive(a, def);
     else if (!opts.quiet) audio?.sfx('pop', { pan: (cx - 800) / 800 });
     return a;
@@ -320,7 +322,7 @@ export class Game {
     const hit = this.scene.pick(x, y);
     if (!hit) {
       // click empty cloth: the selected puppet walks there
-      if (this.selected instanceof Puppet) this.walkTo = { actor: this.selected, x: this.scene.unproject(x, 0, this.selected.z)[0] };
+      if (this.selected instanceof Puppet && !this.selected.isPlant) this.walkTo = { actor: this.selected, x: this.scene.unproject(x, 0, this.selected.z)[0] };
       else this.select(null);
       return;
     }
@@ -616,7 +618,7 @@ export class Game {
     if (this.intro) this._updateIntro(this.wallDt || dt);
     // keyboard walking
     const a = this.selected;
-    if (a && a instanceof Puppet && !this.drag) {
+    if (a && a instanceof Puppet && !a.isPlant && !this.drag) {
       const dir = (this.keys.has('ArrowRight') || this.keys.has('KeyD') ? 1 : 0) - (this.keys.has('ArrowLeft') || this.keys.has('KeyA') ? 1 : 0);
       if (dir) {
         a.target.x = clamp(a.target.x + dir * 190 * dt, 60, this.scene.worldW - 60);
@@ -640,7 +642,7 @@ export class Game {
       }
     }
     // on-screen pad + click-to-walk
-    if (a && a instanceof Puppet && !this.drag && this.controls) {
+    if (a && a instanceof Puppet && !a.isPlant && !this.drag && this.controls) {
       const mv = this.controls.move;
       if (mv) {
         if (a.mode !== 'planted') a.plantAt(a.target.x);
@@ -677,6 +679,7 @@ export class Game {
       this.souls.update(dt);
       this.magic.update(dt);
       this.games.update(dt);
+      swayFoliage(this.scene, this.fx, dt, this.scene.time);
       this.scenes.update(dt);
       if (this.fx.shake) this.cam.shake = Math.max(this.cam.shake, this.fx.shake);
     }

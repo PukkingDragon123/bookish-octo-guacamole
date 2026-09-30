@@ -135,7 +135,8 @@ export class Scene {
       // who is the attacker?
       for (const [att, def, wb] of [[A, B, c.A], [B, A, c.B]]) {
         const wielder = att.heldBy ? att.heldBy.puppet : att;
-        if (!wielder || wielder === def || wielder.attacking <= 0) continue;
+        if (!wielder || wielder === def || !(wielder.attacking > 0)) continue;
+        if (!isFinite(c.x) || !isFinite(c.y)) continue;
         if (def.heldBy && def.heldBy.puppet === wielder) continue;
         const isWeapon = wb.isWeapon || (wb.owner && wb.owner.def && wb.owner.def.weapon);
         const speed = Math.abs(c.vn);
@@ -205,7 +206,8 @@ export class Scene {
       }
     }
     if (this.extraDrawables) for (const it of this.extraDrawables()) out.push(it);
-    return out;
+    // one NaN reaching the GL pass blanks the whole cloth: drop bad items
+    return out.filter((it) => (it.line ? isFinite(it.a[0] + it.a[1] + it.b[0] + it.b[1]) : it.m.every(isFinite)) && isFinite(it.z));
   }
 
   glows() {
@@ -223,7 +225,7 @@ export class Scene {
       out.push({ x: cx, y: cy, r: g[2] * s * 1.6, i: 0.9 * fl, c: a.def.glowColor || [1.0, 0.62, 0.25] });
     }
     for (const g of this.extraGlows || []) out.push(g);
-    return out;
+    return out.filter((g) => isFinite(g.x + g.y + g.r + g.i) && g.r > 0);
   }
 }
 

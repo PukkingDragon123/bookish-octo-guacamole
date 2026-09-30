@@ -212,6 +212,7 @@ export class Souls {
   }
 
   wound(a, b, wx, wy, dmg, kind = 'blade', dir = 1) {
+    if (!b || !isFinite(dmg) || !isFinite(wx) || !isFinite(wy) || !isFinite(b.x) || !isFinite(b.a)) return;
     const s = this.st(a);
     if (b.hp == null) b.hp = b.hpMax = this._maxHp(a, b);
     b.hp -= dmg;

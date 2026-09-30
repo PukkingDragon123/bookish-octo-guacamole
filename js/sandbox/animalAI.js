@@ -225,7 +225,7 @@ export class AnimalAI {
     this.soundCool -= dt;
     while (this.hits.length && this.t - this.hits[0].t > 2.5) this.hits.shift();
     const env = this._env();
-    const animals = S.actors.filter((a) => a.isAnimal && !a.removed && a.root);
+    const animals = S.actors.filter((a) => a.isAnimal && !a.isPlant && !a.removed && a.root);
     this.animals = animals;
     for (const a of animals) {
       const b = this._brain(a);

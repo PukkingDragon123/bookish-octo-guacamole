@@ -270,7 +270,7 @@ export class FX {
         const vg = g.createLinearGradient(0, top, 0, q.y);
         vg.addColorStop(0, `rgba(${c},0)`); vg.addColorStop(0.5, `rgba(${c},${a * 0.6})`); vg.addColorStop(1, `rgba(${c},${a})`);
         g.fillStyle = vg;
-        g.beginPath(); g.ellipse(0, (top + q.y) / 2, 1, (q.y - top) / 2 + 1, 0, 0, 7); g.fill();
+        g.beginPath(); g.ellipse(0, (top + q.y) / 2, 1, Math.abs(q.y - top) / 2 + 1, 0, 0, 7); g.fill();
         g.restore();
       } else if (q.k === 'ring') {
         const a = (1 - u) * 0.8, r = q.r * (0.3 + u * 0.9);

@@ -603,7 +603,7 @@ export function swayFoliage(scene, fx, dt, time) {
         j.target = 0;
         j.driveCompliance = 1 / (j.ieff * (s.om ?? 1.6) ** 2);
         j.damping = 0.9;
-        const push = (s.push ?? 1) * (lv * (140 + 160 * gust) + 20 * Math.sin(time * 1.1 + s.ph)) * (0.7 + 0.3 * Math.sin(time * 3.3 + s.ph * 2));
+        const push = (s.push ?? 1) * (lv * (220 + 260 * gust) + 30 * Math.sin(time * 1.1 + s.ph)) * (0.7 + 0.3 * Math.sin(time * 3.3 + s.ph * 2));
         b.vx += push * dt;
         if (lv > 1.5) b.vx += (Math.random() - 0.5) * 900 * dt * (s.push ?? 1);
         continue;
@@ -1803,7 +1803,7 @@ function himmaphan() {
   const gildTrunk = (ctx) => {
     const a = [[-24, 0], [18, -100], [-16, -200], [10, -300]];
     const b = [[24, 0], [-18, -100], [16, -200], [-10, -300]];
-    for (const s of [a, b]) { const o = limbPts(s, 40, 26); leather(ctx, poly(o)); dye(ctx, poly(inset(o, 2)), INK.gold, 0.85); dotLine(ctx, curve(s, false, 10), { spacing: 4, r: 1, seed: 2 }); gold(ctx, offset(curve(s, false, 10), 8), 1); gold(ctx, offset(curve(s, false, 10), -8), 1); }
+    for (const s of [a, b]) { const o = limbPts(s, 40, 26); leather(ctx, poly(o)); dye(ctx, poly(inset(o, 2)), C.amber, 0.8); dotLine(ctx, curve(s, false, 10), { spacing: 4, r: 1, seed: 2 }); gold(ctx, offset(curve(s, false, 10), 8), 1); gold(ctx, offset(curve(s, false, 10), -8), 1); }
     krajangRow(ctx, [[-30, -160], [30, -162]], 12, { color: INK.gold, inner: INK.red });
   };
   const flourish = (ctx) => {
@@ -1832,7 +1832,7 @@ function himmaphan() {
   });
   return broadleaf({
     name: 'fo-him', mass: 4,
-    barkTone: INK.gold, barkA: 0.75,
+    barkTone: C.amber, barkA: 0.6,
     trunk: [...boughs, [[[-20, -30], [-70, -6], [-110, 0]], 24, 6], [[[20, -30], [72, -6], [112, 0]], 24, 6]],
     trunkBox: [box(-120, -310, 120, 6)],
     under: (ctx) => {
@@ -1848,7 +1848,7 @@ function himmaphan() {
       prajamYam(ctx, fork[0], fork[1] + 4, 12, { color: INK.red, petal: C.sun });
     },
     leaf: { kind: 'kanok', s: 22, sj: 0.2, droop: 0.1, rim: 0.42, inner: 0.35, alpha: 0.92, colorFn, colors: [[C.emerald, 1]] },
-    back: INK.gold, backA: 0.8, laceKeep: 0.9,
+    back: C.teal, backA: 0.9, laceKeep: 0.9,
     clusters: [
       L3(bases.j1, [[-196, -440, 92, 70]], { id: 'j1', z: -1 }),
       L3(bases.j2, [[-104, -560, 100, 76]], { id: 'j2', z: -2 }),
