@@ -660,7 +660,7 @@ export const PROPS = [
   P('khom-loi', 'โคมลอย', 'Sky lantern', 'household', 72, 98, drawSkyLantern, { glow: [36, 60, 170], float: true, mass: 0.3, grip: [36, 90] }),
   P('krathong', 'กระทง', 'Krathong float', 'household', 96, 82, drawKrathong, { glow: [54, 12, 120], float: true, mass: 0.6 }),
   P('rom-chat', 'ร่มฉัตร', 'Royal tiered umbrella (chat)', 'household', 100, 270, drawRoyalUmbrella, { grip: [50, 244], holdAngle: 0, mass: 0.8 }),
-  P('rakhang', 'ระฆัง', 'Temple bell', 'instruments', 90, 124, drawBell, { sound: 'gong', grip: [45, 3], holdAngle: 0, mass: 1.5 }),
+  P('rakhang', 'ระฆัง', 'Temple bell', 'instruments', 90, 124, drawBell, { sound: 'mong', grip: [45, 3], holdAngle: 0, mass: 1.5 }),
   P('fang-khao', 'ลอมฟางข้าว', 'Rice straw stack', 'nature', 200, 188, drawStrawStack, { static: true, mass: 2 }),
   P('ton-khao', 'ต้นข้าว', 'Rice paddy clump', 'nature', 120, 132, drawPaddy, { mass: 0.8 }),
   P('hun-lai-ka', 'หุ่นไล่กา', 'Scarecrow', 'nature', 140, 230, drawScarecrow, { mass: 1 }),
