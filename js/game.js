@@ -21,6 +21,7 @@ import { AnimalAI } from './sandbox/animalAI.js';
 import { Scenes } from './sandbox/scenes.js';
 import { Games } from './sandbox/games.js';
 import { Director } from './scene/director.js';
+import { Tutorial } from './tutorial.js';
 import { swayFoliage } from './props/foliage.js';
 
 let audio = null;
@@ -87,6 +88,7 @@ export class Game {
     this.scene.on('hit', (h) => this._onHit(h));
     this.scene.on('animEvent', (p, ev) => { if (ev.sfx) audio?.sfx(ev.sfx, { pan: this._pan(p), vol: 0.8 }); });
     this.scene.on('removed', (a) => { if (this.selected === a) this.select(null); });
+    this.tutorial = new Tutorial(this);
   }
 
   // ------------------------------------------------------------ spawning
@@ -699,6 +701,7 @@ export class Game {
     }
     for (const c of this.stage.curtains) c.step(dt, this.time);
     this.director.update(dt);
+    this.tutorial?.update(this.wallDt || dt);
     this.cam.update(this.intro ? this.wallDt || dt : dt);
     // hand cursor pose
     if (!tracking) {
@@ -812,6 +815,7 @@ export class Game {
     }
     // flies
     for (const fl of this.flies) fl.draw(f, toScreen, dpr, cam.zoom);
+    this.tutorial?.draw(f, toScreen, dpr, cam.zoom);
     f.setTransform(dpr, 0, 0, dpr, 0, 0);
     // speech bubbles
     for (const a of S.actors) {

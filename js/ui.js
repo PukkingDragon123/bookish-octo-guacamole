@@ -8,6 +8,7 @@ import { assemble, drawRig, rigBounds } from './puppet/rig.js';
 import { ROLES } from './sandbox/flies.js';
 import { GAME_ROLE_ICONS } from './sandbox/games.js';
 import { ANIMS } from './puppet/animations.js';
+import { lockOf, lockText, notifyLocked, SEAL_HTML } from './tutorial.js';
 
 const el = (tag, attrs = {}, ...kids) => {
   const e = document.createElement(tag);
@@ -43,6 +44,7 @@ export const ICONS = {
   film: P('M4 5h16v14H4zM8 5v14M16 5v14M4 9h4M4 15h4M16 9h4M16 15h4'),
   moves: P('M4 20L15 9M15 9l2-5 3 3-5 2M20 20L9 9M9 9L7 4 4 7l5 2'),
   release: P('M12 3v9M8 8l4 4 4-4M5 16c2 3 4 4 7 4s5-1 7-4'),
+  book: P('M3 5.5l4.5-2 4.5 2 4.5-2 4.5 2v14l-4.5-2-4.5 2-4.5-2L3 19.5zM7.5 3.5v14M12 5.5v14M16.5 3.5v14'),
 };
 
 // move -> icon (tiny glyphs drawn as SVG)
@@ -110,6 +112,7 @@ export class UI {
       medal(ICONS.sound, 'เสียง · Sound', () => g.toggleSound(), { id: 'b-sound' }),
       medal(ICONS.clear, 'ล้างเวที · Clear stage', () => g.clearStage(), { id: 'b-clear' }),
       medal(ICONS.help, 'วิธีเล่น · Help', () => this.toggleHelp(), { id: 'b-help' }),
+      medal(ICONS.book, 'สมุดข่อย · The book of the theatre', () => g.tutorial?.book?.toggle(), { id: 'b-book' }),
     );
     // the puppet chest
     this.chestBtn = medal(ICONS.chest, 'หีบหนัง · Puppet chest', () => this.toggleHouse(), { id: 'b-house', cls: 'big' });
@@ -139,8 +142,10 @@ export class UI {
     for (const [id, th, en] of CATEGORIES) {
       const list = id === 'puppets' ? g.content.puppets : g.content.props.filter((p) => p.cat === id);
       if (!list.length) continue;
-      const b = el('button', { class: 'tab' + (id === this.tab ? ' on' : ''), 'data-tab': id, title: `${th} · ${en}`, onclick: () => this.showTab(id) });
+      const lk = lockOf('cat:' + id);
+      const b = el('button', { class: 'tab' + (id === this.tab ? ' on' : '') + (lk ? ' locked' : ''), 'data-tab': id, title: `${th} · ${en}` + (lk ? ` — ${lockText(lk)}` : ''), onclick: () => { this.showTab(id); if (lk) notifyLocked('cat:' + id); } });
       b.append(thumbnail(list[Math.min(1, list.length - 1)], 44));
+      if (lk) b.append(el('i', { class: 'seal', html: SEAL_HTML }));
       this.tabs.append(b);
     }
   }
@@ -151,7 +156,9 @@ export class UI {
     this.items.innerHTML = '';
     const list = id === 'puppets' ? this.game.content.puppets : this.game.content.props.filter((p) => p.cat === id);
     for (const def of list) {
-      const it = el('div', { class: 'item', title: `${def.name || ''} · ${def.en || ''}` }, thumbnail(def));
+      const lk = lockOf(def);
+      const it = el('div', { class: 'item' + (lk ? ' locked' : ''), title: `${def.name || ''} · ${def.en || ''}` + (lk ? ` — ${lockText(lk)}` : '') }, thumbnail(def));
+      if (lk) { it.append(el('i', { class: 'seal', html: SEAL_HTML })); it.addEventListener('pointerdown', (e) => { e.preventDefault(); notifyLocked(def); }); } else
       it.addEventListener('pointerdown', (e) => { e.preventDefault(); this.game.beginSpawnDrag(def, e); this.toggleHouse(false); });
       this.items.append(it);
     }

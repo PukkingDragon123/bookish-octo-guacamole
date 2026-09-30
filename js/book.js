@@ -128,6 +128,7 @@ function row(k, th, en) {
   return `<div class="bk-row">${lead}<div class="bk-tx"><p class="th">${th}</p><p class="en">${esc(en)}</p></div></div>`;
 }
 const head = (icon, th, en, n) => `<header class="bk-h"><span class="bk-hic">${svg(icon)}</span><div><h3>${th}</h3><small>${esc(en)}</small></div>${n != null ? `<b class="bk-n">${TH(n)}</b>` : ''}</header>`;
+const strip = (ids) => `<div class="bk-strip">${ids.map((id) => `<span class="bk-thumb lg" data-thumb="${id}"></span>`).join('')}</div>`;
 const para = (th, en) => `<p class="bk-p">${th}<small>${esc(en)}</small></p>`;
 
 export class Book {
@@ -167,7 +168,7 @@ export class Book {
     const keyOf = Object.fromEntries(Object.entries(KEY_MOVES).map(([k, v]) => [v, k.replace('Digit', '')]));
     add('moves', 'ท่ารำ ท่าสู้', 'Moves & dances', I.sword, head(I.sword, 'ท่ารำ ท่าสู้', 'Moves & dances') +
       para('กดปุ่มตัวเลข เหรียญ “ท่า” ในวงแหวน หรือวงล้อท่าบนแผงควบคุม', 'Number keys, the “moves” medallion in the ring, or the pad’s move wheel') +
-      `<div class="bk-grid">${sideMoves.filter((m) => ANIMS[m]).map((m) => `<div class="bk-cell">${keyOf[m] ? `<span class="bk-key s">${keyOf[m]}</span>` : '<span class="bk-key s dim">·</span>'}<span>${esc(ANIMS[m].th)}<small>${esc(ANIMS[m].en)}</small></span></div>`).join('')}</div>` +
+      `<div class="bk-grid">${sideMoves.filter((m) => ANIMS[m]).map((m) => `<div class="bk-cell">${keyOf[m] ? `<span class="bk-key s">${keyOf[m]}</span>` : '<span class="bk-key s dim">◆</span>'}<span>${esc(ANIMS[m].th)}<small>${esc(ANIMS[m].en)}</small></span></div>`).join('')}</div>` +
       para('ท่ารำชุดใช้ท่าแม่บท: เทพประนม ปฐมพรหม สอดสร้อยมาลา กินนรเลียบถ้ำ ชะนีร่ายไม้ …', 'The dance suites string classical mae-bot poses: Deva in prayer, Four-faced Brahma, Kinnari by the cave, Gibbon…'));
 
     const cats = CATEGORIES.filter(([id]) => id !== 'imports');
@@ -187,7 +188,8 @@ export class Book {
       row(I.pong, 'ปิงปอง: วางโต๊ะกับไม้ปิงปองสองอัน แล้วมอบบท “ปิงปอง” ให้สองตัวคนละฝั่ง', 'Ping-pong: a table and two paddles, then cast one player on each side') +
       row(I.rope, 'กระโดดเชือก: วางเชือก สองตัวแกว่ง ที่เหลือกระโดด สะดุดก็ล้มได้นะ', 'Jump rope: two turn, the rest jump — and trip') +
       row(I.drag, 'ลากลูกบอลเองก็ได้ หรือเตะด้วยการดึงเชือกเท้า', 'You can throw the ball yourself or kick it by pulling a foot string') +
-      para('ลูกบอลมีฟิสิกส์ของตัวเอง เด้ง หมุน เลี้ยว', 'The balls have their own physics: bounce, spin and curve'));
+      para('ลูกบอลมีฟิสิกส์ของตัวเอง เด้ง หมุน เลี้ยว', 'The balls have their own physics: bounce, spin and curve') +
+      strip(['takraw', 'pingpong-table', 'pingpong-paddle', 'pingpong-ball', 'jump-rope']));
 
     add('magic', 'ขวัญและเวทมนตร์', 'Souls & magic', I.soul, head(I.soul, 'ขวัญและเวทมนตร์', 'Souls & magic') +
       row(I.tear, 'ตัวหนังคือหนังวัว ตีแรงๆ จะขาด แขนขาหลุดได้ แสงลอดรอยฉีก', 'Puppets are hide: hard blows rip them, limbs can fall off, light shines through the tears') +
@@ -196,7 +198,8 @@ export class Book {
       row(I.mend, 'ชุบชีวิต: รักษาแผล เย็บแขนขาคืน เรียกวิญญาณกลับ', 'Mend: closes wounds, stitches limbs back, calls the soul home') +
       row(I.summon, 'อัญเชิญ: เรียกผีหรือสัตว์วิเศษแบบสุ่มลงจากฟ้า', 'Summon: a random spirit or beast descends') +
       row(I.fire, 'ไฟไหม้หนังได้ ตัวที่มีวิญญาณจะรู้สึกร้อน', 'Fire chars the hide; a souled puppet feels the heat') +
-      para('ใช้จากลิ้นชักเวทมนตร์ หรือเหรียญข้างตัวหนังที่เลือก', 'From the magic drawer, or the medallions beside a selected puppet'));
+      para('ใช้จากลิ้นชักเวทมนตร์ หรือเหรียญข้างตัวหนังที่เลือก', 'From the magic drawer, or the medallions beside a selected puppet') +
+      strip(['mg-soul', 'mg-ward', 'mg-mend', 'mg-summon']));
 
     add('weather', 'ตะเกียง ลม ฟ้า', 'Lamp, weather & effects', I.lamp, head(I.lamp, 'ตะเกียง ลม ฟ้า', 'Lamp, weather & effects') +
       row(I.lamp, 'เหรียญตะเกียง: ตะเกียงน้ำมัน (ไหวระริก) ⇄ หลอดไฟฟ้า', 'Lamp medallion: flickering oil lamp ⇄ electric bulb') +
@@ -260,14 +263,16 @@ export class Book {
       const pct = Math.round((q.p / q.need) * 100);
       const mark = q.done ? svg(I.check) : svg(I.lock);
       return `<div class="bk-q ${st}"><span class="bk-seal">${mark}</span><div class="bk-qt">
-        <p class="th"><b>${esc(q.th)}</b> <i>${esc(q.en)}</i></p>
+        <p class="th"><b>${esc(q.th)}</b> <i>${esc(q.en)}</i>${q.sealed ? '' : `<span class="cnt">${q.done ? 'สำเร็จ' : `${TH(q.p)}/${TH(q.need)}`}</span>`}</p>
+        ${q.sealed ? `<p class="req">ต้องผ่าน «${esc(q.afterQ.th)}» ก่อน · <small>after “${esc(q.afterQ.en)}”</small></p>` : `<div class="bk-bar"><i style="width:${q.done ? 100 : pct}%"></i></div>`}
         <p class="goal">${esc(q.goal[0])}<small>${esc(q.goal[1])}</small></p>
-        ${q.sealed ? `<p class="req">ต้องผ่าน «${esc(q.afterQ.th)}» ก่อน <small>after “${esc(q.afterQ.en)}”</small></p>` : `<div class="bk-bar"><i style="width:${q.done ? 100 : pct}%"></i><span>${TH(q.done ? q.need : q.p)}/${TH(q.need)}</span></div>`}
-        <p class="rw">รางวัล: ${esc(q.rewards.th)}<small>Reward: ${esc(q.rewards.en)}</small></p></div></div>`;
+        <p class="rw">รางวัล: ${esc(q.rewards.th)}<small>${esc(q.rewards.en)}</small></p></div></div>`;
     };
     const nDone = Q.filter((q) => q.done).length;
-    add('quests', 'ภารกิจ', 'Quests', I.quest, head(I.quest, 'ภารกิจ', `Quests — ${nDone}/${Q.length} done`) + `<div class="bk-qs">${Q.slice(0, half).map(qrow).join('')}</div>`, 'quests');
-    add('quests2', null, null, null, head(I.quest, 'ภารกิจ (ต่อ)', 'Quests, continued') + `<div class="bk-qs">${Q.slice(half).map(qrow).join('')}</div>`, 'quests');
+    const per = 4;
+    for (let i = 0, k = 0; i < Q.length; i += per, k++) {
+      add(k ? 'quests' + (k + 1) : 'quests', k ? null : 'ภารกิจ', 'Quests', I.quest, head(I.quest, k ? `ภารกิจ (${TH(k + 1)})` : 'ภารกิจ', k ? 'Quests, continued' : `Quests — ${nDone}/${Q.length} done`) + `<div class="bk-qs">${Q.slice(i, i + per).map(qrow).join('')}</div>`, 'quests');
+    }
 
     add('end', 'เรียกน้องเมฆ', 'Call Mek back', I.deva, `<div class="bk-end">
       ${head(I.deva, 'เรียกน้องเมฆ', 'Call Mek back')}
@@ -278,6 +283,7 @@ export class Book {
         <button class="bk-btn ghost" data-act="reset">${svg(I.clear)}<span>ล้างความคืบหน้าภารกิจ<small>Reset quest progress</small></span></button>
       </div>
       <p class="bk-colo">— จบสมุด · ขอให้สนุกกับการเชิด —<small>the end · enjoy the show</small></p></div>`, 'end');
+    if (P.length % 2) add('back', null, null, null, `<div class="bk-cover"><div class="bk-cv-title sm">๏</div><div class="bk-cv-sub">โรงละครหนังตะลุง<small>Nang Talung Theatre</small></div></div>`, 'cover back');
 
     // contents page
     const ct = P.find((p) => p.id === 'contents');
@@ -300,7 +306,7 @@ export class Book {
         </div>
         <nav class="bk-nav">
           <button class="medal bk-prev" title="หน้าก่อน · Previous"><i class="gem"></i>${svg('M15 5l-7 7 7 7')}</button>
-          <div class="bk-dots"></div>
+          <div class="bk-dots"></div><div class="bk-count"></div>
           <button class="medal bk-next" title="หน้าถัดไป · Next"><i class="gem"></i>${svg('M9 5l7 7-7 7')}</button>
           <button class="medal bk-close" title="ปิดสมุด · Close"><i class="gem"></i>${svg('M6 6l12 12M18 6L6 18')}</button>
         </nav>
@@ -450,6 +456,8 @@ export class Book {
 
   _dotsRender() {
     const n = this.pages.length, st = this.step, D = this.$dots;
+    const cnt = this.el.querySelector('.bk-count');
+    if (cnt) cnt.innerHTML = `${TH(this._spreadStart() + 1)} / ${TH(n)}<small>${this._spreadStart() + 1}/${n}</small>`;
     D.innerHTML = '';
     for (let i = 0; i < n; i += st) {
       const b = document.createElement('button');

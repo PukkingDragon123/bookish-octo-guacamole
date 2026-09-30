@@ -214,6 +214,13 @@ const ICON_NEXT = svg('M9 5l7 7-7 7');
 const THAI_NUM = (n) => String(n).replace(/\d/g, (d) => '๐๑๒๓๔๕๖๗๘๙'[d]);
 export { THAI_NUM };
 
+// distance from a target's centre to its edge along (ux, uy)
+function edgeR(tp, ux, uy) {
+  if (!tp.rect) return tp.r;
+  const hw = tp.rect.width / 2 + 6, hh = tp.rect.height / 2 + 6;
+  return Math.min(Math.abs(ux) > 1e-3 ? hw / Math.abs(ux) : 1e9, Math.abs(uy) > 1e-3 ? hh / Math.abs(uy) : 1e9);
+}
+
 // ------------------------------------------------------------ the tutorial
 export class Tutorial {
   constructor(game) {
@@ -296,7 +303,13 @@ export class Tutorial {
     addEventListener('click', guard, true);
     addEventListener('pointerdown', guard, true);
     // the book is modal for the arrow keys / Escape
-    addEventListener('keydown', (e) => this.book.onKey(e), true);
+    addEventListener('keydown', (e) => {
+      this.book.onKey(e);
+      if (e.defaultPrevented || this.book.isOpen) return;
+      // Enter advances her lines (Escape skips the whole lesson)
+      if (e.code === 'Enter' && !this.el.classList.contains('hidden') && (this.pending?.kind === 'say' || this.quipT > 0 || (this.line && !this.line.done))) { e.preventDefault(); e.stopImmediatePropagation(); this._advance(); }
+      else if (e.code === 'Escape' && this.running && !this.game.menu && !this.game.intro) { e.preventDefault(); e.stopImmediatePropagation(); this.skip(); }
+    }, true);
   }
 
   _fnKeyOf(t) {
@@ -808,9 +821,11 @@ export class Tutorial {
 
     // -- 9 a prop in hand
     const held0 = new Set(S.puppets().flatMap((p) => Object.values(p.held || {})).filter(Boolean));
-    await this.task('ลากอาวุธหรือของจากหีบ ไปปล่อยที่มือของตัวหนัง', 'Drag a weapon or prop from the chest and drop it on a puppet\'s hand', () => S.puppets().some((p) => Object.values(p.held || {}).some((x) => x && !held0.has(x))), {
-      point: { el: () => (g.ui.house.classList.contains('closed') ? '#b-house' : g.ui.tab !== 'weapons' ? '#house .tab[data-tab="weapons"]' : '#house .items .item') },
-      hints: [['ลิ้นชักอาวุธมีดาบรออยู่ ปล่อยใกล้ๆ มือพอ', 'The weapons drawer has swords — drop one close to a hand'], ['หรือใช้วงล้ออาวุธบนแผงควบคุมก็ได้', 'Or use the weapon wheel on the pad']],
+    const t9 = this.t;
+    const propOut = () => since(this.spawnLog, t9, (e) => e.chest && e.a && e.def.cat && !e.def.rig && !e.def.weather && !e.def.spell && !e.def.scene);
+    await this.task('หยิบอาวุธหรือของจากหีบมาวางบนจอ แล้วลากไปปล่อยที่มือตัวหนัง', 'Take a weapon or prop out of the chest, then drag it onto a puppet\'s hand', () => S.puppets().some((p) => Object.values(p.held || {}).some((x) => x && !held0.has(x))), {
+      point: { el: () => (propOut() ? null : g.ui.house.classList.contains('closed') ? '#b-house' : g.ui.tab !== 'weapons' ? '#house .tab[data-tab="weapons"]' : '#house .items .item'), limb: () => { if (!propOut()) return null; const h = this.hero(); return h && h.pins && h.pins.handF ? [h, 'handF'] : null; } },
+      hints: [['ลิ้นชักอาวุธมีดาบรออยู่ วางบนจอก่อน แล้วลากไปชนมือ', 'Swords wait in the weapons drawer — put one on the cloth, then drag it to a hand'], ['ปล่อยใกล้ๆ มือพอ ไม่ต้องเล็งเป๊ะ · หรือใช้วงล้ออาวุธบนแผงควบคุม', 'Close to the hand is enough · or use the weapon wheel on the pad']],
     });
     await this.say('ถือของแล้วดูเท่ขึ้นสามเท่า! ของที่ปล่อยบนมือ ตัวหนังจะถือไว้เอง', 'Three times cooler already! Anything dropped on a hand gets held.', { sfx: 'sparkle' });
 
@@ -942,7 +957,8 @@ export class Tutorial {
     // quests
     this._pollT -= dt;
     if (this._pollT <= 0) { this._pollT = 0.3; this._pollQuests(); }
-    if (this.toasts.length && !this._toastOn && !this.running) this._showToast(this.toasts.shift());
+    if (this.book?.isOpen && this._toastOn) this._closeToast();
+    if (this.toasts.length && !this._toastOn && !this.running && !this.book?.isOpen) this._showToast(this.toasts.shift());
     // hide with show mode / editor playback
     const quiet = g.showMode || g.menu || g.intro;
     this.el.classList.toggle('tut-quiet', !!quiet);
@@ -991,23 +1007,45 @@ export class Tutorial {
   _updDeva(dt, quiet) {
     const D = this.deva;
     D.t += dt;
+    if (D.alpha <= 0 && this.el.classList.contains('hidden')) { this._tp = null; return; }
     const vw = innerWidth, vh = innerHeight;
     const small = vw < 640;
-    D.scale = small ? 0.62 : clamp(vw / 1400, 0.8, 1.15) * 1.0;
+    D.scale = small ? 0.8 : clamp(vw / 1400, 0.85, 1.2) * 1.18;
     const B = this._boxRect();
     const tp = this._targetPt();
     this._tp = tp;
     let hx, hy;
     const onBox = !this.el.classList.contains('hidden');
-    if (small) { hx = B.left + 34; hy = B.bottom + 58 * D.scale + 16; } else { hx = B.left - 56 * D.scale; hy = B.top + 66 * D.scale; }
+    if (small) { hx = B.left + 40; hy = B.bottom + 74 * D.scale + 14; } else { hx = B.left - 64 * D.scale; hy = B.top + 86 * D.scale; }
     let tx = hx, ty = hy;
     if (tp && !(tp.y < B.bottom + 30 && tp.x > B.left - 30 && tp.x < B.right + 30)) {
-      // hover beside the target, on the side facing the middle of the screen
-      const dx = vw / 2 - tp.x, dy = vh / 2 - tp.y, d = Math.hypot(dx, dy) || 1;
-      const off = tp.r + 70 * D.scale + 20;
-      tx = tp.x + (dx / d) * off; ty = tp.y + (dy / d) * off - 20;
-      // but never too far from the box: stay within reach of the speech
-      tx = clamp(tx, 50, vw - 50); ty = clamp(ty, 60, vh - 70);
+      // hover beside the target: prefer the side facing the middle of the
+      // screen, but never inside the chest / box / timeline (the canvas is
+      // under the DOM, she would vanish behind them)
+      const obst = [B];
+      const hb = !this.game.ui?.house?.classList.contains('closed') && document.querySelector('#house .box');
+      if (hb) obst.push(hb.getBoundingClientRect());
+      for (const sel of ['#timeline', '#pad .stick', '#pad .acts', '#side .ring', '#topbar', '#b-house', '#cam']) {
+        const e = document.querySelector(sel);
+        if (!e || e.closest('.hidden') || e === tp.el || e.contains(tp.el)) continue;
+        const r = e.getBoundingClientRect();
+        if (r.width) obst.push(r);
+      }
+      const bw = 44 * D.scale * 1.35, bh = 62 * D.scale * 1.35;
+      const free = (x, y) => x > bw * 0.6 && x < vw - bw * 0.6 && y > bh * 0.7 && y < vh - bh * 0.5 &&
+        !obst.some((r) => x + bw * 0.5 > r.left && x - bw * 0.5 < r.right && y + bh * 0.5 > r.top && y - bh * 0.8 < r.bottom);
+      // on the stage (a puppet or a limb) she hovers above, out of the way
+      const scene = !tp.el;
+      const c0 = scene ? -Math.PI / 2 + clamp((vw / 2 - tp.x) / vw, -0.5, 0.5) : Math.atan2(vh / 2 - tp.y, vw / 2 - tp.x);
+      let best = null;
+      for (const da of [0, -0.6, 0.6, -1.2, 1.2, -1.8, 1.8, Math.PI]) {
+        const a = c0 + da, ux = Math.cos(a), uy = Math.sin(a);
+        const off = edgeR(tp, ux, uy) + (scene ? 150 : 62) * D.scale + 16;
+        const x = tp.x + ux * off, y = tp.y + uy * off - 10;
+        if (free(x, y)) { best = [x, y]; break; }
+      }
+      if (!best) best = [hx, hy]; // no room: point from beside the speech box
+      tx = clamp(best[0], 50, vw - 50); ty = clamp(best[1], 60, vh - 70);
     }
     const want = onBox && !quiet ? 1 : 0;
     if (!want) { tx = D.x + (D.x < vw / 2 ? -40 : 40); ty = -160; }
@@ -1029,9 +1067,14 @@ export class Tutorial {
     const show = !!(tp && tp.el && this.deva.alpha > 0.5 && !this.el.classList.contains('tut-quiet'));
     R.classList.toggle('hidden', !show);
     if (show) {
-      const s = tp.r * 2;
-      R.style.width = R.style.height = `${s}px`;
-      R.style.transform = `translate(${tp.x - s / 2}px, ${tp.y - s / 2}px)`;
+      const r = tp.rect;
+      const w = r.width + 12, h = r.height + 12;
+      const round = Math.abs(w - h) < 0.3 * Math.max(w, h);
+      const W = round ? Math.max(w, h) : w, H = round ? Math.max(w, h) : h;
+      R.style.width = `${W}px`; R.style.height = `${H}px`;
+      R.style.borderRadius = round ? '50%' : '16px';
+      R.classList.toggle('box', !round);
+      R.style.transform = `translate(${tp.x - W / 2}px, ${tp.y - H / 2}px)`;
     }
   }
 
@@ -1086,27 +1129,51 @@ export class Tutorial {
     });
     // golden pointing arc from her hand to the target
     if (tp && D.alpha > 0.3) this._arrow(ctx, D.hand[0], D.hand[1], tp);
+    // a glowing ring on the stage for puppets / limbs (DOM targets get #tut-ring)
+    if (tp && !tp.el && D.alpha > 0.3) {
+      const t = this.t, r = tp.r + Math.sin(t * 4) * 2;
+      ctx.globalCompositeOperation = 'lighter';
+      const gr = ctx.createRadialGradient(tp.x, tp.y, r * 0.6, tp.x, tp.y, r * 1.5);
+      gr.addColorStop(0, 'rgba(255,220,140,0)'); gr.addColorStop(0.5, `rgba(255,220,140,${0.28 * D.alpha})`); gr.addColorStop(1, 'rgba(255,220,140,0)');
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(tp.x, tp.y, r * 1.5, 0, 7); ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = `rgba(90,44,8,${0.55 * D.alpha})`; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(tp.x, tp.y, r, 0, 7); ctx.stroke();
+      ctx.strokeStyle = `rgba(255,226,140,${0.95 * D.alpha})`; ctx.lineWidth = 2;
+      ctx.setLineDash([6, 5]); ctx.lineDashOffset = -t * 20;
+      ctx.beginPath(); ctx.arc(tp.x, tp.y, r, 0, 7); ctx.stroke();
+      ctx.setLineDash([]);
+      const u = (t * 0.8) % 1;
+      ctx.strokeStyle = `rgba(255,236,170,${(1 - u) * 0.8 * D.alpha})`; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(tp.x, tp.y, r * (1 + u * 0.6), 0, 7); ctx.stroke();
+    }
     ctx.restore();
   }
 
   _arrow(ctx, x0, y0, tp) {
     const dx = tp.x - x0, dy = tp.y - y0, d = Math.hypot(dx, dy);
-    if (d < tp.r + 24) return;
     const ux = dx / d, uy = dy / d;
-    const x1 = tp.x - ux * (tp.r + 8), y1 = tp.y - uy * (tp.r + 8);
+    const er = edgeR(tp, -ux, -uy) + 10;
+    if (d < er + 24) return;
+    const x1 = tp.x - ux * er, y1 = tp.y - uy * er;
     const bend = Math.min(90, d * 0.25);
     const cx = (x0 + x1) / 2 - uy * bend, cy = (y0 + y1) / 2 + ux * bend;
     const t = this.t;
     const A = this.deva.alpha;
     const pt = (u) => [(1 - u) * (1 - u) * x0 + 2 * (1 - u) * u * cx + u * u * x1, (1 - u) * (1 - u) * y0 + 2 * (1 - u) * u * cy + u * u * y1];
     const n = Math.max(8, Math.round(d / 16));
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.shadowColor = 'rgba(255,200,100,0.8)'; ctx.shadowBlur = 6;
+    ctx.strokeStyle = `rgba(90,44,8,${0.7 * A})`; ctx.lineWidth = 0.9;
     for (let i = 0; i < n; i++) {
       const u = ((i + (t * 1.6) % 1) / n);
       const [px, py] = pt(u);
-      const r = 1.2 + u * 1.8;
-      ctx.fillStyle = `rgba(255,${200 + u * 40 | 0},${120 + u * 60 | 0},${(0.25 + u * 0.7) * A})`;
-      ctx.beginPath(); ctx.arc(px, py, r, 0, 7); ctx.fill();
+      const r = 1.3 + u * 2;
+      ctx.fillStyle = `rgba(255,${205 + u * 35 | 0},${110 + u * 60 | 0},${(0.35 + u * 0.65) * A})`;
+      ctx.beginPath(); ctx.arc(px, py, r, 0, 7); ctx.fill(); ctx.stroke();
     }
+    ctx.restore();
     // arrow head: a little gilded flame (กระหนก) pointing at the target
     const [ax, ay] = pt(0.97);
     const hx = x1 - ax, hy = y1 - ay, hl = Math.hypot(hx, hy) || 1;
@@ -1123,6 +1190,8 @@ export class Tutorial {
     ctx.fill(); ctx.stroke();
     ctx.restore();
     // twinkles around the target
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.shadowColor = 'rgba(255,190,90,0.9)'; ctx.shadowBlur = 5;
     for (let i = 0; i < 3; i++) {
       const a = t * 2.2 + i * 2.09, rr = tp.r + 6 + Math.sin(t * 5 + i) * 3;
       const sx = tp.x + Math.cos(a) * rr, sy = tp.y + Math.sin(a) * rr;
