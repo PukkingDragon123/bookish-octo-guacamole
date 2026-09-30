@@ -4,6 +4,7 @@
 
 import { Puppet } from '../puppet/puppet.js';
 import { drawDeva } from '../render/deva.js';
+import { fight } from './combatAI.js';
 
 export const ROLES = [
   ['fighter', 'นักดาบ', 'Sword fighter', '⚔'],
@@ -109,7 +110,7 @@ export class Fly {
   _brain(dt, game) {
     const p = this.actor;
     if (!(p instanceof Puppet)) return;
-    if (p.mode === 'ragdoll') return;
+    if (p.mode === 'ragdoll' || p.dead) return;
     if (p.mode !== 'planted') p.plantAt(p.root.x);
     this.cool -= dt;
     const others = game.scene.actors.filter((o) => o !== p && o instanceof Puppet && !o.removed && Math.abs(o.z - p.z) < 0.08);
@@ -132,26 +133,9 @@ export class Fly {
 
     switch (this.role) {
       case 'fighter':
-      case 'monster': {
-        const foe = nearest((o) => !o.isAnimal);
-        if (!foe) { wander(); break; }
-        const range = (p.height + foe.o.height) * 0.3;
-        this._face(p, foe.o.root.x);
-        if (foe.d > range) this._walk(p, foe.o.root.x - Math.sign(foe.o.root.x - p.root.x) * range * 0.9, this.role === 'monster' ? 150 : 130, dt);
-        else if (foe.d < range * 0.55) this._walk(p, p.root.x - Math.sign(foe.o.root.x - p.root.x) * 60, 90, dt);
-        if (this.cool <= 0 && !p.isBusy()) {
-          const r = Math.random();
-          if (this.role === 'monster' && r < 0.25) { p.play('roar'); say('taunt'); }
-          else if (foe.d <= range * 1.2) {
-            if (foe.o.attacking > 0 && r < 0.5) p.play('block');
-            else p.play(r < 0.55 ? 'strike' : r < 0.85 ? 'lunge' : 'leap');
-            if (Math.random() < 0.3) say('fight');
-          } else if (r < 0.15) say('taunt');
-          this.cool = 0.9 + Math.random() * 1.4;
-        }
-        if (foe.o.attacking > 0 && foe.d < range * 1.3 && !p.isBusy() && Math.random() < dt * 3) p.play('block');
+      case 'monster':
+        fight(this, p, dt, game, say);
         break;
-      }
       case 'dancer': {
         // a นางรำ works through the ท่ารำ repertoire in random order, one or
         // two loops of each, with the odd ตั้งวง pose between, drifting softly

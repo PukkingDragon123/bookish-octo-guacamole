@@ -5,9 +5,10 @@
 import { loadSheetPuppets } from './puppet/characters/sheetPuppets.js';
 
 const PUPPET_MODULES = ['./puppet/characters/classical.js', './puppet/characters/comic.js'];
-const PROP_MODULES = ['fx', 'weapons', 'food', 'market', 'household', 'instruments', 'animals', 'livestock', 'monsters', 'buildings', 'village', 'boats', 'nature', 'vehicles'].map((n) => `./props/${n}.js`);
+const PROP_MODULES = ['fx', 'weapons', 'food', 'market', 'household', 'instruments', 'animals', 'livestock', 'monsters', 'buildings', 'village', 'boats', 'nature', 'foliage', 'games', 'vehicles'].map((n) => `./props/${n}.js`).concat(['./sandbox/scenes.js']);
 
 export const CATEGORIES = [
+  ['scenes', 'ฉาก', 'Ready-made scenes'],
   ['puppets', 'ตัวหนัง', 'Puppets'],
   ['tools', 'เอฟเฟกต์', 'Effects'],
   ['weather', 'ลมฟ้าอากาศ', 'Weather'],
@@ -23,6 +24,8 @@ export const CATEGORIES = [
   ['buildings', 'บ้านวัด', 'Buildings'],
   ['boats', 'เรือ', 'Boats'],
   ['nature', 'ธรรมชาติ', 'Nature'],
+  ['foliage', 'ต้นไม้', 'Trees & foliage'],
+  ['games', 'กีฬา', 'Games & sports'],
   ['vehicles', 'พาหนะ', 'Vehicles'],
 ];
 

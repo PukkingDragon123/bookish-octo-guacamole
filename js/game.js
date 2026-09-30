@@ -18,6 +18,7 @@ import { Controls } from './controls.js';
 import { Souls } from './sandbox/soul.js';
 import { Magic } from './sandbox/magic.js';
 import { AnimalAI } from './sandbox/animalAI.js';
+import { Scenes } from './sandbox/scenes.js';
 
 let audio = null;
 let HandTracker = null;
@@ -61,6 +62,7 @@ export class Game {
     this.controls = new Controls(this);
     this.souls = new Souls(this);
     this.magic = new Magic(this);
+    this.scenes = new Scenes(this);
     this.fx.onThunder = () => audio?.sfx('thud', { vol: 1, pitch: 0.35 });
     this._wire();
     import('./audio/audio.js').then((m) => { audio = m.audio; this.audio = audio; }).catch((e) => console.warn('audio unavailable', e));
@@ -78,6 +80,7 @@ export class Game {
       return null;
     }
     if (def.spell) return this.magic.cast(def, cx, cy);
+    if (def.scene) { this.scenes.load(def.scene); return null; }
     let a;
     if (def.rig && !def.cat) {
       a = this.scene.addPuppet(def.rig, { x: cx, z, facing: opts.facing ?? (cx > 800 ? -1 : 1) });
@@ -435,6 +438,7 @@ export class Game {
 
   // ------------------------------------------------------------ events
   _onHit(h) {
+    if (h.target && h.attacker) h.target._lastAttacker = h.attacker;
     const [cx, cy] = this.scene.project(h.x, h.y, h.z);
     const alive = h.target?.dmg?.soul && !h.target.dead && !h.blocked;
     const warded = h.target?.dmg?.ward > 0.01;
@@ -669,6 +673,7 @@ export class Game {
       this.fx.update(dt);
       this.souls.update(dt);
       this.magic.update(dt);
+      this.scenes.update(dt);
       if (this.fx.shake) this.cam.shake = Math.max(this.cam.shake, this.fx.shake);
     }
     for (const c of this.stage.curtains) c.step(dt, this.time);

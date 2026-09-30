@@ -323,7 +323,7 @@ export const ANIMS = {
 // forward, then backward for joints first mentioned later). A loop's
 // closing key inherits anything it leaves out from the opening key, so the
 // seam matches.
-function fill(def) {
+export function fill(def) {
   const joints = new Set();
   for (const key of def.keys) Object.keys(key.j).forEach((n) => joints.add(n));
   if (def.loop && def.keys.length > 1) {

@@ -138,6 +138,10 @@ export class Souls {
     const kind = h.kind || 'blunt';
     let dmg = (h.weapon ? 30 : kind === 'bite' ? 18 : 13) * (h.power || 1) * (0.8 + Math.random() * 0.4);
     if (h.blocked) dmg *= 0.3;
+    // vital parts: head and neck blows land hardest, the trunk next
+    const vital = this.vitality(a, b);
+    dmg *= vital;
+    h.vital = vital;
     if (s.ward > 0) {
       const absorbed = Math.min(s.ward * 260, dmg * 0.9);
       s.ward = Math.max(0, s.ward - absorbed / 260);
@@ -149,6 +153,45 @@ export class Souls {
       if (dmg < 6) return;
     }
     this.wound(a, b, h.x, h.y, dmg, kind, h.nx || 1);
+    if (s.soul && h.weapon && kind !== 'blunt') this._bloodyWeapon(h.attacker, h.x, h.y);
+    if (vital >= 1.6 && s.soul) this.game.cam.shake = Math.max(this.game.cam.shake, 10);
+  }
+
+  // how vital a body part is (damage multiplier; the AI aims by this too)
+  vitality(a, b) {
+    const L = a.rig?.limbs || {};
+    if (b.part === (L.head || 'head') || b.part === L.jaw || b.part === 'jaw') return 1.8;
+    if (b === a.root || b.part === L.pelvis) return 1.25;
+    return 1;
+  }
+
+  // a blade that has cut living flesh comes away red
+  _bloodyWeapon(att, x, y) {
+    if (!att || !att.held) return;
+    for (const w of Object.values(att.held)) {
+      if (!w || !w.body || !w.def.weapon) continue;
+      const b = w.body;
+      const sp = this._own(b);
+      const g = sp.canvas.getContext('2d');
+      const d = w.def, k = 1 / sp.scale;
+      const A = d.sprite.local(d.weapon.a), B = d.sprite.local(d.weapon.b);
+      g.save();
+      g.globalCompositeOperation = 'source-atop';
+      g.strokeStyle = 'rgba(115,0,8,0.75)';
+      g.lineCap = 'round';
+      for (let i = 0; i < 3; i++) {
+        const u0 = Math.random() * 0.5 + 0.4, u1 = Math.min(1, u0 + 0.1 + Math.random() * 0.3);
+        g.lineWidth = (1.5 + Math.random() * 2.5) * k;
+        g.beginPath();
+        g.moveTo((A[0] + (B[0] - A[0]) * u0) * k + rnd(2) * k, (A[1] + (B[1] - A[1]) * u0) * k);
+        g.lineTo((A[0] + (B[0] - A[0]) * u1) * k + rnd(2) * k, (A[1] + (B[1] - A[1]) * u1) * k);
+        g.stroke();
+      }
+      g.restore();
+      sp.version++;
+      // drips fall from the blade for a moment
+      w._drip = 2.5;
+    }
   }
 
   _nearestPart(a, x, y) {
@@ -216,6 +259,9 @@ export class Souls {
     a.gait = a.gait.filter((g) => !bodies.has(g.j.B));
     a._cutPins ||= {};
     for (const [k, pin] of Object.entries(a.pins)) if (bodies.has(pin.B)) { pin.enabled = false; a._cutPins[k] = pin; delete a.pins[k]; }
+    const st0 = this.st(a);
+    this._tearAt(j.A, j.la[0], j.la[1], st0.soul && !a.dead);
+    this._tearAt(b, j.lb[0], j.lb[1], st0.soul && !a.dead);
     const d = new Debris(a, ids, j);
     for (const k of ids) delete a.bodies[k];
     a.parts = a.parts.filter((x) => !bodies.has(x));
@@ -306,83 +352,206 @@ export class Souls {
       b._origSprite = null;
     }
     if (b.hpMax) b.hp = b.hpMax;
+    b.wounds = null;
+    b._bleeding = 0;
   }
 
-  // paint the wound into the part's own copy of its sprite
+  // Paint the wound into the part's own copy of its sprite.
+  // Blades open a ragged rip whose lips are frayed fibres; a blow near an
+  // earlier wound tears that wound further instead of starting a new one.
+  // Living hide shows a raw red rim, a dark wet core, soaked hide around it
+  // and runs of blood that keep creeping down while it bleeds.
   _cut(b, wx, wy, dmg, kind, soul, dir) {
     const sp = this._own(b);
     const g = sp.canvas.getContext('2d');
     const [lx, ly] = b.toLocal(wx, wy);
     const k = 1 / sp.scale;
     let px = (lx + b.com[0]) * k, py = (ly + b.com[1]) * k;
-    // pull the point inside the silhouette a little so the cut shows
     px = px * 0.85 + (b.com[0] * k) * 0.15;
     py = py * 0.85 + (b.com[1] * k) * 0.15;
-    const len = clamp(dmg * 1.25, 10, 60) * k;
-    const ang = (kind === 'point' ? 0.3 : -0.6 + rnd(0.5)) * (dir * b.flip > 0 ? 1 : -1) - b.a * b.flip;
+    const W = (b.wounds ||= []);
+    const len0 = clamp(dmg * 1.25, 10, 60) * k;
+    let ang = (kind === 'point' ? 0.3 : -0.6 + rnd(0.5)) * (dir * b.flip > 0 ? 1 : -1) - b.a * b.flip;
+    // tear an existing wound further?
+    const near = W.find((w) => Math.hypot(w.x - px, w.y - py) < w.len * 0.7 && w.kind === kind);
+    if (near && kind !== 'blunt' && kind !== 'bite') {
+      const end = Math.random() < 0.5 ? 1 : -1;
+      const ex = near.x + Math.cos(near.ang) * near.len * 0.5 * end, ey = near.y + Math.sin(near.ang) * near.len * 0.5 * end;
+      ang = near.ang + rnd(0.5);
+      px = ex + Math.cos(ang) * len0 * 0.4 * end;
+      py = ey + Math.sin(ang) * len0 * 0.4 * end;
+      near.len += len0 * 0.6;
+    }
+    const len = len0;
     const ca = Math.cos(ang), sa = Math.sin(ang);
+    const down = [Math.sin(b.a) * b.flip, Math.cos(b.a)]; // world-down in sprite space
     g.save();
+    g.lineCap = 'round';
+    g.lineJoin = 'round';
     if (kind === 'blunt' || kind === 'bite') {
-      // cracks radiating from a bruise
       g.globalCompositeOperation = 'source-atop';
-      const br = g.createRadialGradient(px, py, 0, px, py, len * 0.8);
-      br.addColorStop(0, soul ? 'rgba(90,10,30,0.55)' : 'rgba(0,0,0,0.35)');
+      // bruise: dark purple-red under living hide, a crushed dark patch otherwise
+      const br = g.createRadialGradient(px, py, 0, px, py, len * 0.9);
+      br.addColorStop(0, soul ? 'rgba(70,0,30,0.7)' : 'rgba(0,0,0,0.4)');
+      br.addColorStop(0.55, soul ? 'rgba(110,20,60,0.35)' : 'rgba(0,0,0,0.18)');
       br.addColorStop(1, 'rgba(0,0,0,0)');
       g.fillStyle = br;
       g.fillRect(px - len, py - len, len * 2, len * 2);
+      // branching cracks
       g.globalCompositeOperation = 'destination-out';
-      g.lineWidth = 1.2 * k;
-      g.lineCap = 'round';
-      const n = kind === 'bite' ? 4 : 3 + Math.round(dmg / 12);
-      for (let i = 0; i < n; i++) {
-        let x = px, y = py, a2 = Math.random() * 6.28;
+      const n = kind === 'bite' ? 3 : 3 + Math.round(dmg / 12);
+      const crack = (x, y, a2, L, w, depth) => {
+        g.lineWidth = w;
         g.beginPath(); g.moveTo(x, y);
-        for (let s2 = 0; s2 < 4; s2++) { a2 += rnd(0.6); x += Math.cos(a2) * len * 0.22; y += Math.sin(a2) * len * 0.22; g.lineTo(x, y); }
+        for (let s2 = 0; s2 < 4; s2++) {
+          a2 += rnd(0.55); x += Math.cos(a2) * L * 0.25; y += Math.sin(a2) * L * 0.25; g.lineTo(x, y);
+          if (depth < 2 && Math.random() < 0.3) { g.stroke(); crack(x, y, a2 + rnd(1.2), L * 0.5, w * 0.6, depth + 1); g.lineWidth = w; g.beginPath(); g.moveTo(x, y); }
+        }
         g.stroke();
+      };
+      for (let i = 0; i < n; i++) crack(px, py, Math.random() * 6.28, len * (0.6 + Math.random() * 0.5), 1.3 * k, 0);
+      if (kind === 'bite') {
+        // two crescents of tooth punctures
+        for (const side of [-1, 1]) for (let i = 0; i < 5; i++) {
+          const t2 = (i / 4 - 0.5) * 1.8, rr = len * 0.45;
+          g.beginPath(); g.arc(px + Math.sin(t2) * rr, py + side * Math.cos(t2) * rr * 0.55, (1.2 + Math.random()) * k, 0, 7); g.fill();
+        }
+        if (soul) {
+          g.globalCompositeOperation = 'source-atop';
+          g.fillStyle = 'rgba(120,0,8,0.8)';
+          for (let i = 0; i < 6; i++) { g.beginPath(); g.arc(px + rnd(len * 0.4), py + rnd(len * 0.3), (1.5 + Math.random() * 2) * k, 0, 7); g.fill(); }
+        }
       }
-      if (kind === 'bite') for (let i = 0; i < 5; i++) { g.beginPath(); g.arc(px + (i - 2) * len * 0.16, py + (i % 2 ? 1 : -1) * len * 0.1, 1.4 * k, 0, 7); g.fill(); }
     } else {
-      // a ragged rip: a thin lens with torn, fibrous edges
-      const pts = [], back = [];
-      const N = 9;
+      // ragged rip: lens-shaped gap with jittered lips
+      const N = 14, lips = [[], []];
       for (let i = 0; i <= N; i++) {
-        const u = i / N - 0.5, w = Math.sin((i / N) * Math.PI) * len * (kind === 'point' ? 0.26 : 0.17);
-        const x = px + ca * u * len, y = py + sa * u * len;
-        pts.push([x - sa * (w + rnd(w * 0.6)), y + ca * (w + rnd(w * 0.6))]);
-        back.push([x + sa * (w + rnd(w * 0.6)), y - ca * (w + rnd(w * 0.6))]);
+        const u = i / N - 0.5, env = Math.sin((i / N) * Math.PI) ** 0.8;
+        const w = env * len * (kind === 'point' ? 0.24 : 0.15);
+        const x = px + ca * u * len + rnd(len * 0.02), y = py + sa * u * len + rnd(len * 0.02);
+        lips[0].push([x - sa * (w * (0.6 + Math.random() * 0.8)), y + ca * (w * (0.6 + Math.random() * 0.8))]);
+        lips[1].push([x + sa * (w * (0.6 + Math.random() * 0.8)), y - ca * (w * (0.6 + Math.random() * 0.8))]);
       }
       const path = new Path2D();
-      [...pts, ...back.reverse()].forEach(([x, y], i) => (i ? path.lineTo(x, y) : path.moveTo(x, y)));
+      [...lips[0], ...lips[1].slice().reverse()].forEach(([x, y], i) => (i ? path.lineTo(x, y) : path.moveTo(x, y)));
       path.closePath();
       g.globalCompositeOperation = 'source-atop';
       if (soul) {
-        // blood soaks into the hide around the wound and runs downward
-        const rg = g.createRadialGradient(px, py, 0, px, py, len * 0.75);
-        rg.addColorStop(0, 'rgba(120,0,8,0.9)');
-        rg.addColorStop(0.6, 'rgba(120,0,8,0.45)');
-        rg.addColorStop(1, 'rgba(120,0,8,0)');
+        // soaked hide around the wound
+        const rg = g.createRadialGradient(px, py, len * 0.1, px, py, len * 0.9);
+        rg.addColorStop(0, 'rgba(95,0,6,0.95)');
+        rg.addColorStop(0.45, 'rgba(125,0,10,0.55)');
+        rg.addColorStop(1, 'rgba(125,0,10,0)');
         g.fillStyle = rg;
+        g.save(); g.translate(px, py); g.rotate(ang); g.scale(1, 0.6); g.translate(-px, -py);
         g.fillRect(px - len, py - len, len * 2, len * 2);
-        const dx = Math.sin(b.a) * b.flip, dy = Math.cos(b.a); // world-down in sprite space
-        g.strokeStyle = 'rgba(110,0,8,0.8)';
-        g.lineCap = 'round';
-        for (let i = 0; i < 3; i++) {
-          const ox = px + rnd(len * 0.35), oy = py + rnd(len * 0.1), L = len * (0.4 + Math.random() * 0.9);
-          g.lineWidth = (1 + Math.random() * 1.6) * k;
-          g.beginPath(); g.moveTo(ox, oy); g.lineTo(ox + dx * L, oy + dy * L); g.stroke();
-          g.beginPath(); g.arc(ox + dx * L, oy + dy * L, g.lineWidth * 0.7, 0, 7); g.fillStyle = 'rgba(110,0,8,0.85)'; g.fill();
-        }
+        g.restore();
+        // raw flesh rim just inside the lips
+        g.strokeStyle = 'rgba(205,70,70,0.85)';
+        g.lineWidth = 2.6 * k;
+        g.stroke(path);
+        g.strokeStyle = 'rgba(70,0,4,0.95)';
+        g.lineWidth = 1.2 * k;
+        g.stroke(path);
       } else {
-        // pale, thinned hide at the torn lip
-        g.strokeStyle = 'rgba(235,205,150,0.55)';
-        g.lineWidth = 2.2 * k;
+        // thinned, paler hide along the torn lip + darker bruised crease
+        g.strokeStyle = 'rgba(240,210,160,0.6)';
+        g.lineWidth = 3 * k;
+        g.stroke(path);
+        g.strokeStyle = 'rgba(0,0,0,0.35)';
+        g.lineWidth = 1 * k;
         g.stroke(path);
       }
+      // punch out the gap
       g.globalCompositeOperation = 'destination-out';
       g.fill(path);
+      // frayed fibres bridging the gap (a few survive across it)
+      g.globalCompositeOperation = 'source-over';
+      g.strokeStyle = soul ? 'rgba(140,20,20,0.85)' : 'rgba(40,24,12,0.9)';
+      g.lineWidth = 0.7 * k;
+      for (let i = 2; i < N - 1; i += 2) {
+        if (Math.random() < 0.45) continue;
+        const [x0, y0] = lips[0][i], [x1, y1] = lips[1][i + (Math.random() < 0.5 ? 1 : -1)] || lips[1][i];
+        g.beginPath(); g.moveTo(x0, y0); g.quadraticCurveTo((x0 + x1) / 2 + rnd(2 * k), (y0 + y1) / 2 + rnd(2 * k), x1, y1); g.stroke();
+      }
+      // micro-tears running off the ends of the rip
+      g.globalCompositeOperation = 'destination-out';
+      g.lineWidth = 0.9 * k;
+      for (const e of [-0.5, 0.5]) {
+        let x = px + ca * e * len, y = py + sa * e * len, a2 = ang + (e < 0 ? Math.PI : 0);
+        g.beginPath(); g.moveTo(x, y);
+        for (let s2 = 0; s2 < 3; s2++) { a2 += rnd(0.5); x += Math.cos(a2) * len * 0.1; y += Math.sin(a2) * len * 0.1; g.lineTo(x, y); }
+        g.stroke();
+      }
     }
     g.restore();
+    const w = near || { x: px, y: py, ang, len, kind, runs: [] };
+    if (!near) W.push(w);
+    if (soul && kind !== 'blunt') {
+      // seed a few runs of blood that creep downward while it bleeds
+      for (let i = 0; i < 2 + Math.round(dmg / 20); i++) {
+        w.runs.push({ x: px + rnd(len * 0.35), y: py + rnd(len * 0.08), l: 0, max: len * (0.6 + Math.random() * 1.4), w: (1 + Math.random() * 1.6) * k, dx: down[0] + rnd(0.15), dy: down[1] });
+      }
+      b._bleeding = 4;
+    }
     sp.version = (sp.version | 0) + 1;
+  }
+
+  // grow the runs of blood on bleeding parts (a few pixels per tick)
+  _creep(b, dt) {
+    if (!b.wounds || !(b._bleeding > 0)) return;
+    b._bleeding -= dt;
+    b._creepT = (b._creepT || 0) - dt;
+    if (b._creepT > 0) return;
+    b._creepT = 0.12;
+    const sp = b.sprite, g = sp.canvas.getContext('2d');
+    let any = false;
+    g.save();
+    g.globalCompositeOperation = 'source-atop';
+    g.lineCap = 'round';
+    for (const w of b.wounds) for (const r of w.runs || []) {
+      if (r.l >= r.max) continue;
+      const step = Math.min(r.max - r.l, 1.5 / sp.scale);
+      const x0 = r.x + r.dx * r.l, y0 = r.y + r.dy * r.l;
+      r.l += step;
+      const x1 = r.x + r.dx * r.l + rnd(0.3), y1 = r.y + r.dy * r.l;
+      g.strokeStyle = 'rgba(105,0,8,0.9)';
+      g.lineWidth = r.w * (1 - (r.l / r.max) * 0.4);
+      g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+      if (r.l >= r.max) { g.fillStyle = 'rgba(105,0,8,0.95)'; g.beginPath(); g.arc(x1, y1, r.w * 0.8, 0, 7); g.fill(); }
+      any = true;
+    }
+    g.restore();
+    if (any) sp.version++;
+  }
+
+  // jagged torn edge where a limb came away (on both the stump and the piece)
+  _tearAt(b, lx, ly, soul) {
+    const sp = this._own(b);
+    const g = sp.canvas.getContext('2d');
+    const k = 1 / sp.scale;
+    const px = (lx + b.com[0]) * k, py = (ly + b.com[1]) * k;
+    const R = 9 * k;
+    const p = new Path2D();
+    for (let i = 0; i <= 16; i++) {
+      const an = (i / 16) * Math.PI * 2, rr = R * (0.55 + Math.random() * 0.7);
+      i ? p.lineTo(px + Math.cos(an) * rr, py + Math.sin(an) * rr) : p.moveTo(px + Math.cos(an) * rr, py + Math.sin(an) * rr);
+    }
+    p.closePath();
+    g.save();
+    g.globalCompositeOperation = 'source-atop';
+    if (soul) {
+      const rg = g.createRadialGradient(px, py, 0, px, py, R * 2.2);
+      rg.addColorStop(0, 'rgba(90,0,6,0.95)'); rg.addColorStop(0.5, 'rgba(130,0,10,0.6)'); rg.addColorStop(1, 'rgba(130,0,10,0)');
+      g.fillStyle = rg; g.fillRect(px - R * 2.2, py - R * 2.2, R * 4.4, R * 4.4);
+      g.strokeStyle = 'rgba(210,80,80,0.9)'; g.lineWidth = 2.4 * k; g.stroke(p);
+    } else {
+      g.strokeStyle = 'rgba(240,210,160,0.6)'; g.lineWidth = 3 * k; g.stroke(p);
+    }
+    g.globalCompositeOperation = 'destination-out';
+    g.fill(p);
+    g.restore();
+    sp.version++;
   }
 
   _char(b, amt) {
@@ -412,6 +581,11 @@ export class Souls {
 
   _spray(cx, cy, z, n, dir, force = 1) {
     const fy = this._floorCloth(z);
+    // fine mist that hangs a moment
+    for (let i = 0; i < n * 1.5; i++) {
+      const an = -Math.PI / 2 + dir * (0.3 + Math.random() * 1.3) + rnd(0.5), sp = (200 + Math.random() * 500) * force;
+      this.fx.emit({ k: 'blood', x: cx, y: cy, vx: Math.cos(an) * sp, vy: Math.sin(an) * sp, g: 900, r: 0.8 + Math.random() * 1, life: 0.5 + Math.random() * 0.4, fy: fy + rnd(6) });
+    }
     for (let i = 0; i < n; i++) {
       const sp = (120 + Math.random() * 420) * force;
       const an = -Math.PI / 2 + dir * (0.5 + Math.random() * 0.9) + rnd(0.3);
@@ -438,6 +612,17 @@ export class Souls {
     const fires = S.actors.filter((x) => x.def && x.def.fx === 'fire' && x.root);
     const wards = [];
     for (const a of S.actors) {
+      // blood dripping from a blade
+      if (a._drip > 0 && a.body) {
+        a._drip -= dt;
+        if (Math.random() < dt * 6) {
+          const d = a.def, tip = d.sprite.local(d.weapon.b), b = a.body;
+          const [wx, wy] = b.toWorld(tip[0] - b.com[0], tip[1] - b.com[1]);
+          const [tx, ty] = S.project(wx, wy, b.z);
+          this.fx.emit({ k: 'blood', x: tx, y: ty, vx: 0, vy: 10, g: 1300, r: 1.6 + Math.random(), life: 2.5, fy: this._floorCloth(b.z) });
+        }
+      }
+      if (a.parts && (a.dmg || a.src?.dmg)) for (const b of a.parts) if (b._bleeding > 0) this._creep(b, dt);
       if (!(a instanceof Puppet) || !a.dmg) { if (a instanceof Puppet && fires.length) this._burn(a, fires, dt); continue; }
       const s = a.dmg;
       this._burn(a, fires, dt);
