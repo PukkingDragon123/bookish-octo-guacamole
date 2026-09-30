@@ -491,6 +491,7 @@ export class Puppet {
         A = sampleAnim(def, Math.min(t, dur));
         aw = smooth01(an.w);
         root = A.root;
+        if (A.swap !== undefined && this.handSprites) this.handSwap = A.swap;
         if (an.committed) root = { ...root, dx: 0 };
         // events (hit windows, sounds)
         for (const ev of def.events || []) {
@@ -548,7 +549,9 @@ export class Puppet {
       if (hasA) {
         const want = A.j[key] * DEG - j.canonRest;
         tgt = lerp(tgt, want, aw);
-        om = lerp(om, an.def.omega || 20, aw);
+        const dom = an.def.omega || 20;
+        // light hand links need a firmer drive or they sag under gravity
+        om = lerp(om, an.def.omegaJ?.[key] ?? (an.def.smooth && key.startsWith('wrist') ? Math.max(dom, 19) : dom), aw);
       }
       if (key === 'jaw') {
         const flap = this.talk > 0 ? (Math.sin(time * 22) * 0.5 + 0.5) * 0.45 : 0;

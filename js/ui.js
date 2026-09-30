@@ -199,8 +199,8 @@ export class UI {
     row.append(medal(ICONS.flip, 'กลับตัว · Turn around', () => a.flip()));
     if (a.rig && a.isHumanoid) {
       const moves = el('div', { class: 'fan' });
-      for (const name of ['strike', 'lunge', 'block', 'dance', 'wai', 'leap', 'roar', 'laugh', 'wong', 'bow', 'wave', 'cheer']) {
-        moves.append(el('button', { class: 'mini', title: `${ANIMS[name].th} · ${ANIMS[name].en}`, onclick: () => g.playMove(name), html: glyph(MOVE_ICONS[name]) }));
+      for (const name of ['strike', 'lunge', 'block', 'dance', 'ram-medley', 'ram-theppranom', 'ram-kinnorn', 'wai', 'leap', 'roar', 'laugh', 'wong', 'bow', 'wave', 'cheer']) {
+        moves.append(el('button', { class: 'mini', title: `${ANIMS[name].th} · ${ANIMS[name].en}`, onclick: () => g.playMove(name), html: glyph(MOVE_ICONS[name] || MOVE_ICONS.dance) }));
       }
       const mb = medal(ICONS.moves, 'ท่า · Moves', () => { moves.classList.toggle('open'); roles.classList.remove('open'); });
       row.append(mb, moves);

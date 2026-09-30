@@ -18,13 +18,13 @@ const k = (t, j, root = {}, extra = {}) => ({ t, j, root, ...extra });
 // Leg vocabulary for the classical dances (canonical degrees).
 const STANCE = { hipF: -22, kneeF: 28, hipB: 16, kneeB: -2 };     // ย่อ: soft knees, feet under the body
 const HEEL = { hipF: -40, kneeF: 16, hipB: 18, kneeB: 4 };        // ก้าวเท้า: heel placed forward
-const KRADOK = { hipF: -16, kneeF: 26, hipB: 26, kneeB: 80 };     // กระดกเท้า: back foot flicked up
+const KRADOK = { hipF: -16, kneeF: 26, hipB: 20, kneeB: 76 };     // กระดกเท้า: back foot flicked up
 const YOK = { hipF: -60, kneeF: 84, hipB: 14, kneeB: 0 };         // ยกเท้า: front knee raised
 const DIP = { hipF: -38, kneeF: 56, hipB: 4, kneeB: 30 };         // ยุบ: deep knee dip
 const JARD = { hipF: -30, kneeF: 20, hipB: 12, kneeB: 8 };        // จรดเท้า: front toe touches
 // Classical dance defaults: spline keys, soft drives (follow-through lag
-// without letting arms sag: droop ~ g / (r w^2) ~ 5 deg at w = 12).
-const RAM = { loop: true, fadeIn: 0.5, fadeOut: 0.6, smooth: true, omega: 12 };
+// without letting arms sag: droop ~ 1.5 g / (r w^2) ~ 6 deg for an arm at w = 13).
+const RAM = { loop: true, fadeIn: 0.5, fadeOut: 0.6, smooth: true, omega: 13 };
 
 export const ANIMS = {
   strike: {
@@ -61,7 +61,7 @@ export const ANIMS = {
     ],
   },
   dance: {
-    th: 'รำ', en: 'Thai dance', duration: 4.0, loop: true, fadeIn: 0.5, fadeOut: 0.6, swap: 'jeeb', smooth: true, omega: 12,
+    th: 'รำ', en: 'Thai dance', duration: 4.0, loop: true, fadeIn: 0.5, fadeOut: 0.6, swap: 'jeeb', smooth: true, omega: 13,
     sway: { period: 1.0, dy: 5, knee: 6, lean: 2, neck: 3 },
     keys: [
       k(0.0, { shoulderF: -75, elbowF: -65, wristF: 35, shoulderB: -20, elbowB: -55, wristB: 35, ...STANCE, neck: 8 }, { dy: 16, lean: 4 }),
@@ -72,7 +72,7 @@ export const ANIMS = {
     ],
   },
   wong: {
-    th: 'ท่าตั้งวง ยกเท้า', en: 'Tang-wong pose', duration: 3.0, holdAt: 1.0, fadeIn: 0.45, fadeOut: 0.6, swap: 'wong', smooth: true, omega: 12,
+    th: 'ท่าตั้งวง ยกเท้า', en: 'Tang-wong pose', duration: 3.0, holdAt: 1.0, fadeIn: 0.45, fadeOut: 0.6, swap: 'wong', smooth: true, omega: 13,
     events: [{ t: 0.7, sfx: 'magic' }],
     keys: [
       k(0.0, { shoulderF: -70, elbowF: -60, wristF: 30, shoulderB: 20, elbowB: -30, wristB: 35, ...STANCE, neck: 4 }, { dy: 10, lean: 2 }),
@@ -89,11 +89,11 @@ export const ANIMS = {
     th: 'เทพประนม', en: 'Deva in prayer', duration: 4.8, ...RAM,
     sway: { period: 1.2, dy: 6, knee: 8, lean: 2, neck: 3 },
     keys: [
-      k(0.0, { shoulderF: -40, elbowF: -112, wristF: 10, shoulderB: -38, elbowB: -105, wristB: 10, ...STANCE, neck: 10 }, { dy: 16, lean: 3 }),
-      k(1.2, { shoulderF: -50, elbowF: -116, wristF: 16, shoulderB: -48, elbowB: -106, wristB: 16, hipF: -16, kneeF: 22, hipB: 14, kneeB: 24, neck: -4 }, { dy: 6, lean: -2 }),
-      k(2.4, { shoulderF: -36, elbowF: -108, wristF: 8, shoulderB: -34, elbowB: -102, wristB: 8, ...HEEL, neck: 14 }, { dx: 8, dy: 22, lean: 8 }),
-      k(3.6, { shoulderF: -46, elbowF: -114, wristF: 14, shoulderB: -44, elbowB: -105, wristB: 14, ...KRADOK, neck: 2 }, { dx: 4, dy: 10, lean: 5 }),
-      k(4.8, { shoulderF: -40, elbowF: -112, wristF: 10, shoulderB: -38, elbowB: -105, wristB: 10, ...STANCE, neck: 10 }, { dy: 16, lean: 3 }),
+      k(0.0, { shoulderF: -28, elbowF: -134, wristF: 12, shoulderB: -26, elbowB: -128, wristB: 12, ...STANCE, neck: 10 }, { dy: 16, lean: 3 }),
+      k(1.2, { shoulderF: -38, elbowF: -138, wristF: 18, shoulderB: -36, elbowB: -130, wristB: 18, hipF: -16, kneeF: 22, hipB: 12, kneeB: 0, neck: -4 }, { dy: 6, lean: -2 }),
+      k(2.4, { shoulderF: -24, elbowF: -130, wristF: 8, shoulderB: -22, elbowB: -124, wristB: 8, ...HEEL, neck: 14 }, { dx: 8, dy: 22, lean: 8 }),
+      k(3.6, { shoulderF: -34, elbowF: -136, wristF: 16, shoulderB: -32, elbowB: -128, wristB: 16, ...KRADOK, neck: 2 }, { dx: 4, dy: 10, lean: 5 }),
+      k(4.8, { shoulderF: -28, elbowF: -134, wristF: 12, shoulderB: -26, elbowB: -128, wristB: 12, ...STANCE, neck: 10 }, { dy: 16, lean: 3 }),
     ],
   },
   'ram-phromsina': {

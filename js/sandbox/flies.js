@@ -153,9 +153,26 @@ export class Fly {
         break;
       }
       case 'dancer': {
-        if (!p.anim || p.anim.name !== 'dance') { p.play('dance', { loop: true }); if (Math.random() < 0.5) say('dance'); }
-        if (this.goal == null || this._walk(p, this.goal, 35, dt)) this.goal = 300 + Math.random() * 1000;
-        if (this.cool <= 0) { if (Math.random() < 0.25) { p.stopAnim(); p.play('wong'); } this.cool = 6 + Math.random() * 5; }
+        // a นางรำ works through the ท่ารำ repertoire in random order, one or
+        // two loops of each, with the odd ตั้งวง pose between, drifting softly
+        const REP = ['ram-theppranom', 'ram-phromsina', 'ram-sodsoi', 'ram-kinnorn', 'ram-chanee', 'ram-kwang', 'ram-phala', 'ram-nakha', 'ram-lokaew', 'ram-mangkorn', 'dance'];
+        const cur = p.anim && !p.anim.stopping ? p.anim.name : null;
+        const dancing = cur && (REP.includes(cur) || cur === 'wong');
+        if (!dancing || (this.danceUntil != null && this.t > this.danceUntil)) {
+          if (dancing && cur !== 'wong' && Math.random() < 0.2) {
+            p.play('wong');
+            this.danceUntil = this.t + 2.4; // move on as it lowers from the pose
+          } else {
+            let next = pick(REP);
+            if (next === this.lastDance) next = REP[(REP.indexOf(next) + 1) % REP.length];
+            if (p.play(next, { loop: true })) {
+              this.lastDance = next;
+              this.danceUntil = this.t + p.anim.def.duration * (Math.random() < 0.5 ? 1 : 2);
+              if (!cur || Math.random() < 0.3) say('dance');
+            }
+          }
+        }
+        if (this.goal == null || this._walk(p, this.goal, 30, dt)) this.goal = 300 + Math.random() * 1000;
         break;
       }
       case 'merchant': {
