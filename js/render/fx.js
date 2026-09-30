@@ -120,6 +120,17 @@ export class FX {
       } else if (q.k === 'wisp') {
         q.vx = Math.sin(this.t * 2.2 + (q.spin || 0)) * 30;
         q.r += dt * 5;
+      } else if (q.k === 'forge') {
+        // a sparkle flying in to take its place in the new figure's outline
+        const u = Math.min(1, q.t / q.arrive), e = 1 - (1 - u) ** 3;
+        const sw = Math.sin(u * Math.PI) * q.curl;
+        q.x = q.x0 + (q.tx - q.x0) * e - (q.ty - q.y0) * sw;
+        q.y = q.y0 + (q.ty - q.y0) * e + (q.tx - q.x0) * sw;
+        q.vx = q.vy = 0;
+        q.spin = (q.spin || 0) + dt * 4;
+        continue;
+      } else if (q.k === 'motif') {
+        q.spin = (q.spin || 0) + dt * (q.rot || 1);
       } else if (q.k === 'chip') {
         q.spin = (q.spin || 0) + dt * 12;
         if (q.fy != null && q.y > q.fy) { q.y = q.fy; q.vy *= -0.3; q.vx *= 0.5; }
@@ -150,7 +161,7 @@ export class FX {
 
   // Repaint the gel canvas; returns the shadow-pass item.
   snapshot() {
-    return { p: this.p.map((q) => ({ k: q.k, x: q.x, y: q.y, r: q.r, t: q.t, life: q.life, vx: q.vx, vy: q.vy, spin: q.spin, h: q.h })), flood: this.flood, bolt: this.bolt && { ...this.bolt }, t: this.t, level: this.waterLevel(), wards: (this.wards || []).map((w) => ({ ...w })) };
+    return { p: this.p.map((q) => ({ k: q.k, x: q.x, y: q.y, r: q.r, t: q.t, life: q.life, vx: q.vx, vy: q.vy, spin: q.spin, h: q.h, arrive: q.arrive })), flood: this.flood, bolt: this.bolt && { ...this.bolt }, t: this.t, level: this.waterLevel(), wards: (this.wards || []).map((w) => ({ ...w })) };
   }
 
   render(state = null) {
@@ -213,13 +224,54 @@ export class FX {
         g.beginPath(); g.moveTo(q.x, q.y - r * 2); g.lineTo(q.x + r * 0.5, q.y); g.lineTo(q.x, q.y + r * 2); g.lineTo(q.x - r * 0.5, q.y); g.closePath();
         g.moveTo(q.x - r * 2, q.y); g.lineTo(q.x, q.y + r * 0.5); g.lineTo(q.x + r * 2, q.y); g.lineTo(q.x, q.y - r * 0.5); g.closePath();
         g.fill();
+      } else if (q.k === 'forge') {
+        const arr = Math.min(1, q.t / q.arrive);
+        const tw = q.t > q.arrive ? (1 - (q.t - q.arrive) / (q.life - q.arrive)) * (0.6 + 0.4 * Math.sin(q.t * 30 + q.x)) : 0.35 + arr * 0.65;
+        const r = q.r * (q.t > q.arrive ? 1.4 : 1);
+        g.save(); g.translate(q.x, q.y); g.rotate(q.spin || 0);
+        g.fillStyle = q.h === 'violet' ? `rgba(160,80,220,${tw})` : `rgba(240,175,55,${tw})`;
+        g.beginPath();
+        for (let i = 0; i < 8; i++) { const an = (i / 8) * Math.PI * 2, rr = i % 2 ? r * 0.3 : r * 1.6; i ? g.lineTo(Math.cos(an) * rr, Math.sin(an) * rr) : g.moveTo(rr, 0); }
+        g.closePath(); g.fill();
+        g.restore();
+      } else if (q.k === 'motif') {
+        // gilded Thai ornaments that bloom and dissolve: lotus, flame, star, leaf
+        const a = Math.min(1, Math.sin(Math.PI * u) * 1.3), s2 = q.r * (0.4 + u * 0.8);
+        g.save(); g.translate(q.x, q.y); g.rotate(q.spin || 0); g.scale(s2, s2);
+        const col = q.h >= 10 ? `rgba(150,75,210,${a})` : `rgba(230,165,45,${a})`;
+        g.fillStyle = col; g.strokeStyle = col; g.lineWidth = 0.12;
+        const kind = q.h % 10;
+        g.beginPath();
+        if (kind === 0) { // lotus: five petals
+          for (let i = 0; i < 5; i++) { g.rotate((Math.PI * 2) / 5); g.moveTo(0, 0); g.quadraticCurveTo(0.45, -0.5, 0, -1.1); g.quadraticCurveTo(-0.45, -0.5, 0, 0); }
+          g.fill();
+        } else if (kind === 1) { // กระหนก flame tongue
+          g.moveTo(0, 0.8); g.bezierCurveTo(0.8, 0.4, 0.6, -0.4, 0.1, -1.1); g.bezierCurveTo(0.2, -0.4, -0.2, -0.2, -0.3, 0.1); g.bezierCurveTo(-0.6, -0.1, -0.5, 0.5, 0, 0.8);
+          g.fill();
+        } else if (kind === 2) { // ดาวประจำยาม four-petal star
+          for (let i = 0; i < 4; i++) { g.rotate(Math.PI / 2); g.moveTo(0, 0); g.quadraticCurveTo(0.35, -0.35, 0, -1); g.quadraticCurveTo(-0.35, -0.35, 0, 0); }
+          g.fill();
+          g.beginPath(); g.arc(0, 0, 0.18, 0, 7); g.fill();
+        } else { // unalom stroke
+          g.moveTo(0, 1); g.lineTo(0, -0.2); g.arc(-0.25, -0.2, 0.25, 0, Math.PI * 1.7, false); g.moveTo(0, -0.5); g.quadraticCurveTo(0.1, -0.9, 0, -1.2);
+          g.stroke();
+        }
+        g.restore();
       } else if (q.k === 'beam') {
-        const a = Math.sin(Math.PI * Math.min(1, u * 1.15)) * 0.9;
-        const w = q.r * (0.6 + 0.4 * Math.sin(Math.PI * u));
-        const gr = g.createLinearGradient(q.x - w, 0, q.x + w, 0);
+        // a soft falling veil of light: feathered on every side
+        const a = Math.sin(Math.PI * Math.min(1, u * 1.15)) * 0.45;
+        const w = q.r * (0.7 + 0.3 * Math.sin(Math.PI * u));
         const c = q.h === 'violet' ? '140,70,200' : '240,170,60';
-        gr.addColorStop(0, `rgba(${c},0)`); gr.addColorStop(0.5, `rgba(${c},${a})`); gr.addColorStop(1, `rgba(${c},0)`);
-        g.fillStyle = gr; g.fillRect(q.x - w, -40, w * 2, q.y + 40);
+        const top = q.y - (q.y + 40) * Math.min(1, u * 2.5);
+        g.save();
+        g.translate(q.x, 0); g.scale(w, 1);
+        const gr = g.createRadialGradient(0, q.y, 0, 0, q.y, 1);
+        gr.addColorStop(0, `rgba(${c},${a})`); gr.addColorStop(1, `rgba(${c},0)`);
+        const vg = g.createLinearGradient(0, top, 0, q.y);
+        vg.addColorStop(0, `rgba(${c},0)`); vg.addColorStop(0.5, `rgba(${c},${a * 0.6})`); vg.addColorStop(1, `rgba(${c},${a})`);
+        g.fillStyle = vg;
+        g.beginPath(); g.ellipse(0, (top + q.y) / 2, 1, (q.y - top) / 2 + 1, 0, 0, 7); g.fill();
+        g.restore();
       } else if (q.k === 'ring') {
         const a = (1 - u) * 0.8, r = q.r * (0.3 + u * 0.9);
         g.strokeStyle = q.h === 'violet' ? `rgba(120,50,170,${a})` : `rgba(200,140,40,${a})`;

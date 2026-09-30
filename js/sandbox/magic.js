@@ -1,7 +1,8 @@
 // อัญเชิญและปลูกสร้าง — how things arrive on the cloth.
 //
-// Summoning: a shaft of heavenly light drops onto the spot, a yantra ring
-// spins open on the floor and the figure's shadow condenses out of the
+// Summoning: a soft shaft of heavenly light drops onto the spot, sparkles
+// stream in to draw the figure's outline, gilded ornaments bloom around
+// it, and its shadow condenses out of the
 // lamp's glare (it starts close to the lamp — big and blurry — and settles
 // onto the cloth, sharp).
 //
@@ -38,12 +39,8 @@ export class Magic {
     const r = a.root;
     const [cx, cy, s] = this.scene.project(r.x, r.y, a.z);
     const fy = this.scene.project(0, this.scene.world.floorY(a.z), a.z)[1];
-    this.fx.emit({ k: 'beam', x: cx, y: fy, r: (big ? 150 : 90) * s, life: 1.5, h: hue });
-    this.fx.emit({ k: 'ring', x: cx, y: fy, r: (big ? 260 : 170) * s, life: 1.4, h: hue });
-    for (let i = 0; i < (big ? 40 : 24); i++) {
-      const an = Math.random() * 6.28;
-      this.fx.emit({ k: hue === 'violet' ? 'violet' : 'gold', x: cx + Math.cos(an) * 70 * s, y: fy - Math.random() * 400 * s, vx: -Math.sin(an) * 60, vy: -30 - Math.random() * 60, r: 3 + Math.random() * 3, life: 1 + Math.random() * 0.8 });
-    }
+    this.fx.emit({ k: 'beam', x: cx, y: fy, r: (big ? 150 : 110) * s, life: 1.3, h: hue });
+    this._forge(a, hue, big);
     if (hue === 'violet') for (let i = 0; i < 10; i++) this.fx.emit({ k: 'smoke', x: cx + rnd(60), y: fy - 20, vx: rnd(30), vy: -30 - Math.random() * 30, r: 20 + Math.random() * 20, life: 2.4 });
     // condense out of the lamp's glare
     if (a.setDepth) {
@@ -52,6 +49,36 @@ export class Magic {
       this.jobs.push({ type: 'summon', a, t: 0, dur: big ? 1.5 : 1.05, z0: zFar, z1: z0, hue, x: cx, y: fy, s });
     }
     this.audio?.sfx('summon', { pan: clamp((cx - 800) / 800, -1, 1), vol: big ? 0.9 : 0.6 });
+  }
+
+  // sparkles stream in from all around and assemble the figure's outline,
+  // while gilded ornaments bloom and dissolve around it
+  _forge(a, hue, big) {
+    const S = this.scene, pts = [];
+    for (const b of a.parts || [a.body]) {
+      for (const c of b.circles) {
+        const [wx, wy] = b.toWorld(c.x, c.y);
+        const n = Math.max(1, Math.round(c.r / 9));
+        for (let i = 0; i < n; i++) {
+          const an = Math.random() * 6.28, rr = c.r * (0.6 + Math.random() * 0.4);
+          pts.push(S.project(wx + Math.cos(an) * rr, wy + Math.sin(an) * rr, a.z));
+        }
+      }
+    }
+    const want = big ? 160 : 110;
+    for (let i = 0; i < want && pts.length; i++) {
+      const [tx, ty] = pts[Math.floor(Math.random() * pts.length)];
+      const an = Math.random() * 6.28, d = 160 + Math.random() * 320;
+      const arrive = 0.45 + Math.random() * 0.5;
+      this.fx.emit({ k: 'forge', x: tx + Math.cos(an) * d, y: ty + Math.sin(an) * d * 0.7 - 120, x0: tx + Math.cos(an) * d, y0: ty + Math.sin(an) * d * 0.7 - 120, tx, ty, arrive, curl: rnd(0.35), r: 3.5 + Math.random() * 4, life: arrive + 0.5 + Math.random() * 0.5, h: hue });
+    }
+    const r = a.root;
+    const [cx, cy, s] = S.project(r.x, r.y, a.z);
+    const h = (a.height || (a.def?.sprite?.h ?? 200)) * s;
+    for (let i = 0; i < (big ? 22 : 14); i++) {
+      const an = Math.random() * 6.28, rr = h * (0.35 + Math.random() * 0.45);
+      this.fx.emit({ k: 'motif', x: cx + Math.cos(an) * rr, y: cy + Math.sin(an) * rr * 0.9, vx: Math.cos(an) * 25, vy: -25 - Math.random() * 30, r: 16 + Math.random() * 20, life: 1 + Math.random() * 0.9, spin: Math.random() * 6, rot: rnd(2), h: Math.floor(Math.random() * 4) + (hue === 'violet' ? 10 : 0) });
+    }
   }
 
   build(a) {

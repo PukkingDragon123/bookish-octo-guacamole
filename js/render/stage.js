@@ -134,7 +134,6 @@ export class Stage {
     f.fillRect(-1400, -800, 4400, 2600);
     f.restore();
     this._lanterns(f, dt, L);
-    this._flags(f, dt);
     for (const c of this.curtains) c.draw(f, 0.35 + L * 0.6);
     // audience in front, rim-lit by the screen
     const A = this.audience;
