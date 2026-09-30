@@ -253,31 +253,35 @@ function paintHalo(g, P, active) {
 }
 
 function paintCloud(g) {
-  const lobes = [[-19, 26.4, 4.6], [-11.5, 23.8, 5.8], [-1.5, 22.6, 6.6], [9, 23.2, 6.2], [18.5, 25.6, 5], [25, 28, 3.4]];
-  const base = [[-24, 28.5], [-26, 30.6], [-18, 31.8], [0, 32.2], [18, 31.6], [28, 30.4], [27.5, 28.6]];
+  // puffs along the top and a scalloped underside
+  const lobes = [[-17.5, 26, 4.4], [-10.5, 23.6, 5.6], [-1, 22.4, 6.4], [9, 23, 6], [17.6, 25.2, 4.8], [23.4, 27.4, 3.2]];
+  const under = [[-19.5, 29.2, 2.6], [-14, 30, 2.8], [-8, 30.4, 2.9], [-2, 30.6, 3], [4, 30.5, 2.9], [10, 30.2, 2.8], [16, 29.6, 2.6], [21, 28.8, 2.2]];
   const body = new Path2D();
-  for (const [x, y, r] of lobes) { body.moveTo(x + r, y); body.arc(x, y, r, 0, TAU); }
-  spline(body, base, true);
-  body.rect(-22, 26, 48, 5);
-  // tail wisp (เมฆไหล)
-  const tail = tube([[-22, 29.6], [-28, 29.4], [-33, 27.6], [-35.4, 25], [-34, 23], [-31.6, 23.6]], [4.2, 3.6, 2.8, 2, 1.4, 0.9]);
-  // outline by fattening
-  g.save();
+  for (const [x, y, r] of [...lobes, ...under]) { body.moveTo(x + r, y); body.arc(x, y, r, 0, TAU); }
+  body.rect(-19, 25, 41, 4.5);
+  // flowing tail (เมฆไหล) ending in a curl
+  const tpts = [[-18, 29.6], [-23.4, 30.8], [-28.4, 30.4], [-31.8, 28.4], [-32.6, 25.8], [-31.2, 24.4], [-29.6, 25.2]];
+  const tail = tube(tpts, [3.6, 3, 2.4, 1.9, 1.4, 1, 0.7]);
   g.lineWidth = 1.1; g.strokeStyle = '#4f7468'; g.stroke(body); g.stroke(tail);
-  const cg = g.createLinearGradient(0, 16, 0, 33);
-  cg.addColorStop(0, '#fbf6e8'); cg.addColorStop(0.45, '#e6eee0'); cg.addColorStop(1, '#93bcb0');
+  const cg = g.createLinearGradient(0, 16, 0, 33.5);
+  cg.addColorStop(0, '#fbf6e8'); cg.addColorStop(0.5, '#e4ede0'); cg.addColorStop(1, '#9cc3b6');
   g.fillStyle = cg; g.fill(body); g.fill(tail);
-  g.restore();
-  // inner curls, gold and teal
-  for (const [x, y, r] of lobes) {
+  // inner curls: each puff winds into a spiral (teal line + gold)
+  const curl = (x, y, r, turns, a0) => {
     const sp = [];
-    for (let k = 0; k <= 16; k++) { const u = k / 16; const a = -Math.PI * 0.95 + u * TAU * 1.05; const rr = r * (0.78 - u * 0.62); sp.push([x + Math.cos(a) * rr, y + 0.6 + Math.sin(a) * rr]); }
-    g.lineWidth = 0.45; g.strokeStyle = '#6f978a'; g.stroke(open(sp));
-    g.lineWidth = 0.22; g.strokeStyle = '#c99c3c'; g.stroke(open(sp.map(([a, b]) => [a + 0.35, b + 0.2])));
+    for (let k = 0; k <= 18; k++) { const u = k / 18; const a = a0 + u * TAU * turns; const rr = r * (0.8 - u * 0.62); sp.push([x + Math.cos(a) * rr, y + Math.sin(a) * rr]); }
+    return open(sp);
+  };
+  for (const [x, y, r] of lobes) {
+    const c = curl(x, y + 0.5, r, 1.05, -Math.PI * 0.95);
+    g.lineWidth = 0.45; g.strokeStyle = '#6f978a'; g.stroke(c);
+    g.save(); g.translate(0.3, 0.25); g.lineWidth = 0.22; g.strokeStyle = '#c99c3c'; g.stroke(c); g.restore();
   }
-  const sp = [];
-  for (let k = 0; k <= 12; k++) { const u = k / 12; const a = u * TAU * 0.9; const rr = 2.4 * (1 - u * 0.7); sp.push([-31.8 + Math.cos(a) * rr, 25.4 + Math.sin(a) * rr]); }
-  g.lineWidth = 0.4; g.strokeStyle = '#6f978a'; g.stroke(open(sp));
+  for (const [x, y, r] of under) {
+    g.lineWidth = 0.3; g.strokeStyle = 'rgba(79,116,104,0.7)';
+    g.beginPath(); g.arc(x, y, r * 0.6, Math.PI * 0.15, Math.PI * 0.85); g.stroke();
+  }
+  g.lineWidth = 0.4; g.strokeStyle = '#6f978a'; g.stroke(curl(-30.4, 26.4, 2.2, 0.9, 0));
   // white rim light along the top
   g.lineWidth = 0.35; g.strokeStyle = 'rgba(255,255,255,0.9)';
   for (const [x, y, r] of lobes) { g.beginPath(); g.arc(x, y, r - 0.6, Math.PI * 1.1, Math.PI * 1.75); g.stroke(); }
@@ -306,7 +310,7 @@ function devaHand(g, P, w, a, kind = 'open') {
     let p = [palmEnd[0] + nx * i * 0.62 - c * 0.3, palmEnd[1] + ny * i * 0.62 - s * 0.3];
     const pts = [p];
     const segs = kind === 'wai' ? [1.4, 1.1, 0.9] : [1.6, 1.3, 1.1];
-    for (const L of segs) { fa -= kind === 'wai' ? 0.12 : 0.42; p = polar(p, fa, L * (i === 2 ? 0.75 : 1)); pts.push(p); }
+    for (const L of segs) { fa -= kind === 'wai' ? 0.12 : 0.3; p = polar(p, fa, L * (i === 2 ? 0.78 : 1.12)); pts.push(p); }
     ink(g, tube(pts, [0.95, 0.85, 0.72, 0.5]), P.skin, P.line, 0.2);
   }
   // bracelet
@@ -339,7 +343,7 @@ function paintArm(g, P, pts, handA, which, pose) {
     g.lineWidth = 1.1; g.strokeStyle = G.line; g.stroke(bb); g.lineWidth = 0.75; g.strokeStyle = G.lt; g.stroke(bb);
   } else {
     ink(g, arm, skinGrad(g, P, S[0], S[1], W[0], W[1] + 3), P.line, 0.28);
-    devaHand(g, P, W, handA);
+    if (!pose.wai) devaHand(g, P, W, handA);
   }
   // armlet (พาหุรัด) with a kranok flame, bracelets
   const ua = Math.atan2(E[1] - S[1], E[0] - S[0]);
@@ -358,14 +362,13 @@ function paintArm(g, P, pts, handA, which, pose) {
   }
   // shoulder flare (อินทรธนู) on the near shoulder
   if (which === 'G') {
-    const f = kranok(6.2, [S[0] + 0.6, S[1] - 0.2], -Math.PI / 2 - 0.9, -1);
-    gold(g, f, [S[0] - 5, S[1] - 6, S[0] + 2, S[1] + 1], 0.25);
-    const f2 = kranok(3.4, [S[0] + 0.2, S[1] - 0.6], -Math.PI / 2 - 0.9, -1);
-    ink(g, f2, P.robe);
+    const f = kranok(4.4, [S[0] + 0.4, S[1] - 0.6], -Math.PI / 2 - 0.75, -1);
+    gold(g, f, [S[0] - 4, S[1] - 5, S[0] + 2, S[1] + 1], 0.25);
+    g.lineWidth = 0.3; g.strokeStyle = P.gem; g.stroke(kranok(3.2, [S[0] + 0.1, S[1] - 0.9], -Math.PI / 2 - 0.75, -1));
     // epaulette cap
-    const cap = shape([[S[0] - 2.6, S[1] + 0.4], [S[0] - 1.8, S[1] - 1.8], [S[0] + 0.8, S[1] - 2.4], [S[0] + 2.6, S[1] - 1], [S[0] + 1.8, S[1] + 1.8], [S[0] - 1, S[1] + 2.2]]);
+    const cap = shape([[S[0] - 2.2, S[1] + 0.4], [S[0] - 1.5, S[1] - 1.5], [S[0] + 0.7, S[1] - 2], [S[0] + 2.2, S[1] - 0.8], [S[0] + 1.5, S[1] + 1.5], [S[0] - 0.8, S[1] + 1.9]]);
     gold(g, cap, [S[0] - 3, S[1] - 3, S[0] + 3, S[1] + 3], 0.25);
-    gem(g, S[0], S[1] - 0.1, 0.55, P.gem2);
+    gem(g, S[0], S[1] - 0.1, 0.45, P.gem2);
   }
 }
 
@@ -438,9 +441,9 @@ function paintBody(g, P, pose) {
   g.lineWidth = 0.22; g.strokeStyle = 'rgba(0,0,0,0.35)';
   g.stroke(open([[4.2, 1.5], [4.8, 5], [4.4, 8]])); g.stroke(open([[10.6, 1.5], [10.2, 5], [10.8, 8]]));
   for (const [x, dir] of [[1.2, -1], [13.8, 1]]) {
-    const f = kranok(6.6, [x, 1.4], Math.PI / 2 + dir * 0.55, dir);
-    ink(g, f, P.robe, G.line, 0.28);
-    g.lineWidth = 0.55; g.strokeStyle = G.lt; g.stroke(kranok(5.6, [x + dir * 0.3, 2], Math.PI / 2 + dir * 0.55, dir));
+    const f = kranok(4.6, [x, 1.2], Math.PI / 2 + dir * 0.5, dir);
+    ink(g, f, P.robe, G.line, 0.26);
+    g.lineWidth = 0.45; g.strokeStyle = G.lt; g.stroke(kranok(3.8, [x + dir * 0.25, 1.6], Math.PI / 2 + dir * 0.5, dir));
   }
   // belt with jewelled buckle (ปั้นเหน่ง)
   const belt = shape([[2.1, -1.9], [7.4, -1.2], [12.8, -1.9], [12.9, 0.9], [7.4, 1.6], [2.0, 0.9]]);
@@ -453,6 +456,10 @@ function paintBody(g, P, pose) {
 }
 
 function paintHead(g, P) {
+  // face features are drawn a touch compressed under the crown band so
+  // the face reads as a neat mural oval
+  g.save();
+  g.translate(0, -34); g.scale(0.97, 0.86); g.translate(0, 34);
   // neck + face (profile facing +x)
   const face = new Path2D();
   face.moveTo(4.4, -34);
@@ -468,61 +475,62 @@ function paintHead(g, P) {
   face.quadraticCurveTo(15.95, -20.4, 15.1, -19.85);
   face.quadraticCurveTo(13.7, -19.3, 11.9, -19.4);
   face.quadraticCurveTo(10.7, -19.2, 10.5, -17.4);
-  face.lineTo(10.6, -15);
-  face.lineTo(4.6, -15);
-  face.quadraticCurveTo(4.8, -19, 4.3, -22);
-  face.quadraticCurveTo(3, -28, 4.4, -34);
+  face.lineTo(10.8, -12.5);
+  face.lineTo(5.6, -12.5);
+  face.quadraticCurveTo(5.4, -19, 4.9, -22.4);
+  face.quadraticCurveTo(3, -27, 4.4, -34);
   face.closePath();
   const fg = g.createLinearGradient(3, -30, 17, -24);
   fg.addColorStop(0, P.skinD); fg.addColorStop(0.35, P.skin); fg.addColorStop(1, P.skin);
   ink(g, face, fg, P.line, 0.3);
   // soft cheek
-  const ch = g.createRadialGradient(13, -24.2, 0.2, 13, -24.2, 2.6);
-  ch.addColorStop(0, 'rgba(230,120,90,0.28)'); ch.addColorStop(1, 'rgba(230,120,90,0)');
+  const ch = g.createRadialGradient(13.2, -24.4, 0.2, 13.2, -24.4, 2.4);
+  ch.addColorStop(0, 'rgba(230,120,90,0.22)'); ch.addColorStop(1, 'rgba(230,120,90,0)');
   g.fillStyle = ch; g.fill(face);
   // jaw line
   g.lineWidth = 0.18; g.strokeStyle = P.skinD;
-  g.stroke(open([[14.2, -20], [11.8, -20.6], [9.6, -22.4]]));
+  g.stroke(open([[14.2, -20], [11.8, -20.6], [9.8, -22.6]]));
   // lips
   g.fillStyle = '#b8453a';
   g.beginPath(); g.moveTo(16.55, -24); g.quadraticCurveTo(16.2, -23.45, 15.85, -23.35); g.quadraticCurveTo(16.35, -22.9, 16.1, -22.3); g.quadraticCurveTo(15.4, -22.8, 15.1, -23.25); g.closePath(); g.fill();
   g.lineWidth = 0.2; g.strokeStyle = '#5a1a10';
-  g.stroke(open([[15.85, -23.35], [15.4, -23.3], [14.95, -23.55]]));
+  g.stroke(open([[15.85, -23.35], [15.4, -23.3], [14.9, -23.6]]));
   // nostril
   g.lineWidth = 0.16; g.strokeStyle = P.line;
   g.stroke(open([[16.9, -25.3], [16.4, -25.45], [16.2, -25.9]]));
   // long almond eye with upswept outer corner
   const eye = new Path2D();
-  eye.moveTo(14.5, -28.2);
-  eye.quadraticCurveTo(12.6, -29.7, 10.1, -29.1);
-  eye.quadraticCurveTo(12.4, -27.75, 14.5, -28.2);
+  eye.moveTo(14.5, -28.25);
+  eye.quadraticCurveTo(12.4, -29.7, 10, -29.2);
+  eye.quadraticCurveTo(12.4, -27.8, 14.5, -28.25);
   eye.closePath();
-  g.fillStyle = '#fbf5e6'; g.fill(eye);
+  g.fillStyle = '#f6eedb'; g.fill(eye);
   g.save(); g.clip(eye);
-  g.fillStyle = '#1b0f0a'; g.beginPath(); g.ellipse(13.3, -28.55, 0.62, 0.72, 0, 0, TAU); g.fill();
-  g.fillStyle = '#fff'; g.beginPath(); g.arc(13.5, -28.85, 0.18, 0, TAU); g.fill();
+  g.fillStyle = '#1b0f0a'; g.beginPath(); g.ellipse(13.1, -28.6, 0.6, 0.62, 0, 0, TAU); g.fill();
   g.restore();
   const lid = new Path2D();
-  lid.moveTo(14.7, -28.1); lid.quadraticCurveTo(12.6, -29.95, 10.1, -29.15); lid.quadraticCurveTo(9.4, -29.2, 8.9, -29.95);
-  lid.quadraticCurveTo(10, -29.55, 10.3, -29.45); lid.quadraticCurveTo(12.6, -29.6, 14.7, -28.1); lid.closePath();
+  lid.moveTo(14.75, -28.15); lid.quadraticCurveTo(12.4, -30.05, 10, -29.25); lid.quadraticCurveTo(9.1, -29.35, 8.5, -30.2);
+  lid.quadraticCurveTo(9.6, -29.62, 10.2, -29.5); lid.quadraticCurveTo(12.4, -29.75, 14.75, -28.15); lid.closePath();
   g.fillStyle = '#1b0f0a'; g.fill(lid);
-  g.lineWidth = 0.14; g.strokeStyle = '#1b0f0a';
-  g.stroke(open([[14.4, -28.1], [12.4, -27.75], [10.4, -28.95]]));
+  g.lineWidth = 0.13; g.strokeStyle = '#3a2016';
+  g.stroke(open([[14.4, -28.15], [12.4, -27.9], [10.3, -29.05]]));
   // brow: a long thin arch drawn toward the temple
   const brow = new Path2D();
-  brow.moveTo(15, -30.4); brow.quadraticCurveTo(12.4, -31.7, 8.6, -30.9);
-  brow.quadraticCurveTo(12.4, -31.3, 15, -30.4); brow.closePath();
-  g.lineWidth = 0.28; g.strokeStyle = '#1b0f0a'; g.stroke(brow);
-  // hair & pointed sideburn (จอนหู)
-  const hair = shape([[3.6, -34], [9.4, -34.2], [11.3, -33.9], [10.9, -32], [10.3, -29.8], [9.6, -31.6], [8.4, -32.6], [6.6, -31], [5.8, -27], [4.6, -23.6], [3.6, -28]]);
+  brow.moveTo(15.05, -30.35); brow.quadraticCurveTo(12.2, -31.75, 8.4, -30.9);
+  brow.quadraticCurveTo(12.2, -31.25, 15.05, -30.35); brow.closePath();
+  g.fillStyle = '#1b0f0a'; g.fill(brow);
+  g.lineWidth = 0.12; g.strokeStyle = '#1b0f0a'; g.stroke(brow);
+  // hair line & pointed sideburn (จอนหู)
+  const hair = shape([[3.8, -34], [9.4, -34.2], [11.4, -33.9], [11, -32], [10.4, -29.6], [9.7, -31.4], [8.4, -31.8], [7.6, -29], [6.6, -26.4], [5, -24.6], [3.9, -27.6]]);
   ink(g, hair, '#1a100c');
   // long-lobed ear with a drop earring (ตุ้มหู)
   const ear = shape([[8.4, -29.8], [9.6, -29.2], [9.8, -27.4], [9.2, -25.6], [9.3, -23.6], [8.7, -22.3], [7.9, -22.8], [7.9, -25], [7.5, -27.6]]);
   ink(g, ear, P.skin, P.line, 0.24);
   g.lineWidth = 0.18; g.strokeStyle = P.skinD; g.stroke(open([[9, -28.6], [9.1, -26.8], [8.6, -25.4]]));
-  const drop = shape([[8.3, -22.4], [9.2, -21.2], [8.9, -19.4], [8.3, -18.6], [7.7, -19.4], [7.5, -21.2]]);
+  const drop = shape([[8.3, -22.4], [9.2, -21.2], [8.9, -19.4], [8.3, -18.4], [7.7, -19.4], [7.5, -21.2]]);
   gold(g, drop, [7.5, -22.4, 9.2, -18.6], 0.2);
   gem(g, 8.3, -20.2, 0.42, P.gem);
+  g.restore();
   // ---- ชฎา crown
   // tiers (ชั้น) rising to a slender spire, leaning slightly back
   const base = [9.4, -40.6], top = [7.1, -52.4];
@@ -555,33 +563,36 @@ function paintHead(g, P) {
   const sp = shape([[6.3, -56.6], [6.9, -58.6], [5.2, -63], [5.9, -58.6]]);
   gold(g, sp, [5, -63, 7, -56], 0.2);
   gem(g, 6.6, -55.2, 0.5, P.gem);
-  // lower crown body with a big kranok on the side
+  // lower crown body (ตัวชฎา) with engraved ribs, gems and a petal crest
   const bowl = shape([[3.3, -35.8], [3.7, -38.6], [6, -41.4], [9.8, -41.8], [13.4, -40.4], [15.2, -37.6], [15.3, -35.2]]);
   gold(g, bowl, [3, -42, 15, -35], 0.3);
-  const kk = kranok(6.4, [5.4, -36.6], -0.42, -1);
-  ink(g, kk, P.robe, G.line, 0.22);
-  g.lineWidth = 0.4; g.strokeStyle = G.lt; g.stroke(kranok(5, [5.9, -36.9], -0.42, -1));
-  gem(g, 12.2, -38.2, 0.62, P.gem2);
-  gem(g, 9.6, -39.4, 0.45, P.gem);
+  g.save(); g.clip(bowl);
+  g.lineWidth = 0.22; g.strokeStyle = 'rgba(110,62,14,0.8)';
+  for (let k = 0; k < 7; k++) { const x = 3.8 + k * 1.9; g.stroke(open([[x, -35.6], [lerp(x, 9.4, 0.25), -38.8], [lerp(x, 9.4, 0.5), -42]])); }
+  g.restore();
+  krajang(g, [[4.4, -38.6], [7, -40.2], [10, -40.7], [13.6, -39.6]], 1.25, -1, P.gem, 0.92);
+  gem(g, 13.4, -37.2, 0.6, P.gem);
+  gem(g, 9.2, -37.8, 0.5, P.gem2);
+  gem(g, 5.4, -37.4, 0.45, P.gem);
   // band (กระบังหน้า) with gems and a petal crest along its top
   const band = shape([[3.2, -33.6], [8, -33.9], [13.2, -34.4], [15.5, -32.6], [15.6, -35.4], [13.4, -36.5], [8, -36.4], [3, -36.8]]);
   gold(g, band, [3, -37, 15, -32], 0.3);
   g.lineWidth = 0.7; g.strokeStyle = P.gem; g.stroke(open([[3.4, -35.1], [8, -35.2], [13.4, -35.4], [15.2, -34]]));
   for (let k = 0; k < 6; k++) { const x = 4.4 + k * 2.1; gem(g, x, lerp(-35.1, -35.4, k / 5), 0.3, k % 2 ? P.gem2 : '#f5f0e0'); }
-  krajang(g, [[3.6, -36.6], [8, -36.3], [13.6, -36.3]], 1.05, -1, P.gem, 0.95);
   // forehead point (ไรจุก)
   const pt = shape([[13.8, -34.3], [15.2, -32.5], [15.7, -31.2], [15.6, -33.4], [15.5, -35.2]]);
   gold(g, pt, [13.8, -35, 15.7, -31], 0.2);
   // กรรเจียก ear flare: over the ear, sweeping back and up like a flame
-  const kj = shape([[10.4, -33.6], [10.6, -30.6], [9.8, -27.9], [8.4, -26.4], [7.2, -27], [6.4, -29.2], [4.4, -31.6], [1.6, -34.2], [-0.6, -38.4], [-1.4, -42.2], [0.2, -40.6], [1.8, -38.1], [4, -36], [7.4, -35]]);
-  gold(g, kj, [-1, -42, 10.6, -26], 0.3);
-  const kj2 = shape([[9.3, -32.8], [9.2, -30.2], [8.4, -28.4], [7.3, -29.3], [5.4, -31.7], [2.8, -34.2], [1.1, -37.2], [3.6, -35.3], [6.8, -34]]);
+  const kj = shape([[10.9, -34], [11, -31.4], [10.2, -29], [9, -27.6], [7.8, -28.2], [6.8, -30.2], [4.8, -32.2], [2.2, -33.6], [-0.8, -35.6], [-3, -38.6], [-3.4, -40.4], [-1.9, -39], [0.2, -37.6], [3, -36.6], [6.4, -35.7]]);
+  gold(g, kj, [-3, -41, 11, -27], 0.3);
+  const kj2 = shape([[9.6, -33.2], [9.5, -31.4], [8.9, -30.2], [8.1, -30.8], [6.3, -32.7], [3.4, -34.6], [1, -36.2], [3.4, -35.4], [6.6, -34.5]]);
   ink(g, kj2, P.gem, null);
-  g.lineWidth = 0.35; g.strokeStyle = G.lt;
-  g.stroke(open([[8.6, -31.8], [6.4, -32.6], [3.4, -34.8], [1.2, -38.6], [-0.4, -41]]));
-  gem(g, 8.3, -30.4, 0.55, P.gem2);
-  const hook = kranok(2.6, [8.6, -27.2], Math.PI * 0.62, -1);
-  gold(g, hook, [6, -28, 10, -24], 0.2);
+  g.lineWidth = 0.28; g.strokeStyle = G.lt;
+  g.stroke(open([[9.1, -32.4], [7, -33.4], [4, -35], [0.8, -36.9], [-2.4, -39.2]]));
+  beads(g, [[10.6, -33.6], [10.6, -31.2], [9.6, -28.8], [8.4, -27.9]], 0.2, 0.6);
+  gem(g, 8.9, -31.6, 0.5, P.gem2);
+  const hook = kranok(2.2, [8.6, -28.2], Math.PI * 0.62, -1);
+  gold(g, hook, [6, -29, 10, -25], 0.2);
   // ---- กรองศอ collar, pendant (ทับทรวง)
   const outer = [[-0.2, -15.2], [2.6, -12.2], [7.6, -10.4], [12.6, -12.2], [15.4, -15.3]];
   const collar = spline(new Path2D(), [[10.4, -17.4], [12.8, -16.6], [15.4, -15.3]], false);
