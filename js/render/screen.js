@@ -271,7 +271,8 @@ export class ShadowScreen {
 
   tex(sprite) {
     let t = this.textures.get(sprite.id);
-    if (t && sprite.dynamic) {
+    if (t && (sprite.dynamic || (sprite.version | 0) !== (t._v | 0))) {
+      t._v = sprite.version | 0;
       const gl = this.gl;
       gl.bindTexture(gl.TEXTURE_2D, t);
       gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
@@ -282,6 +283,7 @@ export class ShadowScreen {
     }
     if (!t) {
       t = textureFromCanvas(this.gl, sprite.canvas);
+      t._v = sprite.version | 0;
       this.textures.set(sprite.id, t);
     }
     return t;

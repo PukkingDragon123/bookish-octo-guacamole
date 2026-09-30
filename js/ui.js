@@ -34,6 +34,9 @@ export const ICONS = {
   show: P('M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12zM12 9a3 3 0 1 1 0 6 3 3 0 0 1 0-6z'),
   flip: P('M7 7h11l-3-3M17 17H6l3 3'),
   remove: P('M6 6l12 12M18 6L6 18'),
+  soul: P('M12 21c-4 0-6-3-6-6 0-4 3-6 4-10 1 3 4 4 4 7 1-1 1-2 1-3 2 2 3 4 3 6 0 3-2 6-6 6zM12 17a2 2 0 1 0 0-.1'),
+  ward: P('M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6zM9 9h6v6H9zM12 9v6M9 12h6'),
+  mend: P('M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10zM4 20L20 4M18 4h2v2'),
   deva: P('M12 2l1.4 3.4h-2.8zM12 6.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zM7 21c0-4 2.2-7 5-7s5 3 5 7M4 11c2 1 3.5 1 5 0M20 11c-2 1-3.5 1-5 0'),
   pad: P('M6 9h12a4 4 0 0 1 3.8 5.2l-1.3 4a2 2 0 0 1-3.4.7L15 17H9l-2.1 1.9a2 2 0 0 1-3.4-.7l-1.3-4A4 4 0 0 1 6 9zM8 11v4M6 13h4M16 12h.01M18 14h.01'),
   film: P('M4 5h16v14H4zM8 5v14M16 5v14M4 9h4M4 15h4M16 9h4M16 15h4'),
@@ -119,7 +122,7 @@ export class UI {
     this.side = el('div', { id: 'side', class: 'hidden' });
     this.cam = el('div', { id: 'cam', class: 'hidden' }, this.camCanvas = el('canvas', { width: 240, height: 180 }), this.gest = el('i', { class: 'gest' }));
     this.toastEl = el('div', { id: 'toast', class: 'hidden' });
-    this.title = el('div', { id: 'title', class: 'hidden' }, el('div', {}, el('div', { class: 't1' }, 'หนังตะลุง')));
+    this.title = el('div', { id: 'title', class: 'hidden' }, el('div', {}, el('div', { class: 't1' }, 'โรงละครหนังตะลุง')));
     this.skip = el('button', { id: 'skip', class: 'medal hidden', title: 'ข้าม · Skip', onclick: () => g.skipIntro(), html: '<i class="gem"></i>' + glyph('M5 5l7 7-7 7M13 5l7 7-7 7') });
     this.help = el('div', { id: 'help', class: 'hidden', onclick: () => this.toggleHelp(false) }, el('div', { html: HELP }));
     R.append(this.top, this.chestBtn, this.house, this.side, this.cam, this.toastEl, this.title, this.skip, this.help);
@@ -210,6 +213,12 @@ export class UI {
       if (a.flyRole) roles.append(el('button', { class: 'mini', title: 'ปล่อย · Release', onclick: () => g.assignFly(a, null), html: ICONS.release }));
       row.append(medal(ICONS.deva, 'มอบให้เทวดาเชิด · Give to a deva', () => { roles.classList.toggle('open'); row.querySelector('.fan')?.classList.remove('open'); }, { cls: a.flyRole ? 'on' : '' }), roles);
     }
+    if (a.rig && g.souls) {
+      const st = a.dmg || {};
+      row.append(medal(ICONS.soul, st.soul ? 'ถอดวิญญาณ · Take the soul back' : 'ปลุกเสกวิญญาณ · Give a soul (feels, bleeds, can die)', () => { g.souls.giveSoul(a, !(a.dmg && a.dmg.soul)); this.renderSide(); }, { cls: st.soul ? 'on' : '' }));
+      row.append(medal(ICONS.ward, 'ลงยันต์ · Yantra ward (resist tearing)', () => g.souls.ward(a), { cls: st.ward > 0.05 ? 'on' : '' }));
+      row.append(medal(ICONS.mend, 'ชุบชีวิต · Mend & revive', () => g.souls.mend(a)));
+    }
     const d = el('input', { id: 'depth', type: 'range', min: '0', max: '0.5', step: '0.005', title: 'ระยะจากจอ · Distance from cloth' });
     d.value = a.z;
     d.oninput = () => a.setDepth(+d.value);
@@ -220,7 +229,7 @@ export class UI {
 }
 
 const HELP = `
-<h2>วิธีเชิดหนัง</h2>
+<h2>โรงละครหนังตะลุง · วิธีเชิดหนัง</h2>
 <table>
 <tr><td>ลาก</td><td>Drag a puppet to move it; drag near a hand, foot or head to pull that string.</td></tr>
 <tr><td>ล้อเมาส์</td><td>Toward the lamp / back onto the cloth.</td></tr>
@@ -231,6 +240,7 @@ const HELP = `
 <tr><td>เทวดา</td><td>Select a puppet, tap the deva medallion and choose a role; a deva takes the strings.</td></tr>
 <tr><td>ติดตามมือ</td><td>Palm = body · hand size = depth · tilt = lean · flip hand = turn. Thumb, index, middle, ring, pinky → back arm, front arm, head, back leg, front leg. ✊ strike · ☝ lunge · ✋ block · จีบ dance · ตั้งวง pose · ✌ leap · 🤘 roar · 👍 laugh · 🙏 wai.</td></tr>
 <tr><td>ปุ่มควบคุม</td><td>Joystick walks (the stage scrolls on a longer scene), up = leap; sword = attack; wheels = moves and weapons; circle arrows = next puppet. Tap the cloth and the selected puppet walks there.</td></tr>
+<tr><td>เวทมนตร์</td><td>Magic drawer, or the medallions next to a selected puppet: ปลุกเสก gives it a soul (it feels, bleeds, weeps, and can die); ลงยันต์ wards it against tearing; ชุบชีวิต heals, stitches torn limbs back on and revives; อัญเชิญ summons a random spirit or beast. Puppets without a soul are just hide: hard blows tear them.</td></tr>
 <tr><td>ตัดต่อ</td><td>Record takes, split/trim/reorder them on the timeline, widen the stage, import images as props, and export a video.</td></tr>
 <tr><td>Alt + ลาก</td><td>Move the lamp.</td></tr>
 </table>`;

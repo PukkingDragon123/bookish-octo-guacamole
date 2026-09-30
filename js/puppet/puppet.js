@@ -298,6 +298,7 @@ export class Puppet {
   }
 
   plantAt(x, snap = false) {
+    if (this.dead) { this.setMode('ragdoll'); return; }
     this.target.x = x;
     this.target.y = this.standY();
     this.setMode('planted');
@@ -414,7 +415,7 @@ export class Puppet {
   // ------------------------------------------------------------ animation
   play(name, { hold = false, loop, speed = 1 } = {}) {
     const def = ANIMS[name];
-    if (!def) return false;
+    if (!def || this.dead) return false;
     if (def.humanoid !== false && !this.isHumanoid && !def.any) return false;
     if (this.stun > 0 && name !== 'hit' && name !== 'fall') return false;
     if (this.anim && this.anim.def === def && def.loop) { this.anim.hold = hold; this.anim.until = null; return true; }
@@ -452,7 +453,7 @@ export class Puppet {
     // ragdoll recovery
     if (this.mode === 'ragdoll') {
       this.ragdollT += dt;
-      if (this.ragdollT > 1.6 && this.controller !== 'drag') {
+      if (this.ragdollT > 1.6 && this.controller !== 'drag' && !this.dead) {
         this.target.x = r.x;
         this.target.y = this.standY();
         this.target.lean = 0;
@@ -600,6 +601,12 @@ export class Puppet {
     const wa = held ? 24 : this.mode === 'hung' ? 9 : 22;
     this.rootPin.compliance = 1 / (this.totalMass * wp * wp);
     this.rootPin.angCompliance = 1 / (this.totalI * wa * wa) * (this.stun > 0 ? 25 : 1);
+
+    // a lifeless body goes limp
+    if (this.dead) {
+      for (const j of Object.values(this.joints)) { j.target = 0; j.drive = 0.04; j.driveCompliance = 1 / (j.ieff * 4); j.damping = 3; }
+      this.attacking = 0;
+    }
 
     // limb pins weights fade
     for (const pin of Object.values(this.pins)) {

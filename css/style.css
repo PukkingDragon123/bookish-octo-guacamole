@@ -24,7 +24,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #050610; col
 /* loading */
 #loading { position: fixed; inset: 0; display: grid; place-items: center; background: radial-gradient(circle at 50% 40%, #2a1830, #06050c 70%); transition: opacity 1.2s; z-index: 50; }
 .load-inner { text-align: center; }
-.load-title { font: 700 clamp(56px, 10vw, 120px) var(--title-font); color: var(--gold); text-shadow: 0 0 30px rgba(255, 200, 100, .45), 0 3px 0 #3a1c05; }
+.load-title { text-align: center; font: 700 clamp(40px, 8vw, 104px) var(--title-font); color: var(--gold); text-shadow: 0 0 30px rgba(255, 200, 100, .45), 0 3px 0 #3a1c05; }
 .load-sub { display: none; }
 .load-bar { width: min(260px, 60vw); height: 3px; margin: 26px auto 10px; background: rgba(232, 196, 106, .15); border-radius: 2px; overflow: hidden; }
 .load-bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #9a6a22, #ffe7a0); transition: width .3s; }
@@ -173,7 +173,8 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #050610; col
 
 /* ---- main menu (the heavens only) ---- */
 #menu { position: fixed; inset: 0; display: grid; place-items: center; align-content: center; gap: 28px; transition: opacity 1s; }
-#menu .m-title { font: 700 clamp(64px, 12vw, 170px) var(--title-font); color: #fff1c2; text-shadow: 0 0 40px rgba(255, 210, 120, .9), 0 4px 0 #6a3a0a; animation: menuGlow 4s ease-in-out infinite; }
+#menu .m-title { display: flex; flex-direction: column; align-items: center; line-height: 1.05; text-align: center; padding: 0 16px; font: 700 clamp(42px, 8.5vw, 124px) var(--title-font); color: #fff1c2; text-shadow: 0 0 40px rgba(255, 210, 120, .9), 0 4px 0 #6a3a0a; animation: menuGlow 4s ease-in-out infinite; }
 #menu .play { --s: 96px; animation: menuGlow 3s ease-in-out infinite; }
+#menu .m-title small { font: 600 clamp(15px, 2.2vw, 30px) var(--ui-font); letter-spacing: .5em; text-transform: uppercase; color: #f3d894; text-shadow: 0 0 14px rgba(255, 200, 110, .8); margin-top: .35em; padding-left: .5em; }
 @keyframes menuGlow { 50% { filter: drop-shadow(0 0 18px rgba(255, 220, 140, .9)); } }
 @media (max-width: 600px) { #pad .stick { left: 84px; width: 104px; height: 104px; } #timeline { bottom: 190px; } }

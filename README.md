@@ -1,4 +1,4 @@
-# หนังตะลุง — Nang Talung Sandbox
+# โรงละครหนังตะลุง Simulator
 
 A browser sandbox of southern Thai shadow-puppet theatre. You are a deva in a
 golden heaven above a village show; golden strings run from your โขน dancer's

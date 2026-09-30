@@ -11,6 +11,7 @@ export const CATEGORIES = [
   ['puppets', 'ตัวหนัง', 'Puppets'],
   ['tools', 'เอฟเฟกต์', 'Effects'],
   ['weather', 'ลมฟ้าอากาศ', 'Weather'],
+  ['magic', 'เวทมนตร์', 'Magic'],
   ['imports', 'นำเข้า', 'Imported'],
   ['weapons', 'อาวุธ', 'Weapons'],
   ['market', 'ตลาด', 'Market'],

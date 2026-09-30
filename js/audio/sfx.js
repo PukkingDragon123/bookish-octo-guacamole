@@ -282,6 +282,28 @@ export const SFX = {
       a: [[0, 0], [0.5, 0.7], [1.3, 0.6], [2.0, 0]],
     }, { vol: 0.9 });
   },
+  // tearing hide: a fast crackle of fibre snaps over a dry noise rip
+  rip(X) {
+    const out = [noiseSweep(X, { f: [[0, 2600], [0.08, 1400], [0.22, 900]], Q: 1.4, a: [[0, 0], [0.01, 0.9], [0.06, 0.6], [0.24, 0]], vol: 0.9 })];
+    for (let i = 0; i < 7; i++) {
+      out.push(noiseSweep(X, { type: 'highpass', f: [[0, 3000 + Math.random() * 2500], [0.02, 2500]], a: [[0, 0], [0.002, 0.5 + Math.random() * 0.4], [0.02, 0]], at: i * 0.025 + Math.random() * 0.012, vol: 0.5 }));
+    }
+    return out;
+  },
+  // mallet on timber
+  hammer(X) {
+    return [
+      blip(X, { type: 'triangle', f: [[0, 330 * jit(0.08)], [0.05, 190]], a: [[0, 0], [0.002, 0.9], [0.09, 0]], vol: 0.8 }),
+      noiseSweep(X, { f: [[0, 1800], [0.04, 700]], Q: 1.2, a: [[0, 0], [0.002, 0.7], [0.05, 0]], vol: 0.6 }),
+    ];
+  },
+  // a rising gong-shimmer from heaven
+  summon(X) {
+    const out = [buf(X, pitched(X.ctx, 'khong', degHz(-12)), { vol: 0.6, send: 0.5 })];
+    out.push(noiseSweep(X, { f: [[0, 300], [1.2, 5000]], Q: 3, a: [[0, 0], [0.9, 0.5], [1.4, 0]], vol: 0.7, send: 0.6 }));
+    for (let i = 0; i < 6; i++) out.push(buf(X, pitched(X.ctx, 'bell', degHz(7 + i * 2)), { at: 0.5 + i * 0.09, vol: 0.25, pan: X.pan - 0.3 + i * 0.12, send: 0.7 }));
+    return out;
+  },
   hiss(X) {
     return noiseSweep(X, { f: [[0, 5200], [0.8, 6800]], Q: 0.9, pre: ['highpass', 2800], a: [[0, 0], [0.06, 1], [0.55, 0.8], [0.85, 0]], vol: 0.55 });
   },
@@ -396,6 +418,6 @@ export const SFX_TRIM = {
   whoosh: 1.7, swish: 2, jump: 2.2, pop: 1.35, pick: 1.4, flip: 4.3, step: 3, hit: 2, block: 4, thud: 1.2,
   clang: 1.5, ching: 1.4, chap: 4, thap: 1.15, curtain: 1.2, 'lamp-ignite': 0.8, chime: 0.9, sparkle: 0.67,
   click: 5.6, hover: 9, buzz: 1.5, splash: 1.3, 'fire-crackle': 1.4, laugh: 1.65, cheer: 1.4, gasp: 1.25,
-  roar: 2, ghost: 0.34, 'animal-buffalo': 0.9, 'animal-ox': 0.73, 'animal-elephant': 0.35, 'animal-pig': 0.9,
+  roar: 2, ghost: 0.34, rip: 1.3, hammer: 1.4, summon: 0.9, 'animal-buffalo': 0.9, 'animal-ox': 0.73, 'animal-elephant': 0.35, 'animal-pig': 0.9,
   'animal-rooster': 0.55, 'animal-duck': 0.8, 'animal-cat': 1.45, 'animal-horse': 0.5, 'animal-monkey': 0.62,
 };

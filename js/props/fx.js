@@ -75,6 +75,10 @@ export const PROPS = [
       const p = poly([[60, 10], [70, 50], [110, 60], [70, 70], [60, 110], [50, 70], [10, 60], [50, 50]]); leather(ctx, p); dye(ctx, p, INK.gold, 0.9); holes(ctx, [[60, 60]], 6);
     }), fx: 'sparkle', fxAt: [60, 60], glow: [60, 60, 120], glowColor: [1, 0.85, 0.5], static: true };
   } },
+  // magic: drop one onto a puppet or animal
+  ...[['soul', 'ปลุกเสกวิญญาณ', 'Give a soul (it can feel, bleed and die)'], ['ward', 'ลงยันต์คุ้มกัน', 'Yantra ward (reinforce against tearing)'], ['mend', 'ชุบชีวิต', 'Mend & revive (heal wounds, re-stitch limbs)'], ['summon', 'อัญเชิญ', 'Summon a random spirit or beast']].map(([k, th, en]) => ({
+    id: 'mg-' + k, name: th, en, cat: 'magic', build() { return { sprite: spellIcon(k), spell: k }; },
+  })),
   // weather: dropping one toggles it (no actor is created)
   ...[['rain', 'ฝนตก', 'Rain'], ['storm', 'พายุฟ้าผ่า', 'Thunderstorm'], ['wind', 'ลมพัด', 'Wind'], ['flood', 'น้ำท่วม', 'Flood'], ['quake', 'แผ่นดินไหว', 'Earthquake'], ['dawn', 'รุ่งอรุณ', 'Dawn light'], ['dusk', 'ยามเย็น', 'Dusk light'], ['night', 'ราตรี', 'Moonlight']].map(([k, th, en]) => ({
     id: 'wx-' + k, name: th, en, cat: 'weather', build() { return { sprite: weatherIcon(k), weather: k }; },
@@ -102,4 +106,38 @@ function weatherIcon(k) {
       else for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; line(ctx, [[60 + Math.cos(a) * 42, 60 + Math.sin(a) * 42], [60 + Math.cos(a) * 56, 60 + Math.sin(a) * 56]], col, 5, { smoothIt: false }); }
     }
   }, { name: 'wx-' + k });
+}
+
+// ยันต์-style spell medallions
+function spellIcon(k) {
+  return paintSprite(120, 120, (ctx) => {
+    const disc = poly(ellipsePts(60, 60, 50, 50, 40));
+    leather(ctx, disc);
+    dye(ctx, disc, k === 'soul' ? INK.indigo : k === 'ward' ? INK.gold : k === 'mend' ? INK.jade : INK.purple, 0.85);
+    dotLine(ctx, ellipsePts(60, 60, 42, 42, 40), { spacing: 6, r: 1.4 });
+    if (k === 'soul') {
+      // a flame-like soul (ดวงวิญญาณ) with a heart hole
+      flame(ctx, 60, 90, 30, INK.cream);
+      holes(ctx, [[60, 70]], 5);
+    } else if (k === 'ward') {
+      // square yantra grid with unalom
+      const sq = poly([[34, 34], [86, 34], [86, 86], [34, 86]]);
+      leather(ctx, sq); dye(ctx, sq, INK.cream, 0.9);
+      for (const t of [51, 69]) { line(ctx, [[t, 36], [t, 84]], INK.leather, 2.2, { smoothIt: false }); line(ctx, [[36, t], [84, t]], INK.leather, 2.2, { smoothIt: false }); }
+      line(ctx, [[60, 22], [60, 30], [54, 26], [60, 20], [66, 26]], INK.leather, 3);
+    } else if (k === 'mend') {
+      // needle and thread over a heart leaf
+      const h = poly(curve([[60, 94], [30, 66], [36, 40], [60, 50], [84, 40], [90, 66]], true, 8));
+      leather(ctx, h); dye(ctx, h, INK.red, 0.9);
+      line(ctx, [[30, 86], [92, 30]], INK.cream, 3.5, { smoothIt: false });
+      holes(ctx, [[88, 34]], 2.2);
+      for (let i = 0; i < 4; i++) line(ctx, [[44 + i * 10, 58 + (i % 2) * 8], [50 + i * 10, 66 - (i % 2) * 8]], INK.cream, 2.2, { smoothIt: false });
+    } else {
+      // summoning star (ดาวเก้ายอด)
+      const pts = [];
+      for (let i = 0; i < 18; i++) { const a = (i / 18) * Math.PI * 2 - Math.PI / 2, r = i % 2 ? 16 : 36; pts.push([60 + Math.cos(a) * r, 60 + Math.sin(a) * r]); }
+      const st = poly(pts); leather(ctx, st); dye(ctx, st, INK.yellow, 0.95);
+      holes(ctx, [[60, 60]], 7);
+    }
+  }, { name: 'mg-' + k });
 }

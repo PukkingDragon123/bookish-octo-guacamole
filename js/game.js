@@ -15,6 +15,8 @@ import { CLOTH_W, CLOTH_H } from './render/screen.js';
 import { FX } from './render/fx.js';
 import { Editor } from './editor.js';
 import { Controls } from './controls.js';
+import { Souls } from './sandbox/soul.js';
+import { Magic } from './sandbox/magic.js';
 
 let audio = null;
 let HandTracker = null;
@@ -55,6 +57,8 @@ export class Game {
     this.cam.set(this.cam.framing('stage'));
     this.editor = new Editor(this);
     this.controls = new Controls(this);
+    this.souls = new Souls(this);
+    this.magic = new Magic(this);
     this.fx.onThunder = () => audio?.sfx('thud', { vol: 1, pitch: 0.35 });
     this._wire();
     import('./audio/audio.js').then((m) => { audio = m.audio; this.audio = audio; }).catch((e) => console.warn('audio unavailable', e));
@@ -71,6 +75,7 @@ export class Game {
       audio?.sfx(on ? 'magic' : 'click', { vol: 0.6 });
       return null;
     }
+    if (def.spell) return this.magic.cast(def, cx, cy);
     let a;
     if (def.rig && !def.cat) {
       a = this.scene.addPuppet(def.rig, { x: cx, z, facing: opts.facing ?? (cx > 800 ? -1 : 1) });
@@ -87,7 +92,8 @@ export class Game {
       a = this.scene.addProp(def, { x: cx, y: cy, z });
       if (a instanceof Puppet) a.def = def;
     }
-    audio?.sfx('pop', { pan: (cx - 800) / 800 });
+    if (!opts.quiet && !this.intro && !this.menu) this.magic.arrive(a, def);
+    else if (!opts.quiet) audio?.sfx('pop', { pan: (cx - 800) / 800 });
     return a;
   }
 
@@ -370,6 +376,7 @@ export class Game {
     } else if (d.type === 'limb') a.releaseLimb(d.key);
     else if (d.type === 'prop') {
       this.scene.world.removeC(d.pin);
+      if (!a.gripLocal) return; // torn pieces can't be held
       // dropped onto a hand?
       const b = a.body;
       for (const p of this.scene.puppets()) {
@@ -427,7 +434,9 @@ export class Game {
   // ------------------------------------------------------------ events
   _onHit(h) {
     const [cx, cy] = this.scene.project(h.x, h.y, h.z);
-    this.stage.sparks(cx, cy, h.blocked ? 26 : 12, h.blocked ? '255,230,150' : '255,140,80');
+    const alive = h.target?.dmg?.soul && !h.target.dead && !h.blocked;
+    const warded = h.target?.dmg?.ward > 0.01;
+    this.stage.sparks(cx, cy, h.blocked || warded ? 26 : alive ? 6 : 12, h.blocked || warded ? '255,230,150' : alive ? '160,10,14' : '255,140,80');
     this.scene.membrane.poke(cx, cy, 60, h.blocked ? 40 : 90);
     this.cam.shake = Math.max(this.cam.shake, h.result === 'fall' ? 14 : 6);
     const pan = (cx - 800) / 800;
@@ -512,7 +521,7 @@ export class Game {
     this.cam.set({ x: 800, y: -2050, zoom: hz * 1.35 });
     this.menuEl = document.createElement('div');
     this.menuEl.id = 'menu';
-    this.menuEl.innerHTML = '<div class="m-title">หนังตะลุง</div><button class="medal big play" title="เริ่มการแสดง · Begin the show"><i class="gem"></i><svg viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z"/></svg></button>';
+    this.menuEl.innerHTML = '<div class="m-title">โรงละครหนังตะลุง<small>simulator</small></div><button class="medal big play" title="เริ่มการแสดง · Begin the show"><i class="gem"></i><svg viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z"/></svg></button>';
     this.root.querySelector('#ui').append(this.menuEl);
     this.menuEl.querySelector('.play').addEventListener('click', () => this.beginPlay());
   }
@@ -655,6 +664,8 @@ export class Game {
     if (!this.editor?.playing) {
       this.scene.update(dt);
       this.fx.update(dt);
+      this.souls.update(dt);
+      this.magic.update(dt);
       if (this.fx.shake) this.cam.shake = Math.max(this.cam.shake, this.fx.shake);
     }
     for (const c of this.stage.curtains) c.step(dt, this.time);

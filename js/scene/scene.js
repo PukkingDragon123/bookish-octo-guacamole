@@ -23,6 +23,7 @@ export class Scene {
     this.time = 0;
     this.listeners = {};
     this.hitFx = [];
+    this.extraGlows = []; // transient lights pushed each frame (souls, spells, summons)
     this.world.depthSlop = 0.06;
   }
 
@@ -112,6 +113,7 @@ export class Scene {
 
   update(dt) {
     this.time += dt;
+    this.extraGlows = [];
     const L = this.lamp;
     // lamp flicker (oil) / hum (electric)
     L.intensity += (L.target - L.intensity) * Math.min(1, dt * 2.2);
@@ -145,7 +147,9 @@ export class Scene {
         const power = (isWeapon ? 1.2 : 0.8) * wielder.attacking * (blocked ? 0.25 : 1);
         const res = target.hit(power, nx, -0.3, c.x, c.y);
         if (res) {
-          this.emit('hit', { attacker: wielder, target, x: c.x, y: c.y, z: target.z, blocked, weapon: isWeapon, result: res });
+          const body = wb === c.A ? c.B : c.A;
+          const kind = isWeapon ? (wb.owner?.def?.weapon?.kind || 'blade') : wielder.isAnimal ? 'bite' : 'blunt';
+          this.emit('hit', { attacker: wielder, target, body, x: c.x, y: c.y, z: target.z, nx, blocked, weapon: isWeapon, kind, power, result: res });
           wielder.attacking = 0;
         }
       }
@@ -217,6 +221,7 @@ export class Scene {
       const fl = 0.85 + Math.sin(this.time * 17 + cx) * 0.08 + Math.sin(this.time * 7.3 + cy) * 0.07;
       out.push({ x: cx, y: cy, r: g[2] * s * 1.6, i: 0.9 * fl, c: a.def.glowColor || [1.0, 0.62, 0.25] });
     }
+    for (const g of this.extraGlows || []) out.push(g);
     return out;
   }
 }
