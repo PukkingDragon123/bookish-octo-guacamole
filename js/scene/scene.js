@@ -122,8 +122,12 @@ export class Scene {
       L.flicker = (Math.sin(t * 13.1) * 0.35 + Math.sin(t * 23.7 + 1.3) * 0.25 + Math.sin(t * 5.3) * 0.4) * 0.028 + (Math.random() - 0.5) * 0.012;
     } else L.flicker = Math.sin(t * 100 * Math.PI) * 0.004;
     for (const a of this.actors) a.update(dt, t);
-    this.world.step(dt);
-    this._combat();
+    // equal physics slices no longer than 1/60 s: steadier than one big step
+    const n = Math.max(1, Math.ceil(dt * 60 - 1e-3));
+    for (let i = 0; i < n; i++) {
+      this.world.step(dt / n);
+      this._combat();
+    }
     this._pressCloth();
     this.membrane.step(dt);
   }

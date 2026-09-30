@@ -161,8 +161,8 @@ export class Joint {
     }
     if (this.lim) {
       const rel = wrap(this.relAngle() - this.rest);
-      if (rel < this.lim[0]) solveAngle(A, B, (rel - this.lim[0]) * f, 0, h);
-      else if (rel > this.lim[1]) solveAngle(A, B, (rel - this.lim[1]) * f, 0, h);
+      if (rel < this.lim[0]) solveAngle(A, B, (rel - this.lim[0]) * f, 2e-9, h);
+      else if (rel > this.lim[1]) solveAngle(A, B, (rel - this.lim[1]) * f, 2e-9, h);
     }
   }
   solveVel(h) {
@@ -299,8 +299,10 @@ export class World {
         b.va = (b.a - b.pa) / h;
         // guard against explosions
         const sp = b.vx * b.vx + b.vy * b.vy;
-        if (sp > 9e6) { const k = 3000 / Math.sqrt(sp); b.vx *= k; b.vy *= k; }
-        if (Math.abs(b.va) > 60) b.va = Math.sign(b.va) * 60;
+        if (sp > 5.8e6) { const k = 2400 / Math.sqrt(sp); b.vx *= k; b.vy *= k; }
+        if (Math.abs(b.va) > 40) b.va = Math.sign(b.va) * 40;
+        // settle: bodies resting on the floor stop trembling
+        if (b._onFloor && sp < 400 && Math.abs(b.va) < 0.6) { b.vx *= 0.85; b.vy *= 0.85; b.va *= 0.8; }
       }
       for (const c of this.constraints) if (c.enabled && c.solveVel) c.solveVel(h);
     }
@@ -328,6 +330,7 @@ export class World {
     for (const b of this.bodies) {
       if (!b.invMass || !b.floor || !b.circles.length) continue;
       const fy = this.floorY(b.z);
+      b._onFloor = false;
       if (b.y + b.radius < fy) continue;
       const c = Math.cos(b.a), s = Math.sin(b.a);
       for (const k of b.circles) {
@@ -335,7 +338,8 @@ export class World {
         const rx = lx * c - k.y * s, ry = lx * s + k.y * c;
         let pen = b.y + ry + k.r - fy;
         if (pen <= 0) continue;
-        pen = Math.min(pen, 12);
+        b._onFloor = true;
+        pen = Math.min(pen, 5); // resolve deep overlaps over several substeps (no pops)
         // contact point at the bottom of the circle; normal n = (0, -1)
         const cx = rx, cy = ry + k.r;
         const w = genInvMass(b, cx, cy, 0, -1);
@@ -378,7 +382,7 @@ export class World {
           if (d2 >= R * R || d2 < 1e-8) continue;
           const d = Math.sqrt(d2);
           const nx = dx / d, ny = dy / d;
-          const pen = Math.min(R - d, 6);
+          const pen = Math.min(R - d, 2.5);
           // contact points on each surface (offsets from COM)
           const cAx = rAx - nx * ka.r, cAy = rAy - ny * ka.r;
           const cBx = rBx + nx * kb.r, cBy = rBy + ny * kb.r;
@@ -386,8 +390,20 @@ export class World {
           if (w <= 0) continue;
           const soft = (A.softness || 0) + (B.softness || 0);
           const at = soft / (h * h);
-          const dl = pen / (w + at);
+          const dl = (pen * 0.6) / (w + at); // relaxed: overlaps melt apart instead of kicking
           applyPos(A, cAx, cAy, B, cBx, cBy, nx * dl, ny * dl);
+          // a little friction between bodies so stacked parts settle instead of skating
+          {
+            const tx = -ny, ty = nx;
+            const [vax, vay] = A.velAt(cAx, cAy), [vbx, vby] = B.velAt(cBx, cBy);
+            const slide = ((vax - vbx) * tx + (vay - vby) * ty) * h;
+            const wt = genInvMass(A, cAx, cAy, tx, ty) + genInvMass(B, cBx, cBy, tx, ty);
+            if (wt > 0) {
+              const mu = 0.35 * pen * 0.6;
+              const f = Math.max(-mu, Math.min(mu, slide)) / wt;
+              applyPos(A, cAx, cAy, B, cBx, cBy, -tx * f, -ty * f);
+            }
+          }
           if (record) {
             const [vax, vay] = A.velAt(cAx, cAy);
             const [vbx, vby] = B.velAt(cBx, cBy);

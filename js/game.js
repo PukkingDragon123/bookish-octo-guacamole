@@ -20,6 +20,7 @@ import { Magic } from './sandbox/magic.js';
 import { AnimalAI } from './sandbox/animalAI.js';
 import { Scenes } from './sandbox/scenes.js';
 import { Games } from './sandbox/games.js';
+import { Director } from './scene/director.js';
 import { swayFoliage } from './props/foliage.js';
 
 let audio = null;
@@ -66,6 +67,18 @@ export class Game {
     this.magic = new Magic(this);
     this.scenes = new Scenes(this);
     this.games = new Games(this);
+    this.director = new Director(this);
+    {
+      // camera-mode medallion next to the others
+      const top = this.root.querySelector('#topbar');
+      if (top) {
+        const b = document.createElement('button');
+        b.className = 'medal'; b.id = 'b-cam'; b.title = 'กล้อง (C) · Camera: free → follow → cinematic';
+        b.innerHTML = '<i class="gem"></i><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h3l2-3h8l2 3h3v11H3zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/></svg>';
+        b.onclick = () => this.director.cycle();
+        top.insertBefore(b, top.querySelector('#b-help'));
+      }
+    }
     this.scene.extraDrawables = () => this.games.drawables();
     this.fx.onThunder = () => audio?.sfx('thud', { vol: 1, pitch: 0.35 });
     this._wire();
@@ -432,6 +445,7 @@ export class Game {
     const mv = KEY_MOVES[e.code];
     if (mv && a) { this.playMove(mv); e.preventDefault(); }
     if (e.code === 'KeyF' && a) { a.flip(); audio?.sfx('flip'); }
+    if (e.code === 'KeyC') this.director.cycle();
     if ((e.code === 'Delete' || e.code === 'Backspace') && a) this.removeActor(a);
     if (e.code === 'KeyH') this.ui.toggleHelp();
     if (e.code === 'Tab') {
@@ -684,6 +698,7 @@ export class Game {
       if (this.fx.shake) this.cam.shake = Math.max(this.cam.shake, this.fx.shake);
     }
     for (const c of this.stage.curtains) c.step(dt, this.time);
+    this.director.update(dt);
     this.cam.update(this.intro ? this.wallDt || dt : dt);
     // hand cursor pose
     if (!tracking) {
@@ -816,6 +831,7 @@ export class Game {
       f.strokeStyle = 'rgba(255,230,160,0.9)'; f.lineWidth = 2;
       f.beginPath(); f.arc(lx, ly, 18, 0, 7); f.stroke();
     }
+    this.director.drawOverlay(f, cam, dpr);
     // the khon hand cursor
     if (!this.intro || this.intro.t > 20) {
       const s = clamp(cam.zoom * 1.25, 0.6, 1.3);

@@ -454,12 +454,18 @@ export class Puppet {
     if (this.mode === 'ragdoll') {
       this.ragdollT += dt;
       if (this.ragdollT > 1.6 && this.controller !== 'drag' && !this.dead) {
+        // get up gently: start the grip where the body lies and lift it
         this.target.x = r.x;
-        this.target.y = this.standY();
+        this.target.y = r.y;
         this.target.lean = 0;
         this.setMode('planted');
-        this._rise = 0.8;
+        this._recover = 1;
+        this.rootPin.angle = r.a;
       }
+    }
+    if (this._recover > 0) {
+      this._recover = Math.max(0, this._recover - dt * 1.4);
+      if (this.mode === 'planted') this.target.y += (this.standY() - this.target.y) * Math.min(1, dt * 4);
     }
     this._rise = Math.max(0, (this._rise || 0) - dt);
 
@@ -558,6 +564,7 @@ export class Puppet {
         tgt = Math.max(tgt, flap + this.jawOpen);
         om = Math.max(om, 14);
       }
+      if (this.mode === 'ragdoll') om *= 0.3; // floppy while down: no pushing off the floor
       j.target = tgt;
       j.drive = om > 0 ? 1 : 0;
       j.driveCompliance = om > 0 ? 1 / (j.ieff * om * om) : 1;
@@ -602,8 +609,9 @@ export class Puppet {
     const held = this.mode === 'held';
     const wp = held ? 30 : this.mode === 'hung' ? 9 : 26;
     const wa = held ? 24 : this.mode === 'hung' ? 9 : 22;
-    this.rootPin.compliance = 1 / (this.totalMass * wp * wp);
-    this.rootPin.angCompliance = 1 / (this.totalI * wa * wa) * (this.stun > 0 ? 25 : 1);
+    const rec = 1 - 0.8 * (this._recover || 0); // soft grip while getting up
+    this.rootPin.compliance = 1 / (this.totalMass * (wp * rec) ** 2);
+    this.rootPin.angCompliance = 1 / (this.totalI * (wa * rec) ** 2) * (this.stun > 0 ? 25 : 1);
 
     // a lifeless body goes limp
     if (this.dead) {
@@ -652,8 +660,10 @@ export class Puppet {
     if (this.hitCooldown > 0) return false;
     this.hitCooldown = 0.35;
     const r = this.root;
-    const imp = 260 * power;
-    for (const b of this.parts) b.applyImpulse(nx * imp * b.mass * 0.9, ny * imp * b.mass * 0.6 - 40 * b.mass);
+    // knock-back: a push, not a launch (limp bodies take much less, and never get tossed upward)
+    const limp = this.dead || this.mode === 'ragdoll';
+    const imp = (limp ? 70 : 190) * Math.min(power, 1.8);
+    for (const b of this.parts) b.applyImpulse(nx * imp * b.mass * 0.8, limp ? 0 : (ny * imp * b.mass * 0.35 - 20 * b.mass));
     if (power > 1.6 && this.mode !== 'held') {
       this.setMode('ragdoll');
       this.stun = 1.6;

@@ -178,3 +178,8 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #050610; col
 #menu .m-title small { font: 600 clamp(15px, 2.2vw, 30px) var(--ui-font); letter-spacing: .5em; text-transform: uppercase; color: #f3d894; text-shadow: 0 0 14px rgba(255, 200, 110, .8); margin-top: .35em; padding-left: .5em; }
 @keyframes menuGlow { 50% { filter: drop-shadow(0 0 18px rgba(255, 220, 140, .9)); } }
 @media (max-width: 600px) { #pad .stick { left: 84px; width: 104px; height: 104px; } #timeline { bottom: 190px; } }
+
+/* camera mode toast */
+#cam-mode { position: absolute; left: 50%; top: 14%; transform: translateX(-50%); padding: 6px 18px; border-radius: 18px; background: rgba(26, 11, 7, .82); border: 1px solid var(--gold-mid); color: var(--ink); font: 600 14px var(--ui-font); letter-spacing: .03em; opacity: 0; pointer-events: none; }
+#cam-mode.show { animation: camToast 2.2s ease forwards; }
+@keyframes camToast { 0% { opacity: 0; transform: translate(-50%, -6px); } 12%, 75% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }

@@ -26,7 +26,7 @@ async function boot() {
       last = now;
       game.wallDt = Math.min(0.25, raw);
       const t0 = performance.now();
-      game.update(dt);
+      game.update(dt * (game.director?.timeScale ?? 1));
       game.render(dt);
       game.frameMs = performance.now() - t0;
       requestAnimationFrame(frame);
