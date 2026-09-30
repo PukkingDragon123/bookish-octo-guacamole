@@ -3,6 +3,7 @@
 // dancing by itself.
 
 import { Puppet } from '../puppet/puppet.js';
+import { drawDeva } from '../render/deva.js';
 
 export const ROLES = [
   ['fighter', 'นักดาบ', 'Sword fighter', '⚔'],
@@ -225,80 +226,39 @@ export class Fly {
     }
   }
 
-  // A little เทวดา: halo, ชฎา crown, flame wings, streaming ribbons,
-  // flying in a kneeling pose with hands forward on the strings.
+  // A little mural เทวดา (see render/deva.js): flies freely between jobs,
+  // kneels on a small cloud while working a puppet's strings.
   draw(ctx, toScreen, dpr, zoom) {
     const [sx, sy] = toScreen(this.x, this.y);
-    const s = Math.max(0.9, zoom * 2.1) * (this.actor ? 1 : 0.85);
+    const s = Math.max(0.9, zoom * 2.1) * (this.actor ? 1 : 0.85) * 0.6;
     const t = this.t;
     const face = this.actor ? Math.sign(((this.actor.root && this.actor.root.x) || 0) - this.x + 0.001) || 1 : Math.sign(this.vx) || 1;
     this.face = this.face == null ? face : this.face + (face - this.face) * 0.1;
+    this.hue ??= Math.floor(Math.random() * 5);
+    const pose = this.actor ? 'kneel' : 'fly';
+    if (pose !== this.pose) { this.prevPose = this.pose; this.pose = pose; this.poseT = 0; }
+    this.poseT = (this.poseT || 0) + 1 / 60;
+    const k = this.prevPose ? Math.min(1, this.poseT / 0.35) : 1;
+    const flap = Math.min(1, Math.hypot(this.vx, this.vy) / 350);
+    const fs = Math.sign(this.face) || 1;
+    const f = fs * Math.max(0.08, Math.min(1, Math.abs(this.face) * 1.6));
     ctx.save();
-    ctx.setTransform(dpr * s * (this.face >= 0 ? 1 : -1), 0, 0, dpr * s, sx * dpr, sy * dpr);
-    ctx.rotate(Math.sin(t * 1.3) * 0.08 + this.vx * 0.0004);
-    // halo
-    const hg = ctx.createRadialGradient(2, -22, 2, 2, -22, 34);
-    hg.addColorStop(0, 'rgba(255,240,190,0.9)');
-    hg.addColorStop(0.5, 'rgba(255,215,130,0.35)');
-    hg.addColorStop(1, 'rgba(255,215,130,0)');
-    ctx.fillStyle = hg;
-    ctx.beginPath(); ctx.arc(2, -22, 34, 0, 7); ctx.fill();
-    // streaming ribbons
-    for (const [col, off] of [['#2f7d45', 0], ['#c0392b', 1.7]]) {
-      ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(-4, 4);
-      for (let k = 1; k <= 8; k++) ctx.lineTo(-4 - k * 5, 4 + k * 2.5 + Math.sin(t * 5 - k * 0.8 + off) * (2 + k * 0.7));
-      ctx.stroke();
-    }
-    // flame wings
-    const flap = Math.sin(t * 9) * 0.35;
-    for (const [k, alpha] of [[-1, 0.55], [1, 0.95]]) {
-      ctx.save();
-      ctx.translate(-3, -6);
-      ctx.rotate(-0.9 + flap * k * 0.6 + (k < 0 ? -0.25 : 0));
-      ctx.globalAlpha = alpha;
-      const wg = ctx.createLinearGradient(0, 0, 0, -30);
-      wg.addColorStop(0, '#d4912a'); wg.addColorStop(1, '#fff0b0');
-      ctx.fillStyle = wg;
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.bezierCurveTo(-10, -8, -12, -22, -4, -32);
-      ctx.bezierCurveTo(-2, -24, 2, -22, 3, -28);
-      ctx.bezierCurveTo(6, -18, 8, -10, 0, 0);
-      ctx.fill();
-      ctx.restore();
-    }
-    ctx.globalAlpha = 1;
-    // body: kneeling flight, red jacket, green sash, gold trim
-    ctx.fillStyle = '#9e2a1e';
-    ctx.beginPath();
-    ctx.moveTo(-6, -12); ctx.quadraticCurveTo(6, -14, 7, -2); ctx.lineTo(4, 10);
-    ctx.quadraticCurveTo(-2, 14, -12, 12); ctx.quadraticCurveTo(-18, 10, -20, 16);
-    ctx.lineTo(-14, 6); ctx.quadraticCurveTo(-10, -4, -6, -12); ctx.fill();
-    ctx.strokeStyle = '#e8c36a'; ctx.lineWidth = 1.2; ctx.stroke();
-    ctx.fillStyle = '#2f7d45';
-    ctx.fillRect(-9, 0, 14, 3);
-    // arm reaching forward to the strings
-    ctx.strokeStyle = '#f1d3a6'; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.moveTo(3, -8); ctx.quadraticCurveTo(10, -4, 14 + Math.sin(t * 3) * 1.5, 2); ctx.stroke();
-    this.handOff = [14, 2];
-    // head
-    ctx.fillStyle = '#f1d3a6';
-    ctx.beginPath(); ctx.ellipse(2, -18, 5.5, 6.5, 0.1, 0, 7); ctx.fill();
-    ctx.fillStyle = '#1a1010';
-    ctx.beginPath(); ctx.arc(4.5, -19, 0.9, 0, 7); ctx.fill();
-    // ชฎา crown
-    const cg = ctx.createLinearGradient(0, -40, 0, -20);
-    cg.addColorStop(0, '#fff3bf'); cg.addColorStop(1, '#c08a2a');
-    ctx.fillStyle = cg;
-    ctx.beginPath();
-    ctx.moveTo(-4, -21); ctx.lineTo(7, -21); ctx.lineTo(3.5, -30); ctx.lineTo(2, -42); ctx.lineTo(0.5, -30); ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = '#c0392b'; ctx.beginPath(); ctx.arc(1.8, -25, 1.3, 0, 7); ctx.fill();
+    ctx.setTransform(dpr * s, 0, 0, dpr * s, sx * dpr, sy * dpr);
+    ctx.rotate(Math.sin(t * 1.3) * 0.05 + this.vx * 0.0003);
+    const a0 = ctx.globalAlpha;
+    if (k < 1) {
+      ctx.globalAlpha = a0 * (1 - k);
+      drawDeva(ctx, { t, face: f, flap, pose: this.prevPose, hue: this.hue, active: !!this.actor });
+      ctx.globalAlpha = a0 * k;
+    } else this.prevPose = null;
+    const { hand } = drawDeva(ctx, { t, face: f, flap, pose, hue: this.hue, active: !!this.actor });
+    ctx.globalAlpha = a0;
+    const m = ctx.getTransform();
     ctx.restore();
+    this.handOff = hand;
     // hand position in screen space (strings leave from here)
-    const fx = this.face >= 0 ? 1 : -1;
-    this.hand = [sx + 14 * s * fx, sy + 2 * s];
+    const fx = fs;
+    this.hand = [(m.a * hand[0] + m.c * hand[1] + m.e) / dpr, (m.b * hand[0] + m.d * hand[1] + m.f) / dpr];
     // sparkle dust behind
     if (Math.random() < 0.35) (this.dust ||= []).push({ x: sx, y: sy, t: 0, vx: -fx * (10 + Math.random() * 20), vy: 10 + Math.random() * 15 });
     ctx.save();

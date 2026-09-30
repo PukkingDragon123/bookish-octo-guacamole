@@ -13,11 +13,11 @@ import { goldGrad } from './paint.js';
 // finger layout in hand space (hand points up, palm facing viewer,
 // thumb on the left). [baseX, baseY, len, spreadAngle, width, nail]
 const FINGERS = [
-  [-19.5, -15, 31, -0.86, 7.2, 11],  // thumb
-  [-13.6, -39.5, 43, -0.15, 6.2, 15],
-  [-3.6, -43.5, 47, -0.035, 6.4, 16],
-  [6.6, -42, 44, 0.085, 6, 15],
-  [15.6, -37.2, 35, 0.22, 5.2, 12],
+  [-19.5, -15, 31, -0.86, 9, 11],  // thumb
+  [-13.4, -39.5, 43, -0.15, 8.6, 15],
+  [-3.4, -43.5, 47, -0.035, 8.8, 16],
+  [6.6, -42, 44, 0.085, 8.4, 15],
+  [15.2, -37.2, 35, 0.22, 7.4, 12],
 ];
 const SEGS = [0.44, 0.31, 0.25];
 const TAU = Math.PI * 2;
