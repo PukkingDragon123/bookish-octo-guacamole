@@ -36,6 +36,7 @@ export const ICONS = {
   show: P('M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12zM12 9a3 3 0 1 1 0 6 3 3 0 0 1 0-6z'),
   flip: P('M7 7h11l-3-3M17 17H6l3 3'),
   remove: P('M6 6l12 12M18 6L6 18'),
+  freeze: P('M12 2v20M4 6l16 12M20 6L4 18M9 3l3 2 3-2M9 21l3-2 3 2'),
   soul: P('M12 21c-4 0-6-3-6-6 0-4 3-6 4-10 1 3 4 4 4 7 1-1 1-2 1-3 2 2 3 4 3 6 0 3-2 6-6 6zM12 17a2 2 0 1 0 0-.1'),
   ward: P('M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6zM9 9h6v6H9zM12 9v6M9 12h6'),
   mend: P('M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10zM4 20L20 4M18 4h2v2'),
@@ -232,6 +233,7 @@ export class UI {
     d.value = a.z;
     d.oninput = () => a.setDepth(+d.value);
     row.append(el('div', { class: 'depth' }, d));
+    row.append(medal(ICONS.freeze, a.frozen ? 'ปลดตรึง · Unfreeze' : 'ตรึงไว้กลางอากาศ · Freeze in place', () => g.toggleFreeze(a), { cls: a.frozen ? 'on' : '' }));
     row.append(medal(ICONS.remove, 'เก็บ · Put away', () => g.removeActor(a)));
     s.append(row);
   }
@@ -240,7 +242,7 @@ export class UI {
 const HELP = `
 <h2>โรงละครหนังตะลุง · วิธีเชิดหนัง</h2>
 <table>
-<tr><td>ลาก</td><td>Drag a puppet to move it; drag near a hand, foot or head to pull that string.</td></tr>
+<tr><td>ลาก</td><td>Drag the body to carry a puppet; grab any other part (arm, leg, head, tail) to pull just that part — lift it and the whole figure dangles from it. Flick while letting go to throw. Two fingers pinch to zoom / pan; double-tap empty cloth to reset; long-press to select.</td></tr>
 <tr><td>ล้อเมาส์</td><td>Toward the lamp / back onto the cloth.</td></tr>
 <tr><td>F · คลิกขวา</td><td>Turn around.</td></tr>
 <tr><td>1–0</td><td>Strike · lunge · block · dance · wai · leap · roar · laugh · ตั้งวง · bow</td></tr>

@@ -80,6 +80,11 @@ export class Body {
   }
 }
 
+function heldAttacking(b) {
+  const h = b.owner && b.owner.heldBy;
+  return !!(h && h.puppet && (h.puppet.attacking > 0 || (h.puppet.anim && h.puppet.anim.def.attack)));
+}
+
 // --------------------------------------------------------------- solver core
 function applyPos(A, rAx, rAy, B, rBx, rBy, px, py) {
   // p is the positional impulse applied +p to A, -p to B
@@ -265,6 +270,8 @@ export class World {
         if (Math.abs(a.z - b.z) > this.depthSlop) continue;
         if (b.bound.y0 > a.bound.y1 + margin || a.bound.y0 > b.bound.y1 + margin) continue;
         if ((a.scenery && b.isPuppet) || (b.scenery && a.isPuppet)) continue;
+        // a held item only strikes other figures while its holder attacks
+        if ((a.follow && b.isPuppet && !heldAttacking(a)) || (b.follow && a.isPuppet && !heldAttacking(b))) continue;
         if (a.ignore && a.ignore.has(b)) continue;
         if (b.ignore && b.ignore.has(a)) continue;
         pairs.push(a, b);
@@ -390,7 +397,10 @@ export class World {
           if (w <= 0) continue;
           const soft = (A.softness || 0) + (B.softness || 0);
           const at = soft / (h * h);
-          const dl = (pen * 0.6) / (w + at); // relaxed: overlaps melt apart instead of kicking
+          // relaxed: overlaps melt apart instead of kicking; two puppets
+          // brushing past each other push only gently (their grips do the rest)
+          const pp = A.isPuppet && B.isPuppet && A.owner !== B.owner;
+          const dl = (pen * (pp ? 0.25 : 0.6)) / (w + at);
           applyPos(A, cAx, cAy, B, cBx, cBy, nx * dl, ny * dl);
           // a little friction between bodies so stacked parts settle instead of skating
           {

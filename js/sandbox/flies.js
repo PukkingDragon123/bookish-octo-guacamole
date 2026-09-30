@@ -132,7 +132,7 @@ export class Fly {
         if (Math.random() < dt * 0.6 || this.goal == null) this.goal = minX + Math.random() * (maxX - minX);
       }
     };
-    const say = (cat) => { p.say(line(p, cat)); game.onSpeech?.(p, p.speech); };
+    const say = (cat) => p.say(line(p, cat));
 
     switch (this.role) {
       case 'fighter':

@@ -432,10 +432,28 @@ export class Puppet {
     return !!(this.anim && !this.anim.stopping && !this.anim.def.loop);
   }
 
-  say(line, dur = 2.6) {
-    if (!line) return;
-    this.speech = { th: line.th || line, en: line.en || '', t: 0, dur: Math.max(dur, 1.4 + (line.th || line).length * 0.06) };
-    this.talk = this.speech.dur * 0.8;
+  // Speak a line. Lines don't interrupt one another, the same line isn't
+  // repeated back to back, and a crowd can't all talk at once; pass
+  // { force: true } to override (the player's own puppet, story beats).
+  say(line, dur = 2.6, { force = false } = {}) {
+    if (!line || this.dead) return false;
+    const th = String(line.th || line).trim();
+    if (!th) return false;
+    const now = this.scene ? this.scene.time : 0;
+    if (!force) {
+      if (this.speech && this.speech.t < this.speech.dur * 0.8) return false;
+      if (this._lastLine === th && now - (this._lastSayT || -99) < 12) return false;
+      if (now - (this._lastSayT || -99) < 2.2) return false;
+      const talking = this.scene ? this.scene.actors.filter((a) => a !== this && a.speech).length : 0;
+      if (talking >= 2) return false;
+    }
+    this._lastLine = th;
+    this._lastSayT = now;
+    const read = 1.6 + th.length * 0.075 + (line.en ? 0.6 : 0);
+    this.speech = { th, en: line.en || '', t: 0, dur: Math.min(7, Math.max(dur, read)), speak: Math.min(3.5, 0.5 + th.length * 0.06) };
+    this.talk = this.speech.speak;
+    this.scene?.emit('speech', this, this.speech);
+    return true;
   }
 
   // ------------------------------------------------------------ per frame
@@ -555,7 +573,7 @@ export class Puppet {
       if (hasA) {
         const want = A.j[key] * DEG - j.canonRest;
         tgt = lerp(tgt, want, aw);
-        const dom = an.def.omega || 20;
+        const dom = an.def.omega || (an.def.attack ? 17 : 14);
         // light hand links need a firmer drive or they sag under gravity
         om = lerp(om, an.def.omegaJ?.[key] ?? (an.def.smooth && key.startsWith('wrist') ? Math.max(dom, 19) : dom), aw);
       }
@@ -607,8 +625,9 @@ export class Puppet {
     const lean = (this.target.lean + root.lean * DEG * aw) * f + (this.walkAmt * 0.06 * Math.sign(this.vel.x));
     this.rootPin.angle = this.baseAngle + lean;
     const held = this.mode === 'held';
-    const wp = held ? 30 : this.mode === 'hung' ? 9 : 26;
-    const wa = held ? 24 : this.mode === 'hung' ? 9 : 22;
+    // grip stiffness (rad/s): firm enough to steer, soft enough to sway and yield
+    const wp = held ? 19 : this.mode === 'hung' ? 8 : 16;
+    const wa = held ? 16 : this.mode === 'hung' ? 8 : 14;
     const rec = 1 - 0.8 * (this._recover || 0); // soft grip while getting up
     this.rootPin.compliance = 1 / (this.totalMass * (wp * rec) ** 2);
     this.rootPin.angCompliance = 1 / (this.totalI * (wa * rec) ** 2) * (this.stun > 0 ? 25 : 1);

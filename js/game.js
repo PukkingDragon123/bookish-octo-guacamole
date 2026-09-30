@@ -22,6 +22,7 @@ import { Scenes } from './sandbox/scenes.js';
 import { Games } from './sandbox/games.js';
 import { Director } from './scene/director.js';
 import { Tutorial } from './tutorial.js';
+import { SpeechLayer } from './render/speech.js';
 import { swayFoliage } from './props/foliage.js';
 
 let audio = null;
@@ -86,6 +87,8 @@ export class Game {
     import('./audio/audio.js').then((m) => { audio = m.audio; this.audio = audio; }).catch((e) => console.warn('audio unavailable', e));
     this._handsP = import('./tracking/hands.js').then((m) => { HandTracker = m.HandTracker; }).catch((e) => console.warn('tracking unavailable', e));
     this.scene.on('hit', (h) => this._onHit(h));
+    this.scene.on('speech', (p, s) => this.onSpeech(p, s));
+    this.speechLayer = new SpeechLayer(this);
     this.scene.on('animEvent', (p, ev) => { if (ev.sfx) audio?.sfx(ev.sfx, { pan: this._pan(p), vol: 0.8 }); });
     this.scene.on('removed', (a) => { if (this.selected === a) this.select(null); });
     this.tutorial = new Tutorial(this);
@@ -288,11 +291,12 @@ export class Game {
     };
     addEventListener('pointerdown', wake, { capture: true });
     addEventListener('keydown', wake, { capture: true });
-    addEventListener('resize', () => { this.stage.resize(); if (!this.intro && !this.menu) this.cam.set(this.cam.framing('stage')); });
+    addEventListener('resize', () => { this.stage.resize(); if (!this.intro && !this.menu) { this.camManual = false; this.cam.set(this.cam.framing('stage')); } });
     fg.addEventListener('contextmenu', (e) => e.preventDefault());
     fg.addEventListener('pointerdown', (e) => this._down(e));
     addEventListener('pointermove', (e) => this._move(e));
     addEventListener('pointerup', (e) => this._up(e));
+    addEventListener('pointercancel', (e) => this._up(e));
     fg.addEventListener('wheel', (e) => this._wheel(e), { passive: false });
     addEventListener('keydown', (e) => this._key(e, true));
     addEventListener('keyup', (e) => this._key(e, false));
@@ -303,6 +307,11 @@ export class Game {
   _down(e) {
     if (this.menu) return;
     if (this.intro) { if (this.intro.t > 2) this.skipIntro(); return; }
+    // two fingers: pinch to zoom / pan the camera (cancels any drag)
+    (this.touches ||= new Map()).set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (this.touches.size === 2) { this._cancelDrag(); this._startPinch(); return; }
+    if (this.touches.size > 2) return;
+    const touch = e.pointerType === 'touch' || e.pointerType === 'pen';
     const [x, y] = this._scenePt(e);
     this.pointer.down = true;
     this.pointer.moved = 0;
@@ -319,14 +328,17 @@ export class Game {
       if (hit) { hit.actor.flip(); audio?.sfx('flip', { pan: this._pan(hit.actor) }); }
       return;
     }
-    // limb strings on the selected / hovered puppet first
-    const cands = [this.selected, ...this.scene.actors].filter((a) => a && a.pins);
+    // limb strings on the selected / hovered puppet first — unless the
+    // finger is right on a body part, which is then grabbed directly
+    const direct = this.scene.pick(x, y, 2);
+    const onPart = direct && direct.actor.rootPin && direct.body !== direct.actor.root;
+    const cands = onPart ? [] : [this.selected, ...this.scene.actors].filter((a) => a && a.pins);
     for (const a of cands) {
       for (const key of Object.keys(a.pins)) {
         const w = a.limbWorld(key);
         if (!w) continue;
         const [cx, cy] = this.scene.project(w[0], w[1], a.z);
-        if (Math.hypot(cx - x, cy - y) < 26) {
+        if (Math.hypot(cx - x, cy - y) < (touch ? 34 : 26)) {
           this.drag = { type: 'limb', actor: a, key };
           this.select(a);
           audio?.sfx('pick', { vol: 0.5, pan: this._pan(a) });
@@ -334,8 +346,12 @@ export class Game {
         }
       }
     }
-    const hit = this.scene.pick(x, y);
+    const hit = this.scene.pick(x, y, touch ? 20 : 8);
     if (!hit) {
+      // double-tap empty cloth resets a pinched camera
+      const now = performance.now();
+      if (this._lastTap && now - this._lastTap < 320 && this.camManual) { this.camManual = false; this.cam.flyTo(this.cam.framing('stage'), 0.6); this._lastTap = 0; return; }
+      this._lastTap = now;
       // click empty cloth: the selected puppet walks there
       if (this.selected instanceof Puppet && !this.selected.isPlant) this.walkTo = { actor: this.selected, x: this.scene.unproject(x, 0, this.selected.z)[0] };
       else this.select(null);
@@ -346,10 +362,25 @@ export class Game {
     this.select(a);
     const [wx, wy] = this.scene.unproject(x, y, a.z);
     audio?.sfx('pick', { vol: 0.6, pan: this._pan(a) });
-    if (a instanceof Puppet) {
+    // long-press: select and show the ring (with a little buzz on phones)
+    clearTimeout(this._lpTimer);
+    this._lpTimer = setTimeout(() => {
+      if (this.pointer.down && this.pointer.moved < 10 && this.drag && this.drag.actor === a) { this.select(a); navigator.vibrate?.(12); this.ui.renderSide(); }
+    }, 450);
+    if (a instanceof Puppet && hit.body && hit.body !== a.root && !hit.body.isRod && !a.isPlant) {
+      // Melon-style: grab the very part you touched. Pulling sideways bends
+      // the limb; lifting it lets the whole figure dangle from that point.
+      const b = hit.body;
+      const lp = b.toLocal(wx, wy);
+      const pin = new Pin(b, lp, wx, wy, { compliance: 1 / (a.totalMass * 220), angle: null, maxCorr: 28 });
+      this.scene.world.addC(pin);
+      this.flies.find((f) => f.actor === a)?.release();
+      a.controller = 'drag';
+      this.drag = { type: 'part', actor: a, pin, body: b, y0: wy, hist: [[performance.now(), wx, wy]] };
+    } else if (a instanceof Puppet) {
       a.setMode('held');
       a.controller = a.controller && a.controller !== 'player' ? a.controller : 'player';
-      this.drag = { type: 'puppet', actor: a, ox: a.target.x - wx, oy: a.target.y - wy };
+      this.drag = { type: 'puppet', actor: a, ox: a.target.x - wx, oy: a.target.y - wy, hist: [[performance.now(), wx, wy]] };
       this.flies.find((f) => f.actor === a)?.release();
     } else if (a.isStatic) {
       this.drag = { type: 'static', actor: a, ox: a.body.x - wx, oy: a.body.y - wy };
@@ -364,6 +395,10 @@ export class Game {
   }
 
   _move(e) {
+    if (this.touches?.has(e.pointerId)) {
+      this.touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (this.pinch) { this._updatePinch(); return; }
+    }
     this.pointer.x = e.clientX; this.pointer.y = e.clientY;
     if (this.pointer.down) this.pointer.moved += Math.abs(e.movementX || 0) + Math.abs(e.movementY || 0);
     const d = this.drag;
@@ -373,6 +408,12 @@ export class Game {
     if (d.type === 'spawn') return;
     const a = d.actor;
     const [wx, wy] = this.scene.unproject(clamp(x, -80, CLOTH_W + 80), clamp(y, -60, CLOTH_H + 40), a.z);
+    if (d.hist) { d.hist.push([performance.now(), wx, wy]); if (d.hist.length > 8) d.hist.shift(); }
+    if (d.type === 'part') {
+      d.pin.tx = wx; d.pin.ty = wy;
+      if (a.mode !== 'ragdoll' && d.y0 - wy > 70) a.setMode('ragdoll'); // lifted: dangle
+      return;
+    }
     if (d.type === 'puppet') a.holdAt(wx + d.ox, Math.min(wy + d.oy, a.standY() + 30));
     else if (d.type === 'limb') a.pullLimb(d.key, wx, wy);
     else if (d.type === 'static') a.placeAt(wx + d.ox, wy + d.oy);
@@ -380,11 +421,15 @@ export class Game {
   }
 
   _up(e) {
+    this.touches?.delete(e.pointerId);
+    if (this.pinch) { if ((this.touches?.size || 0) < 2) this.pinch = null; this.pointer.down = false; return; }
+    clearTimeout(this._lpTimer);
     this.pointer.down = false;
     const d = this.drag;
     this.drag = null;
     if (!d) return;
     const [x, y] = this._scenePt(e);
+    const fling = this._fling(d);
     if (d.type === 'spawn') {
       if (onCloth(x, y, 10)) {
         const a = this.spawn(d.def, clamp(x, 60, CLOTH_W - 60), clamp(y, 60, FLOOR), 0.02);
@@ -393,8 +438,22 @@ export class Game {
       return;
     }
     const a = d.actor;
+    if (d.type === 'part') {
+      this.scene.world.removeC(d.pin);
+      a.controller = null;
+      if (a.mode === 'ragdoll') { a.ragdollT = 0; if (fling) this._throw(a, fling, 0.35); }
+      else a.plantAt(a.root.x);
+      return;
+    }
     if (d.type === 'puppet') {
       a.controller = a.controller === 'player' ? null : a.controller;
+      if (fling && Math.hypot(fling[0], fling[1]) > 750) {
+        // thrown: let go as a ragdoll carrying the swing
+        a.setMode('ragdoll');
+        this._throw(a, fling, 0.8);
+        audio?.sfx('whoosh', { vol: 0.5, pan: this._pan(a) });
+        return;
+      }
       if (a.target.y > a.standY() - 140) a.plantAt(a.target.x);
       else a.setMode('hung');
       audio?.sfx('step', { vol: 0.4 });
@@ -417,6 +476,68 @@ export class Game {
       if (this.pointer.moved < 4 && a.def.sound) return;
       audio?.sfx('drop', { vol: 0.5 });
     }
+  }
+
+  // pointer velocity (world units/s) over the last ~90 ms of a drag
+  _fling(d) {
+    const H = d.hist;
+    if (!H || H.length < 2) return null;
+    const last = H[H.length - 1];
+    let i = H.length - 2;
+    while (i > 0 && last[0] - H[i][0] < 90) i--;
+    const dt = (last[0] - H[i][0]) / 1000;
+    if (dt <= 0.005 || performance.now() - last[0] > 120) return null;
+    return [(last[1] - H[i][1]) / dt, (last[2] - H[i][2]) / dt];
+  }
+
+  _throw(a, [vx, vy], k) {
+    const s = Math.hypot(vx, vy), cap = 1600;
+    const m = s > cap ? cap / s : 1;
+    for (const b of a.parts) { b.vx += vx * m * k; b.vy += vy * m * k; }
+  }
+
+  _cancelDrag() {
+    const d = this.drag;
+    this.drag = null;
+    clearTimeout(this._lpTimer);
+    if (!d) return;
+    if (d.type === 'part') { this.scene.world.removeC(d.pin); d.actor.controller = null; if (d.actor.mode !== 'ragdoll') d.actor.plantAt(d.actor.root.x); }
+    else if (d.type === 'puppet') { d.actor.controller = null; d.actor.plantAt(d.actor.target.x); }
+    else if (d.type === 'prop') this.scene.world.removeC(d.pin);
+    else if (d.type === 'limb') d.actor.releaseLimb(d.key);
+  }
+
+  _startPinch() {
+    const [p, q] = [...this.touches.values()];
+    this.pinch = { d0: Math.hypot(p.x - q.x, p.y - q.y) || 1, z0: this.cam.zoom, mx: (p.x + q.x) / 2, my: (p.y + q.y) / 2, cx: this.cam.x, cy: this.cam.y };
+    if (this.director.mode !== 'free') this.director.mode = 'free';
+    this.cam.anim = null;
+    this.camManual = true;
+  }
+
+  _updatePinch() {
+    const P = this.pinch, [p, q] = [...this.touches.values()];
+    if (!p || !q) return;
+    const cam = this.cam;
+    const base = cam.framing('stage').zoom;
+    const z = clamp(P.z0 * (Math.hypot(p.x - q.x, p.y - q.y) / P.d0), base * 0.8, base * 4);
+    const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2;
+    // keep the scene point under the starting midpoint under the fingers
+    const sx = (P.mx - cam.vw / 2) / P.z0 + P.cx, sy = (P.my - cam.vh / 2) / P.z0 + P.cy;
+    cam.zoom = z;
+    cam.x = clamp(sx - (mx - cam.vw / 2) / z, -200, 1800);
+    cam.y = clamp(sy - (my - cam.vh / 2) / z, -2600, 1300);
+  }
+
+  toggleFreeze(a) {
+    if (!a) return;
+    if (a.rootPin) {
+      a.frozen = !a.frozen;
+      if (a.frozen) { a.controller = 'frozen'; a.target.x = a.root.x; a.target.y = a.root.y; a.setMode('hung'); }
+      else { a.controller = null; a.plantAt(a.root.x); }
+    } else if (a.setStatic) { a.frozen = !a.isStatic; a.setStatic(a.frozen); }
+    audio?.sfx(a.frozen ? 'ching' : 'pop', { vol: 0.5 });
+    this.ui.renderSide();
   }
 
   beginSpawnDrag(def, e) {
@@ -472,9 +593,15 @@ export class Game {
     else if (Math.random() < 0.15) audio?.sfx('laugh', { vol: 0.35 });
   }
 
+  // voice a speech line (one voice at a time; the selected puppet may cut in)
   onSpeech(p, s) {
-    if (!s || !audio) return;
-    audio.voice(s.th, { voice: p.rig?.voice || 'male', pan: this._pan(p) });
+    if (!s || !audio || s.voiced) return;
+    const now = performance.now() / 1000;
+    if (now < (this._voiceUntil || 0) && p !== this.selected) return;
+    s.voiced = true;
+    const d = audio.voice(s.th, { voice: p.rig?.voice || 'male', pan: this._pan(p) }) || 0;
+    if (d > 0) { s.speak = d; p.talk = d; s.dur = Math.max(s.dur, d + 1.2); }
+    this._voiceUntil = now + Math.max(0.6, d * 0.85);
   }
 
   // ------------------------------------------------------------ tracking
@@ -637,7 +764,7 @@ export class Game {
     if (a && a instanceof Puppet && !a.isPlant && !this.drag) {
       const dir = (this.keys.has('ArrowRight') || this.keys.has('KeyD') ? 1 : 0) - (this.keys.has('ArrowLeft') || this.keys.has('KeyA') ? 1 : 0);
       if (dir) {
-        a.target.x = clamp(a.target.x + dir * 190 * dt, 60, this.scene.worldW - 60);
+        a.target.x = clamp(a.target.x + dir * 150 * dt, 60, this.scene.worldW - 60);
         this.walkTo = null;
         if (dir !== a.facing && a.flipAnim <= 0 && !a.isBusy()) a.flip();
       }
@@ -662,7 +789,7 @@ export class Game {
       const mv = this.controls.move;
       if (mv) {
         if (a.mode !== 'planted') a.plantAt(a.target.x);
-        a.target.x = clamp(a.target.x + mv * 260 * dt, 60, this.scene.worldW - 60);
+        a.target.x = clamp(a.target.x + mv * 185 * dt, 60, this.scene.worldW - 60);
         const dir = Math.sign(mv);
         if (dir !== a.facing && a.flipAnim <= 0 && !a.isBusy()) a.flip();
         this.walkTo = null;
@@ -672,7 +799,7 @@ export class Game {
       const w = this.walkTo, p = w.actor;
       if (p.mode !== 'planted') p.plantAt(p.target.x);
       const d = w.x - p.target.x;
-      p.target.x += Math.sign(d) * Math.min(Math.abs(d), 230 * dt);
+      p.target.x += Math.sign(d) * Math.min(Math.abs(d), 165 * dt);
       if (Math.abs(d) > 6 && Math.sign(d) !== p.facing && p.flipAnim <= 0 && !p.isBusy()) p.flip();
       if (Math.abs(d) < 2) this.walkTo = null;
     }
@@ -818,11 +945,7 @@ export class Game {
     this.tutorial?.draw(f, toScreen, dpr, cam.zoom);
     f.setTransform(dpr, 0, 0, dpr, 0, 0);
     // speech bubbles
-    for (const a of S.actors) {
-      if (!a.speech) continue;
-      const [hx, hy] = proj(a.handleWorld(), a.z);
-      bubble(f, hx, hy - a.headOffset * cam.zoom * 1.1 / (1 - a.z) - 20, a.speech);
-    }
+    this.speechLayer.draw(f, cam, dpr, proj);
     // spawn ghost
     if (this.drag && this.drag.type === 'spawn') {
       f.globalAlpha = 0.8;

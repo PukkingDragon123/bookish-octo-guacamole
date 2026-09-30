@@ -144,8 +144,8 @@ export function fight(fly, p, dt, game, say = () => {}) {
   // --- footwork: hold at the edge of my reach (or further when hurt)
   const want = hurt ? Math.max(R, foeR) * 1.5 : R * (fly.cool > 0.3 ? 1.05 : 0.85);
   if (!p.isBusy()) {
-    if (dist > want + 25) fly._walk(p, foe.root.x - dir * want, fly.role === 'monster' ? 170 : 150, dt);
-    else if (dist < want * 0.6) fly._walk(p, p.root.x - dir * 60, 110, dt);
+    if (dist > want + 25) fly._walk(p, foe.root.x - dir * want, fly.role === 'monster' ? 125 : 115, dt);
+    else if (dist < want * 0.6) fly._walk(p, p.root.x - dir * 60, 80, dt);
   }
 
   // --- defence

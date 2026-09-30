@@ -102,8 +102,16 @@ export class Scene {
   // Topmost actor under a cloth-space point (nearest the lamp wins: it's
   // "in front" from the puppeteer's side).
   pick(cx, cy, pad = 8) {
+    // puppets and loose things first; an item held in a hand only when
+    // nothing else is under the finger (so grabbing an arm doesn't yank
+    // the sword out of it)
+    return this._pick(cx, cy, pad, false) || this._pick(cx, cy, pad, true);
+  }
+
+  _pick(cx, cy, pad, held) {
     let best = null, bz = -1;
     for (const a of this.actors) {
+      if (!!a.heldBy !== held) continue;
       const [wx, wy] = this.unproject(cx, cy, a.z);
       const b = a.hitTest(wx, wy, pad);
       if (b && a.z > bz - 1e-4) { best = { actor: a, body: b }; bz = a.z; }
@@ -121,6 +129,7 @@ export class Scene {
     if (L.kind === 'oil') {
       L.flicker = (Math.sin(t * 13.1) * 0.35 + Math.sin(t * 23.7 + 1.3) * 0.25 + Math.sin(t * 5.3) * 0.4) * 0.028 + (Math.random() - 0.5) * 0.012;
     } else L.flicker = Math.sin(t * 100 * Math.PI) * 0.004;
+    this._personalSpace(dt);
     for (const a of this.actors) a.update(dt, t);
     // equal physics slices no longer than 1/60 s: steadier than one big step
     const n = Math.max(1, Math.ceil(dt * 60 - 1e-3));
@@ -130,6 +139,26 @@ export class Scene {
     }
     this._pressCloth();
     this.membrane.step(dt);
+  }
+
+  // Standing puppets that overlap step apart a little instead of shoving
+  // their bodies through each other (which made their grips fight the
+  // contacts and jitter). Fighters mid-swing are left alone.
+  _personalSpace(dt) {
+    const ps = this.actors.filter((a) => a.rootPin && a.mode === 'planted' && !a.isPlant && !a.dead && a.bounds);
+    for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) {
+      const A = ps[i], B = ps[j];
+      if (Math.abs(A.z - B.z) > 0.05) continue;
+      if (A.attacking > 0 || B.attacking > 0) continue;
+      const dx = B.target.x - A.target.x;
+      const need = (A.bounds.w + B.bounds.w) * 0.36;
+      if (Math.abs(dx) >= need) continue;
+      const push = Math.min(need - Math.abs(dx), 120 * dt) * 0.5;
+      const s = Math.sign(dx) || (A.id < B.id ? 1 : -1);
+      const lock = (p) => p.controller === 'player' || p.controller === 'drag' || p === this.selectedByPlayer;
+      if (!lock(A)) A.target.x -= s * push;
+      if (!lock(B)) B.target.x += s * push;
+    }
   }
 
   _combat() {

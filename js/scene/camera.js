@@ -25,6 +25,12 @@ export class Camera {
       const zoom = Math.min(w / 1680, h / 1080);
       return { x: 800, y: 500, zoom };
     }
+    // portrait phones: fill the width with the cloth, centred above the pad
+    if (h > w * 1.15) {
+      const zoom = w / 1700;
+      const visH = h / zoom;
+      return { x: 800, y: 470 + visH * 0.03, zoom };
+    }
     // stage: cloth + frame + roof + a band of heaven; keep the cloth big
     const zoom = Math.min(w / 2000, h / 1560);
     const visH = h / zoom;

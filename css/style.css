@@ -183,3 +183,8 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #050610; col
 #cam-mode { position: absolute; left: 50%; top: 14%; transform: translateX(-50%); padding: 6px 18px; border-radius: 18px; background: rgba(26, 11, 7, .82); border: 1px solid var(--gold-mid); color: var(--ink); font: 600 14px var(--ui-font); letter-spacing: .03em; opacity: 0; pointer-events: none; }
 #cam-mode.show { animation: camToast 2.2s ease forwards; }
 @keyframes camToast { 0% { opacity: 0; transform: translate(-50%, -6px); } 12%, 75% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
+
+/* the stage owns every touch gesture (no page scroll / browser zoom) */
+#app > canvas, #app { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+
+@media (max-width: 600px) { #side { bottom: 150px; max-width: calc(100vw - 16px); } #side .ring { flex-wrap: wrap; justify-content: center; } #side .medal { --s: 40px; } }
