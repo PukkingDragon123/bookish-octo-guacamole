@@ -214,10 +214,10 @@ export class FX {
         g.moveTo(q.x - r * 2, q.y); g.lineTo(q.x, q.y + r * 0.5); g.lineTo(q.x + r * 2, q.y); g.lineTo(q.x, q.y - r * 0.5); g.closePath();
         g.fill();
       } else if (q.k === 'beam') {
-        const a = Math.sin(Math.PI * Math.min(1, u * 1.2)) * 0.6;
+        const a = Math.sin(Math.PI * Math.min(1, u * 1.15)) * 0.9;
         const w = q.r * (0.6 + 0.4 * Math.sin(Math.PI * u));
         const gr = g.createLinearGradient(q.x - w, 0, q.x + w, 0);
-        const c = q.h === 'violet' ? '150,80,210' : '255,205,110';
+        const c = q.h === 'violet' ? '140,70,200' : '240,170,60';
         gr.addColorStop(0, `rgba(${c},0)`); gr.addColorStop(0.5, `rgba(${c},${a})`); gr.addColorStop(1, `rgba(${c},0)`);
         g.fillStyle = gr; g.fillRect(q.x - w, -40, w * 2, q.y + 40);
       } else if (q.k === 'ring') {
