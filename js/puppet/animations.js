@@ -16,12 +16,12 @@
 const k = (t, j, root = {}, extra = {}) => ({ t, j, root, ...extra });
 
 // Leg vocabulary for the classical dances (canonical degrees).
-const STANCE = { hipF: -20, kneeF: 30, hipB: 18, kneeB: 32 };     // ย่อ: soft knees
-const HEEL = { hipF: -38, kneeF: 18, hipB: 22, kneeB: 36 };       // ก้าวเท้า: heel forward
-const KRADOK = { hipF: -14, kneeF: 30, hipB: 36, kneeB: 92 };     // กระดกเท้า: back foot flicked up
-const YOK = { hipF: -58, kneeF: 86, hipB: 14, kneeB: 30 };        // ยกเท้า: front knee raised
-const DIP = { hipF: -32, kneeF: 52, hipB: 26, kneeB: 52 };        // ยุบ: deep knee dip
-const JARD = { hipF: -28, kneeF: 24, hipB: 16, kneeB: 44 };       // จรดเท้า: front toe touches
+const STANCE = { hipF: -22, kneeF: 28, hipB: 16, kneeB: -2 };     // ย่อ: soft knees, feet under the body
+const HEEL = { hipF: -40, kneeF: 16, hipB: 18, kneeB: 4 };        // ก้าวเท้า: heel placed forward
+const KRADOK = { hipF: -16, kneeF: 26, hipB: 26, kneeB: 80 };     // กระดกเท้า: back foot flicked up
+const YOK = { hipF: -60, kneeF: 84, hipB: 14, kneeB: 0 };         // ยกเท้า: front knee raised
+const DIP = { hipF: -38, kneeF: 56, hipB: 4, kneeB: 30 };         // ยุบ: deep knee dip
+const JARD = { hipF: -30, kneeF: 20, hipB: 12, kneeB: 8 };        // จรดเท้า: front toe touches
 // Classical dance defaults: spline keys, soft drives (follow-through lag
 // without letting arms sag: droop ~ g / (r w^2) ~ 5 deg at w = 12).
 const RAM = { loop: true, fadeIn: 0.5, fadeOut: 0.6, smooth: true, omega: 12 };

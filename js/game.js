@@ -17,6 +17,7 @@ import { Editor } from './editor.js';
 import { Controls } from './controls.js';
 import { Souls } from './sandbox/soul.js';
 import { Magic } from './sandbox/magic.js';
+import { AnimalAI } from './sandbox/animalAI.js';
 
 let audio = null;
 let HandTracker = null;
@@ -33,6 +34,7 @@ export class Game {
     this.stage = new Stage(root, this.cam);
     this.fx = new FX(this.scene);
     this.stage.fxLayer = this.fx;
+    this.animalAI = new AnimalAI(this);
     this.walkTo = null;
     this.hand = new KhonHand();
     this.pointer = { x: -100, y: -100, down: false, moved: 0, inside: false };
@@ -662,6 +664,7 @@ export class Game {
     for (const f of this.flies) f.update(dt, this);
     this.editor?.update(this.wallDt || dt);
     if (!this.editor?.playing) {
+      this.animalAI.update(dt);
       this.scene.update(dt);
       this.fx.update(dt);
       this.souls.update(dt);

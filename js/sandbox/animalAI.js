@@ -168,6 +168,10 @@ export class AnimalAI {
       if (h.attacker && this.brains.has(h.attacker)) {
         const b = this.brains.get(h.attacker);
         b.landed = (b.landed || 0) + 1;
+        // one bite per pounce: skip the rest of the attack window
+        const an = h.attacker.anim;
+        if (an && an.name && an.name.startsWith('ai-') && an.def.attack) an.t = Math.max(an.t, an.def.attack[1] + 0.01);
+        if (b.tr.stalker || b.tr.lurker) b.fed = 6 + Math.random() * 6;
       }
     });
   }
@@ -231,6 +235,7 @@ export class AnimalAI {
       }
       if (b.skipped) { b.skipped = false; b.st = 'idle'; b.t = rnd(0.5, 1.5); b.lock = 0; b.think = 0; if (b.tr.fly !== 'always' && b.tr.fly !== 'float') b.flying = false; }
       try {
+        this._rescue(a, env);
         this._think(a, b, dt, env, animals);
         this._body(a, b, dt, env);
       } catch (e) {
@@ -238,6 +243,19 @@ export class AnimalAI {
         if (!this._warned) { this._warned = true; console.warn('animalAI', e); }
       }
     }
+  }
+
+  // A rig that got flung far off by the physics (bad contact, explosion)
+  // is put back on its feet instead of wandering the void forever.
+  _rescue(a, env) {
+    const r = a.root;
+    const sy = a.standY();
+    const lost = !isFinite(r.x) || !isFinite(r.y) || Math.abs(r.x - a.target.x) > 900 || r.y < sy - 1400 || r.y > sy + 600
+      || r.x < env.minX - 600 || r.x > env.maxX + 600;
+    if (!lost) return;
+    const x = clamp(isFinite(a.target.x) ? a.target.x : (env.minX + env.maxX) / 2, env.minX, env.maxX);
+    a.teleport(x, a.mode === 'hung' ? a.target.y : sy);
+    this.stats.rescues = (this.stats.rescues || 0) + 1;
   }
 
   _skip(a, b, dt) {
@@ -265,7 +283,19 @@ export class AnimalAI {
     const d = x - a.target.x;
     const lag = a.target.x - a.root.x;
     // don't let the target run away from a heavy body
-    if (Math.abs(lag) > 140 && Math.sign(lag) === Math.sign(d)) return false;
+    if (Math.abs(lag) > 110) {
+      // blocked (another body in the way, or being shoved): give up after
+      // a moment and let the brain pick something else
+      b.stuck = (b.stuck || 0) + dt;
+      if (b.stuck > 1.2) {
+        b.stuck = 0;
+        a.target.x = clamp(a.root.x + Math.sign(lag) * 30, env.minX, env.maxX);
+        b.goal = null;
+        if (b.lock <= 0) b.t = 0;
+        return true;
+      }
+      if (Math.sign(lag) === Math.sign(d)) return false;
+    } else b.stuck = 0;
     let v = speed * b.pers.speed;
     if (b.tr.move === 'bound') {
       if (Math.abs(d) > 10 && !b.hop) this._hop(b, clamp(26 + b.tr.size * 30, 20, 60), 0.34);
@@ -336,7 +366,7 @@ export class AnimalAI {
       const ot = this._brain(o).tr;
       const ob = this.brains.get(o);
       let scary = false;
-      if (ot.monster) scary = true;
+      if (ot.monster) scary = Math.abs(o.root.y - a.root.y) < 380;
       else if (ot.diet === 'predator' && PREDATOR_PREY[ot.id] && PREDATOR_PREY[ot.id](tr)) scary = !(ob && ob.st === 'sleep');
       else if (ot.dog && (tr.cat || tr.herd === 'chicken' || tr.id === 'kratai')) scary = ob && (ob.st === 'chase' || ob.st === 'bark') || Math.abs(o.root.x - x) < 200;
       if (!scary) continue;
@@ -459,7 +489,7 @@ export class AnimalAI {
         const m = b.other;
         if (!m || m.removed) { b.t = 0; break; }
         const side = -(m.facing || 1);
-        const want = m.root.x + side * (halfW(m) * 0.7 + halfW(a) * 0.6) + Math.sin(b.phase * 0.5) * 30;
+        const want = m.root.x + side * (halfW(m) * 0.9 + halfW(a) * 0.7) + Math.sin(b.phase * 0.5) * 30;
         const d = Math.abs(want - a.root.x);
         if (d > 40) this._walk(a, b, want, d > 350 ? run * 0.8 : sp * 1.3, dt, env);
         else { this._face(a, m.root.x); neck = 0.3; neckW = 0.4; }
@@ -519,7 +549,12 @@ export class AnimalAI {
         const dir = b.dir;
         this._walk(a, b, a.root.x + dir * 200, run, dt, env);
         lean = -0.05;
-        if (b.lock <= 0) { this._set(b, 'rest', rnd(1.5, 3)); b.cool = rnd(2.5, 4.5); }
+        if (b.lock <= 0) {
+          // a predator that caught something is satisfied for a while
+          const fed = b.fed || 0; b.fed = 0;
+          this._set(b, 'rest', fed ? fed * 0.5 : rnd(1.5, 3));
+          b.cool = fed || rnd(2.5, 4.5);
+        }
         break;
       }
       case 'bark': {
@@ -600,6 +635,8 @@ export class AnimalAI {
       }
     }
 
+    if (b.st === 'wander' || b.st === 'herd' || b.st === 'rest' || b.st === 'sleep' || b.st === 'swim' || b.st === 'shore') this._separate(a, b, dt, env, animals);
+
     // ambient calls
     if (b.sndT <= 0 && this.soundCool < -1.5) {
       const asleep = b.st === 'sleep';
@@ -641,7 +678,7 @@ export class AnimalAI {
     const r = Math.random();
     // --- species specials
     if (tr.stalker && b.cool <= 0) {
-      const p = this._nearest(a, animals, (o) => PREDATOR_PREY.suea(this._brain(o).tr) && !o.dead, 900);
+      const p = this._nearest(a, animals, (o) => PREDATOR_PREY.suea(this._brain(o).tr) && !o.dead, 1600);
       if (p && r < 0.75) { this._set(b, 'stalk', rnd(6, 12), { other: p.o }); return; }
     }
     if (tr.lurker) {
@@ -652,7 +689,7 @@ export class AnimalAI {
         || this._nearest(a, env.puppets, (o) => o.kind === 'demon' || o.flyRole === 'monster', 600);
       if (m && r < 0.85) { this._set(b, 'bark', rnd(3, 6), { other: m.o, cool: 0 }); return; }
       const c = this._nearest(a, animals, (o) => { const t = this._brain(o).tr; return t.cat || t.herd === 'chicken'; }, 600);
-      if (c && r < 0.4) { this._set(b, 'chase', rnd(2.5, 5), { other: c.o }); return; }
+      if (c && r < 0.25) { this._set(b, 'chase', rnd(2.5, 5), { other: c.o }); return; }
     }
     if (tr.fighter) {
       const f = this._nearest(a, animals, (o) => this._brain(o).tr.fighter, 450);
@@ -692,13 +729,15 @@ export class AnimalAI {
         const cx = sx / n;
         const spread = 120 + 60 * n;
         if (Math.abs(cx - a.root.x) > spread && Math.random() < 0.8) {
-          this._set(b, 'herd', rnd(2, 5), { goal: cx + rnd(-spread, spread) * 0.5 });
+          // head for the near side of the group, not into the middle of it
+          const side = Math.sign(a.root.x - cx) || 1;
+          this._set(b, 'herd', rnd(2, 5), { goal: cx + side * (halfW(a) + 60 + rnd(0, spread * 0.5)) });
           return;
         }
       }
     }
     // curiosity: sniff at a puppet that's standing still
-    if (P.curious > 0.35 && Math.random() < 0.25 * P.curious && !tr.monster) {
+    if (P.curious > 0.35 && Math.random() < 0.25 * P.curious && !tr.monster && tr.diet !== 'predator') {
       const pup = this._nearest(a, env.puppets, (o) => o.walkAmt < 0.1 && o.mode === 'planted', 550);
       if (pup) { this._set(b, 'curious', rnd(3, 6), { other: pup.o }); return; }
     }
@@ -737,10 +776,10 @@ export class AnimalAI {
   _separate(a, b, dt, env, animals) {
     const n = this._nearest(a, animals, (o) => o.mode !== 'hung');
     if (!n) return;
-    const minD = (halfW(a) + halfW(n.o)) * 0.55;
+    const minD = (halfW(a) + halfW(n.o)) * 0.75;
     if (n.d < minD) {
       const dir = Math.sign(a.root.x - n.o.root.x) || (Math.random() < 0.5 ? -1 : 1);
-      a.target.x = clamp(a.target.x + dir * b.tr.speed * 0.5 * dt, env.minX, env.maxX);
+      a.target.x = clamp(a.target.x + dir * b.tr.speed * 0.8 * dt, env.minX, env.maxX);
     }
   }
 
