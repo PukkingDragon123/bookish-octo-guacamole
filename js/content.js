@@ -5,10 +5,13 @@
 import { loadSheetPuppets } from './puppet/characters/sheetPuppets.js';
 
 const PUPPET_MODULES = ['./puppet/characters/classical.js', './puppet/characters/comic.js'];
-const PROP_MODULES = ['weapons', 'food', 'market', 'household', 'instruments', 'animals', 'monsters', 'buildings', 'boats', 'nature', 'vehicles'].map((n) => `./props/${n}.js`);
+const PROP_MODULES = ['fx', 'weapons', 'food', 'market', 'household', 'instruments', 'animals', 'livestock', 'monsters', 'buildings', 'village', 'boats', 'nature', 'vehicles'].map((n) => `./props/${n}.js`);
 
 export const CATEGORIES = [
   ['puppets', 'ตัวหนัง', 'Puppets'],
+  ['tools', 'เอฟเฟกต์', 'Effects'],
+  ['weather', 'ลมฟ้าอากาศ', 'Weather'],
+  ['imports', 'นำเข้า', 'Imported'],
   ['weapons', 'อาวุธ', 'Weapons'],
   ['market', 'ตลาด', 'Market'],
   ['food', 'อาหาร', 'Food'],

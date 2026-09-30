@@ -103,8 +103,9 @@ export class Prop {
     z = Math.max(0.005, Math.min(0.55, z));
     const L = this.world.lamp;
     const b = this.body;
-    const sx = L.x + (b.x - L.x) / (1 - this.z), sy = L.y + (b.y - L.y) / (1 - this.z);
-    const nx = L.x + (sx - L.x) * (1 - z), ny = L.y + (sy - L.y) * (1 - z);
+    const Lx = L.x + (L.sx || 0);
+    const sx = Lx + (b.x - Lx) / (1 - this.z), sy = L.y + (b.y - L.y) / (1 - this.z);
+    const nx = Lx + (sx - Lx) * (1 - z), ny = L.y + (sy - L.y) * (1 - z);
     b.px += nx - b.x; b.py += ny - b.y;
     b.x = nx; b.y = ny; b.z = z;
     if (this.float) { this.float.y = ny; this.floatPin.ty = ny; }

@@ -12,6 +12,9 @@ import { Puppet } from './puppet/puppet.js';
 import { Pin } from './physics/world.js';
 import { GESTURE_MOVES, KEY_MOVES } from './puppet/animations.js';
 import { CLOTH_W, CLOTH_H } from './render/screen.js';
+import { FX } from './render/fx.js';
+import { Editor } from './editor.js';
+import { Controls } from './controls.js';
 
 let audio = null;
 let HandTracker = null;
@@ -26,6 +29,9 @@ export class Game {
     this.scene = new Scene();
     this.cam = new Camera();
     this.stage = new Stage(root, this.cam);
+    this.fx = new FX(this.scene);
+    this.stage.fxLayer = this.fx;
+    this.walkTo = null;
     this.hand = new KhonHand();
     this.pointer = { x: -100, y: -100, down: false, moved: 0, inside: false };
     this.drag = null;
@@ -47,6 +53,9 @@ export class Game {
     this.stage.resize();
     this.ui = new UI(this.root.querySelector('#ui'), this);
     this.cam.set(this.cam.framing('stage'));
+    this.editor = new Editor(this);
+    this.controls = new Controls(this);
+    this.fx.onThunder = () => audio?.sfx('thud', { vol: 1, pitch: 0.35 });
     this._wire();
     import('./audio/audio.js').then((m) => { audio = m.audio; this.audio = audio; }).catch((e) => console.warn('audio unavailable', e));
     this._handsP = import('./tracking/hands.js').then((m) => { HandTracker = m.HandTracker; }).catch((e) => console.warn('tracking unavailable', e));
@@ -57,6 +66,11 @@ export class Game {
 
   // ------------------------------------------------------------ spawning
   spawn(def, cx, cy, z = 0.02, opts = {}) {
+    if (def.weather) {
+      const on = this.fx.toggle(def.weather);
+      audio?.sfx(on ? 'magic' : 'click', { vol: 0.6 });
+      return null;
+    }
     let a;
     if (def.rig && !def.cat) {
       a = this.scene.addPuppet(def.rig, { x: cx, z, facing: opts.facing ?? (cx > 800 ? -1 : 1) });
@@ -128,11 +142,51 @@ export class Game {
     else { L.kind = 'oil'; L.color = [1, 0.8, 0.52]; this.ui.toast('ตะเกียงน้ำมัน · oil lamp — Alt+drag the bright spot to move the light'); }
     audio?.sfx('click');
   }
-  toggleView() {
-    this.view = this.view === 'stage' ? 'heaven' : 'stage';
-    this.cam.flyTo(this.cam.framing(this.view), 2.2, easeInOutSine);
-    this.ui.setButton('b-view', this.view === 'heaven');
+  toggleEditor() {
+    this.editor.toggle();
+    this.ui.setButton('b-edit', this.editor.open);
   }
+  togglePad() {
+    this.padOn = !this.padOn;
+    this.controls.show(this.padOn);
+    this.ui.setButton('b-pad', this.padOn);
+  }
+
+  // side-scroller pad actions
+  padAction(a) {
+    const p = this.selected instanceof Puppet ? this.selected : this.scene.puppets()[0];
+    if (!p) return;
+    if (!this.selected) this.select(p);
+    if (a === 'jump') this.playMove('leap');
+    else if (a === 'strike') this.playMove(p.held.handF || p.held.handB ? (Math.random() < 0.7 ? 'strike' : 'lunge') : 'strike');
+    else if (a === 'next') {
+      const list = this.scene.actors.filter((x) => x instanceof Puppet);
+      if (list.length) this.select(list[(list.indexOf(p) + 1) % list.length]);
+    }
+  }
+
+  equip(id) {
+    const p = this.selected instanceof Puppet ? this.selected : null;
+    if (!p || !p.bodies.handF) return;
+    const old = p.release('handF');
+    if (old) this.scene.remove(old);
+    if (id) {
+      const def = this.content.byId.get(id);
+      const hb = p.bodies.handF;
+      const [hx, hy] = this.scene.project(hb.x, hb.y, p.z);
+      const w = this.scene.addProp(def, { x: hx, y: hy, z: p.z });
+      p.grab(w, 'handF');
+      audio?.sfx('pick', { pan: this._pan(p) });
+    }
+  }
+
+  expandStage() {
+    const S = this.scene;
+    S.worldW = S.worldW >= 6400 ? 1600 : S.worldW + 1600;
+    S.lamp.sx = Math.min(S.lamp.sx, S.worldW - CLOTH_W);
+    audio?.sfx('curtain', { vol: 0.4 });
+  }
+
   toggleShow() {
     this.showMode = !this.showMode;
     this.ui.reveal(!this.showMode);
@@ -203,7 +257,7 @@ export class Game {
     };
     addEventListener('pointerdown', wake, { capture: true });
     addEventListener('keydown', wake, { capture: true });
-    addEventListener('resize', () => { this.stage.resize(); if (!this.intro) this.cam.set(this.cam.framing(this.view)); });
+    addEventListener('resize', () => { this.stage.resize(); if (!this.intro && !this.menu) this.cam.set(this.cam.framing('stage')); });
     fg.addEventListener('contextmenu', (e) => e.preventDefault());
     fg.addEventListener('pointerdown', (e) => this._down(e));
     addEventListener('pointermove', (e) => this._move(e));
@@ -216,7 +270,8 @@ export class Game {
   _scenePt(e) { return this.cam.toScene(e.clientX, e.clientY); }
 
   _down(e) {
-    if (this.intro) { if (this.intro.t > 1.5) this.skipIntro(); return; }
+    if (this.menu) return;
+    if (this.intro) { if (this.intro.t > 2) this.skipIntro(); return; }
     const [x, y] = this._scenePt(e);
     this.pointer.down = true;
     this.pointer.moved = 0;
@@ -249,7 +304,12 @@ export class Game {
       }
     }
     const hit = this.scene.pick(x, y);
-    if (!hit) { this.select(null); return; }
+    if (!hit) {
+      // click empty cloth: the selected puppet walks there
+      if (this.selected instanceof Puppet) this.walkTo = { actor: this.selected, x: this.scene.unproject(x, 0, this.selected.z)[0] };
+      else this.select(null);
+      return;
+    }
     let a = hit.actor;
     if (a.heldBy) { a.heldBy.puppet.release(a.heldBy.hand); }
     this.select(a);
@@ -297,7 +357,7 @@ export class Game {
     if (d.type === 'spawn') {
       if (onCloth(x, y, 10)) {
         const a = this.spawn(d.def, clamp(x, 60, CLOTH_W - 60), clamp(y, 60, FLOOR), 0.02);
-        this.select(a);
+        if (a) this.select(a);
       }
       return;
     }
@@ -350,7 +410,7 @@ export class Game {
       if (this.selected?.anim?.hold) this.selected.anim.hold = false;
       return;
     }
-    if (this.intro) { if (e.code === 'Escape' || e.code === 'Space' || e.code === 'Enter') this.skipIntro(); return; }
+    if (this.menu || this.intro) { if (e.code === 'Escape' || e.code === 'Space' || e.code === 'Enter') this.skipIntro(); return; }
     const a = this.selected;
     const mv = KEY_MOVES[e.code];
     if (mv && a) { this.playMove(mv); e.preventDefault(); }
@@ -441,19 +501,37 @@ export class Game {
   }
 
   // ------------------------------------------------------------ intro
+  // main menu: only the heavens; play zooms into the light and drops you
+  // through the clouds to the stage
   startIntro() {
-    const hermit = this.content.byId.get('reusi');
-    this.intro = { t: 0, hermit, spawned: null, stage: 0 };
+    this.menu = true;
     this.scene.lamp.intensity = 0;
     this.scene.lamp.target = 0;
     for (const c of this.stage.curtains) { c.target = 0; c.open = 0; }
-    this.cam.set({ x: 800, y: -2150, zoom: this.cam.framing('heaven').zoom * 0.9 });
-    this.ui.title.classList.remove('hidden');
+    const hz = this.cam.framing('heaven').zoom;
+    this.cam.set({ x: 800, y: -2050, zoom: hz * 1.35 });
+    this.menuEl = document.createElement('div');
+    this.menuEl.id = 'menu';
+    this.menuEl.innerHTML = '<div class="m-title">หนังตะลุง</div><button class="medal big play" title="เริ่มการแสดง · Begin the show"><i class="gem"></i><svg viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z"/></svg></button>';
+    this.root.querySelector('#ui').append(this.menuEl);
+    this.menuEl.querySelector('.play').addEventListener('click', () => this.beginPlay());
+  }
+
+  beginPlay() {
+    if (!this.menu) return;
+    this.menu = false;
+    this.menuEl.classList.add('hidden');
+    setTimeout(() => this.menuEl.remove(), 1200);
+    this.intro = { t: 0, stage: 0 };
+    this.cam.flyTo({ x: 800, y: -2050, zoom: this.cam.zoom * 6 }, 1.6, (u) => u * u * u);
+    audio?.sfx('chime');
     this.ui.skip.classList.remove('hidden');
   }
 
   skipIntro() {
+    if (this.menu) { this.beginPlay(); return; }
     if (!this.intro) return;
+    if (this.intro.stage < 1) this.cam.set(this.cam.framing('stage'));
     const I = this.intro;
     for (const c of this.stage.curtains) { c.target = 1; }
     this.scene.lamp.target = 1;
@@ -476,6 +554,9 @@ export class Game {
     this.ui.skip.classList.add('hidden');
     this.cam.flyTo(this.cam.framing('stage'), 1.2);
     this.ui.reveal(true);
+    this.padOn = true;
+    this.controls.show(true);
+    this.ui.setButton('b-pad', true);
     audio?.music.play('calm');
     this.ui.toast('ลากตัวหนังจากหีบมาวางบนจอ · Drag puppets from the chest onto the screen. Press H for help.', 6000);
     if (!this.scene.puppets().length) this._introHermit(0.02);
@@ -490,25 +571,17 @@ export class Game {
     const I = this.intro;
     I.t += dt;
     const t = I.t;
-    const final = this.cam.framing('stage');
-    // 0-3.5: heaven, title. 3.5-12: descend. 12-14 curtains. 14.5-16.5 lamp. 16.5-21 hermit appears.
-    if (t > 3.2 && I.stage === 0) {
-      I.stage = 1;
-      this.ui.title.classList.add('hidden');
-      this.cam.flyTo(final, 9, easeInOut);
-      audio?.sfx('chime');
-    }
-    if (t > 11.5 && I.stage === 1) { I.stage = 2; audio?.music.play('overture'); }
-    if (t > 12.5 && I.stage === 2) { I.stage = 3; for (const c of this.stage.curtains) c.target = 1; audio?.sfx('curtain'); }
-    if (t > 15 && I.stage === 3) { I.stage = 4; audio?.sfx('lamp-ignite'); this.scene.lamp.target = 1; this.scene.lamp.intensity = 0.25; }
-    if (t > 16.8 && I.stage === 4) {
+    if (t > 1.6 && I.stage === 0) { I.stage = 1; this.cam.set(this.cam.framing('stage')); }
+    if (t > 3.0 && I.stage === 1) { I.stage = 2; audio?.music.play('overture'); }
+    if (t > 3.4 && I.stage === 2) { I.stage = 3; for (const c of this.stage.curtains) c.target = 1; audio?.sfx('curtain'); }
+    if (t > 5.4 && I.stage === 3) { I.stage = 4; audio?.sfx('lamp-ignite'); this.scene.lamp.target = 1; this.scene.lamp.intensity = 0.25; }
+    if (t > 6.8 && I.stage === 4) {
       I.stage = 5;
       I.spawned = this._introHermit(0.42);
       I.spawned.setMode('held');
-      I.z0 = 0.42;
     }
     if (I.stage === 5 && I.spawned) {
-      const u = Math.min(1, (t - 16.8) / 4.2);
+      const u = Math.min(1, (t - 6.8) / 4);
       const e = easeInOutSine(u);
       const p = I.spawned;
       p.setDepth(0.42 + (0.02 - 0.42) * e);
@@ -516,7 +589,7 @@ export class Game {
       p.holdAt(wx, p.standY() - 30 * (1 - e));
       if (u >= 1) { I.stage = 6; p.plantAt(p.root.x); p.play('wai'); audio?.sfx('gong'); }
     }
-    if (I.stage === 6 && t > 23) this._endIntro();
+    if (I.stage === 6 && t > 12.5) this._endIntro();
   }
 
   // ------------------------------------------------------------ frame
@@ -528,7 +601,8 @@ export class Game {
     if (a && a instanceof Puppet && !this.drag) {
       const dir = (this.keys.has('ArrowRight') || this.keys.has('KeyD') ? 1 : 0) - (this.keys.has('ArrowLeft') || this.keys.has('KeyA') ? 1 : 0);
       if (dir) {
-        a.target.x = clamp(a.target.x + dir * 190 * dt, 60, CLOTH_W - 60);
+        a.target.x = clamp(a.target.x + dir * 190 * dt, 60, this.scene.worldW - 60);
+        this.walkTo = null;
         if (dir !== a.facing && a.flipAnim <= 0 && !a.isBusy()) a.flip();
       }
       if (this.keys.has('ArrowUp') || this.keys.has('KeyW')) { a.setMode('hung'); a.target.y -= 220 * dt; }
@@ -547,10 +621,42 @@ export class Game {
         p._idling = false; p._idleW = 0; p.ctrlW = 0;
       }
     }
+    // on-screen pad + click-to-walk
+    if (a && a instanceof Puppet && !this.drag && this.controls) {
+      const mv = this.controls.move;
+      if (mv) {
+        if (a.mode !== 'planted') a.plantAt(a.target.x);
+        a.target.x = clamp(a.target.x + mv * 260 * dt, 60, this.scene.worldW - 60);
+        const dir = Math.sign(mv);
+        if (dir !== a.facing && a.flipAnim <= 0 && !a.isBusy()) a.flip();
+        this.walkTo = null;
+      }
+    }
+    if (this.walkTo && !this.walkTo.actor.removed && !this.drag) {
+      const w = this.walkTo, p = w.actor;
+      if (p.mode !== 'planted') p.plantAt(p.target.x);
+      const d = w.x - p.target.x;
+      p.target.x += Math.sign(d) * Math.min(Math.abs(d), 230 * dt);
+      if (Math.abs(d) > 6 && Math.sign(d) !== p.facing && p.flipAnim <= 0 && !p.isBusy()) p.flip();
+      if (Math.abs(d) < 2) this.walkTo = null;
+    }
+    // side-scrolling: the screen follows the puppet you drive along a longer stage
+    if (a && a instanceof Puppet && this.scene.worldW > CLOTH_W) {
+      const [cx] = this.scene.project(a.root.x, a.root.y, a.z);
+      const L = this.scene.lamp;
+      if (cx > 1180) L.sx += (cx - 1180) * Math.min(1, dt * 4);
+      if (cx < 420) L.sx -= (420 - cx) * Math.min(1, dt * 4);
+      L.sx = clamp(L.sx, 0, this.scene.worldW - CLOTH_W);
+    }
     const tracking = this._track(dt);
     this.trackingActive = tracking;
     for (const f of this.flies) f.update(dt, this);
-    this.scene.update(dt);
+    this.editor?.update(this.wallDt || dt);
+    if (!this.editor?.playing) {
+      this.scene.update(dt);
+      this.fx.update(dt);
+      if (this.fx.shake) this.cam.shake = Math.max(this.cam.shake, this.fx.shake);
+    }
     for (const c of this.stage.curtains) c.step(dt, this.time);
     this.cam.update(this.intro ? this.wallDt || dt : dt);
     // hand cursor pose
@@ -579,24 +685,34 @@ export class Game {
 
   render(dt) {
     this.lastDt = dt;
-    this.stage.render(this.scene, dt, (f) => this._overlay(f));
+    const frame = this.editor && this.editor.frame;
+    this.stage.render(this.scene, dt, (f) => this._overlay(f, !!frame), frame);
+    if (!frame) this.editor?.capture(this.wallDt || dt);
+    this.editor?.composite();
   }
 
-  _overlay(f) {
+  _overlay(f, film = false) {
     const cam = this.cam, dpr = this.stage.dpr, S = this.scene;
+    if (film) return; // playback / export: just the show
     const toScreen = (x, y) => cam.toScreen(x, y);
     const proj = (w, z) => { const [cx, cy] = S.project(w[0], w[1], z); return cam.toScreen(cx, cy); };
     f.setTransform(dpr, 0, 0, dpr, 0, 0);
-    // intro veil of clouds
-    if (this.intro) {
-      const t = this.intro.t;
-      const k = t < 3.2 ? 0.9 : t < 12 ? Math.max(0, 1 - (t - 3.2) / 8.8) : 0;
-      f.save(); this.stage.drawCloudVeil(f, k, -t * 400); f.restore();
+    // menu / transition: clouds and heavenly light
+    if (this.menu || this.intro) {
+      const I = this.intro;
+      const t = I ? I.t : 0;
+      const veil = this.menu ? 0.55 : t < 1.6 ? 0.55 + t * 0.4 : Math.max(0, 1.2 - (t - 1.6) * 0.8);
+      f.save(); this.stage.drawCloudVeil(f, veil, -(this.time * 30 + t * 900)); f.restore();
       f.setTransform(dpr, 0, 0, dpr, 0, 0);
-      if (t < 1.6) { f.fillStyle = `rgba(0,0,0,${1 - t / 1.6})`; f.fillRect(0, 0, cam.vw, cam.vh); }
-    } else if (this.view === 'heaven') {
-      f.save(); this.stage.drawCloudVeil(f, 0.5); f.restore();
-      f.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const light = this.menu ? 0 : t < 1.6 ? (t / 1.6) ** 2 : Math.max(0, 1 - (t - 1.6) / 1.4);
+      if (light > 0) {
+        const g = f.createRadialGradient(cam.vw / 2, cam.vh / 2, 0, cam.vw / 2, cam.vh / 2, Math.max(cam.vw, cam.vh) * 0.7);
+        g.addColorStop(0, `rgba(255,252,235,${light})`);
+        g.addColorStop(1, `rgba(255,214,140,${light * 0.9})`);
+        f.fillStyle = g;
+        f.fillRect(0, 0, cam.vw, cam.vh);
+      }
+      if (this.menu) return;
     }
     // top-of-view heavenly glow where strings descend from
     const glow = f.createLinearGradient(0, 0, 0, cam.vh * 0.25);

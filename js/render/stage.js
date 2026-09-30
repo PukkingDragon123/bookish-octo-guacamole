@@ -56,10 +56,11 @@ export class Stage {
   addFx(f) { this.fx.push(f); }
 
   // ------------------------------------------------------------ frame
-  render(scene, dt, overlay) {
+  render(scene, dt, overlay, frame = null) {
     this.time += dt;
     const cam = this.cam, dpr = this.dpr;
-    const lampI = scene.lamp.intensity * (1 + scene.lamp.flicker);
+    const lampS = frame ? frame.lamp : scene.lamp;
+    const lampI = lampS.intensity * (1 + (lampS.flicker || 0)) + (lampS.fxBoost || 0);
 
     // ------------- back: heaven + night
     const b = this.bctx;
@@ -82,12 +83,15 @@ export class Stage {
     b.globalCompositeOperation = 'source-over';
 
     // ------------- cloth (GL)
-    const items = scene.drawables();
+    const items = frame ? frame.items.slice() : scene.drawables();
+    if (frame && frame.fx) items.push(frame.fx);
+    else if (!frame && this.fxLayer) items.push(this.fxLayer.render());
+    this.lastItems = items;
     // banana trunk along the bottom, pressed on the cloth
     items.push({ sprite: this.trunk, m: [1, 0, 0, 1, -20 - this.trunk.ox, 936 - this.trunk.oy], z: 0.004 });
     const clothPx = CLOTH_W * cam.zoom * dpr;
     this.screen.setQuality(clothPx / CLOTH_W);
-    this.screen.renderShadows(items, scene.lamp);
+    this.screen.renderShadows(items, lampS);
     this.screen.uploadHeights(scene.membrane);
     const gl = this.gl;
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -98,9 +102,9 @@ export class Stage {
       cam: { x: cam.x + cam.shakeX, y: cam.y + cam.shakeY, zoom: cam.zoom * dpr },
       viewport: [this.glc.width, this.glc.height],
       rect: [0, 0, CLOTH_W, CLOTH_H],
-      lamp: scene.lamp, lampI, lampColor: scene.lamp.color,
-      ambient: [0.05 + (1 - scene.lamp.intensity) * 0.05, 0.06, 0.1],
-      glows: scene.glows(), time: this.time, exposure: 1.4,
+      lamp: lampS, lampI, lampColor: lampS.color,
+      ambient: [0.05 + (1 - lampS.intensity) * 0.05, 0.06, 0.1],
+      glows: frame ? frame.glows : (this.lastGlows = scene.glows()), time: this.time, exposure: 1.4,
     });
 
     // ------------- front

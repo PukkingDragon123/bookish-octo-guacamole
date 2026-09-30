@@ -35,6 +35,8 @@ export const ICONS = {
   flip: P('M7 7h11l-3-3M17 17H6l3 3'),
   remove: P('M6 6l12 12M18 6L6 18'),
   deva: P('M12 2l1.4 3.4h-2.8zM12 6.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zM7 21c0-4 2.2-7 5-7s5 3 5 7M4 11c2 1 3.5 1 5 0M20 11c-2 1-3.5 1-5 0'),
+  pad: P('M6 9h12a4 4 0 0 1 3.8 5.2l-1.3 4a2 2 0 0 1-3.4.7L15 17H9l-2.1 1.9a2 2 0 0 1-3.4-.7l-1.3-4A4 4 0 0 1 6 9zM8 11v4M6 13h4M16 12h.01M18 14h.01'),
+  film: P('M4 5h16v14H4zM8 5v14M16 5v14M4 9h4M4 15h4M16 9h4M16 15h4'),
   moves: P('M4 20L15 9M15 9l2-5 3 3-5 2M20 20L9 9M9 9L7 4 4 7l5 2'),
   release: P('M12 3v9M8 8l4 4 4-4M5 16c2 3 4 4 7 4s5-1 7-4'),
 };
@@ -97,7 +99,8 @@ export class UI {
       medal(ICONS.hand, 'ติดตามมือ · Hand tracking', () => g.toggleTracking(), { id: 'b-hand' }),
       medal(ICONS.demo, 'สาธิตมือ · Hand demo', () => g.toggleDemo(), { id: 'b-demo' }),
       medal(ICONS.lamp, 'ตะเกียง · Lamp', () => g.toggleLamp(), { id: 'b-lamp' }),
-      medal(ICONS.heaven, 'สวรรค์ · Look up', () => g.toggleView(), { id: 'b-view' }),
+      medal(ICONS.pad, 'ปุ่มควบคุม · Game pad', () => g.togglePad(), { id: 'b-pad' }),
+      medal(ICONS.film, 'ตัดต่อ · Timeline editor', () => g.toggleEditor(), { id: 'b-edit' }),
       medal(ICONS.show, 'แสดง · Show mode', () => g.toggleShow(), { id: 'b-show' }),
       medal(ICONS.sound, 'เสียง · Sound', () => g.toggleSound(), { id: 'b-sound' }),
       medal(ICONS.clear, 'ล้างเวที · Clear stage', () => g.clearStage(), { id: 'b-clear' }),
@@ -112,13 +115,7 @@ export class UI {
         this.items = el('div', { class: 'items' }),
       ),
     );
-    for (const [id, th, en] of CATEGORIES) {
-      const list = id === 'puppets' ? g.content.puppets : g.content.props.filter((p) => p.cat === id);
-      if (!list.length) continue;
-      const b = el('button', { class: 'tab' + (id === this.tab ? ' on' : ''), 'data-tab': id, title: `${th} · ${en}`, onclick: () => this.showTab(id) });
-      b.append(thumbnail(list[Math.min(1, list.length - 1)], 44));
-      this.tabs.append(b);
-    }
+    this.rebuildTabs();
     this.side = el('div', { id: 'side', class: 'hidden' });
     this.cam = el('div', { id: 'cam', class: 'hidden' }, this.camCanvas = el('canvas', { width: 240, height: 180 }), this.gest = el('i', { class: 'gest' }));
     this.toastEl = el('div', { id: 'toast', class: 'hidden' });
@@ -129,6 +126,18 @@ export class UI {
     this.chestBtn.classList.add('hidden');
     this.showTab(this.tab);
     this.renderSide();
+  }
+
+  rebuildTabs() {
+    const g = this.game;
+    this.tabs.innerHTML = '';
+    for (const [id, th, en] of CATEGORIES) {
+      const list = id === 'puppets' ? g.content.puppets : g.content.props.filter((p) => p.cat === id);
+      if (!list.length) continue;
+      const b = el('button', { class: 'tab' + (id === this.tab ? ' on' : ''), 'data-tab': id, title: `${th} · ${en}`, onclick: () => this.showTab(id) });
+      b.append(thumbnail(list[Math.min(1, list.length - 1)], 44));
+      this.tabs.append(b);
+    }
   }
 
   showTab(id) {
@@ -221,5 +230,7 @@ const HELP = `
 <tr><td>หีบหนัง</td><td>Open the chest, pick a drawer, drag a puppet or prop onto the cloth. Drop props on a hand to give them.</td></tr>
 <tr><td>เทวดา</td><td>Select a puppet, tap the deva medallion and choose a role; a deva takes the strings.</td></tr>
 <tr><td>ติดตามมือ</td><td>Palm = body · hand size = depth · tilt = lean · flip hand = turn. Thumb, index, middle, ring, pinky → back arm, front arm, head, back leg, front leg. ✊ strike · ☝ lunge · ✋ block · จีบ dance · ตั้งวง pose · ✌ leap · 🤘 roar · 👍 laugh · 🙏 wai.</td></tr>
+<tr><td>ปุ่มควบคุม</td><td>Joystick walks (the stage scrolls on a longer scene), up = leap; sword = attack; wheels = moves and weapons; circle arrows = next puppet. Tap the cloth and the selected puppet walks there.</td></tr>
+<tr><td>ตัดต่อ</td><td>Record takes, split/trim/reorder them on the timeline, widen the stage, import images as props, and export a video.</td></tr>
 <tr><td>Alt + ลาก</td><td>Move the lamp.</td></tr>
 </table>`;

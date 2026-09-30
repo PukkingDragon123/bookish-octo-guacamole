@@ -119,20 +119,12 @@ export function paintBooth(k = 0.75, fonts = {}) {
       kanok(ctx, x + side * 30, -BAND.top / 2 + 16, 30, -Math.PI / 2 - side * 0.9, side > 0, '#dcaa47', '#3b1d05');
     }
   }
-  const titleFont = fonts.title || 'Chonburi, "Srisakdi", serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.font = `64px ${titleFont}`;
-  ctx.lineWidth = 7;
-  ctx.strokeStyle = '#2a0703';
-  ctx.strokeText(TROUPE.th, 800, -BAND.top / 2 - 12);
-  ctx.fillStyle = goldGrad(ctx, 0, -BAND.top + 10, 0, -10);
-  ctx.fillText(TROUPE.th, 800, -BAND.top / 2 - 12);
-  ctx.font = `28px ${titleFont}`;
-  ctx.lineWidth = 5;
-  ctx.strokeText(TROUPE.sub, 800, -BAND.top / 2 + 34);
-  ctx.fillStyle = '#f0cf7c';
-  ctx.fillText(TROUPE.sub, 800, -BAND.top / 2 + 34);
+  // centre of the top band: a gilded lotus medallion flanked by kranok
+  prajam(ctx, 800, -BAND.top / 2, 40, { petal: '#f0cf7c', center: '#9a1d15', line: '#3a1c05' });
+  for (const side of [-1, 1]) {
+    for (let i = 0; i < 3; i++) kanok(ctx, 800 + side * (70 + i * 62), -BAND.top / 2 + 22 - i * 4, 44 - i * 6, -Math.PI / 2 - side * 1.1, side > 0, '#e0b04c', '#3b1d05');
+    krajang(ctx, 800 + side * 250, -BAND.top / 2 + 26, 26, 40, -Math.PI / 2, '#e7bb57', '#3a1c05', '#a3201a');
+  }
 
   // ties lashing the cloth to the frame
   for (let x = 60; x < 1560; x += 120) { tie(ctx, x, BAND.inset - 2, 0, -1); tie(ctx, x + 30, 1000 - BAND.inset + 2, 0, 1); }

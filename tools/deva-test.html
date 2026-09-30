@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deva &amp; Khon hand test</title>
+<style>
+  html, body { margin: 0; background: #0d0806; color: #eadcc0; font: 12px system-ui, sans-serif; overflow: hidden; }
+  canvas { display: block; }
+  #perf { position: fixed; right: 8px; bottom: 6px; color: #d9c08a; background: rgba(0,0,0,.5); padding: 3px 8px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="perf"></div>
+<script type="module">
+import { drawDeva } from '../js/render/deva.js';
+import { KhonHand } from '../js/render/cursor.js';
+
+const q = new URLSearchParams(location.search);
+const T0 = q.has('t') ? +q.get('t') : null;
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+const dpr = window.devicePixelRatio || 1;
+let W = 0, H = 0;
+function resize() {
+  W = innerWidth; H = innerHeight;
+  cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px';
+}
+resize(); addEventListener('resize', resize);
+
+const modes = ['idle', 'hover', 'press', 'grab'];
+const hands = [0, 1].map(() => modes.map((m) => { const h = new KhonHand(); h.setPose(m); for (let i = 0; i < 60; i++) h.update(1 / 60); return h; }));
+const tracked = new KhonHand();
+
+const devas = [
+  // x, y, scale, pose, hue, face, flap, active
+  [110, 170, 2.0, 'fly', 0, 1, 0.8, true],
+  [330, 170, 2.0, 'kneel', 1, 1, 0.1, true],
+  [540, 170, 2.0, 'wai', 2, -1, 0.1, false],
+  [120, 400, 1.3, 'fly', 3, 1, 0.3, false],
+  [270, 400, 1.3, 'fly', 4, -1, 1, true],
+  [420, 400, 1.3, 'kneel', 0, -1, 0.2, true],
+  [560, 400, 1.3, 'wai', 3, 1, 0.1, false],
+];
+const warmDevas = [
+  [800, 170, 2.0, 'fly', 1, 1, 0.5, true],
+  [1030, 170, 2.0, 'kneel', 2, 1, 0.2, true],
+  [1250, 170, 2.0, 'fly', 4, -1, 0.6, false],
+  [790, 400, 0.75, 'fly', 0, 1, 0.5, true],
+  [880, 400, 0.75, 'kneel', 3, -1, 0.2, true],
+];
+
+let perf = { deva: 0, hand: 0, n: 0 };
+function bg() {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const g1 = ctx.createLinearGradient(0, 0, 0, H);
+  g1.addColorStop(0, '#1a0f0a'); g1.addColorStop(1, '#070403');
+  ctx.fillStyle = g1; ctx.fillRect(0, 0, W / 2, H);
+  const g2 = ctx.createRadialGradient(W * 0.75, H * 0.45, 50, W * 0.75, H * 0.45, W * 0.45);
+  g2.addColorStop(0, '#f6e2b0'); g2.addColorStop(0.6, '#e2b772'); g2.addColorStop(1, '#a8743a');
+  ctx.fillStyle = g2; ctx.fillRect(W / 2, 0, W / 2, H);
+}
+
+function frame(now) {
+  const t = T0 != null ? T0 : now / 1000;
+  bg();
+  let td = 0, th = 0, nd = 0;
+  for (const list of [devas, warmDevas]) for (const [x, y, s, pose, hue, face, flap, active] of list) {
+    ctx.setTransform(dpr * s, 0, 0, dpr * s, x * dpr, y * dpr);
+    const a = performance.now();
+    const { hand } = drawDeva(ctx, { t: t + x * 0.01, face, flap, pose, hue, active });
+    td += performance.now() - a; nd++;
+    // show the hand point with a short string
+    ctx.setTransform(dpr * s, 0, 0, dpr * s, x * dpr, y * dpr);
+    ctx.strokeStyle = 'rgba(255,225,150,0.9)'; ctx.lineWidth = 0.6;
+    ctx.beginPath(); ctx.moveTo(hand[0], hand[1]); ctx.lineTo(hand[0], hand[1] + 40); ctx.stroke();
+  }
+  // hands: idle / hover / press / grab on dark and warm
+  const dt = 1 / 60;
+  for (let side = 0; side < 2; side++) {
+    for (let i = 0; i < 4; i++) {
+      const h = hands[side][i];
+      h.update(dt);
+      const x = side ? 760 + i * 150 : 80 + i * 150, y = 640;
+      const a = performance.now();
+      h.draw(ctx, x, y, 1.25, dpr);
+      th += performance.now() - a;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.fillStyle = side ? '#5a3212' : '#c9a86a';
+      ctx.fillText(modes[i], x - 14, 860);
+      ctx.strokeStyle = 'rgba(255,220,140,0.7)'; ctx.lineWidth = 1;
+      for (const [tx, ty] of h.tips) { ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(tx, ty + 30); ctx.stroke(); }
+      ctx.fillStyle = '#f33'; ctx.fillRect(x - 1.5, y - 1.5, 3, 3);
+    }
+  }
+  // tracked-curl hand sweeping through curls
+  const c = (0.5 + 0.5 * Math.sin(t * 1.3));
+  tracked.setPose(null, [0, 1, 2, 3, 4].map((k) => (0.5 + 0.5 * Math.sin(t * 1.3 + k * 0.5)) * 1.1 - 0.15));
+  tracked.update(dt);
+  tracked.draw(ctx, 690, 330, 1.25, dpr);
+  void c;
+  perf.deva += td / nd; perf.hand += th / 8; perf.n++;
+  if (perf.n % 30 === 0) {
+    document.getElementById('perf').textContent = `deva ${(perf.deva / perf.n).toFixed(3)} ms · hand ${(perf.hand / perf.n).toFixed(3)} ms (avg per draw)`;
+    window.__perf = { deva: perf.deva / perf.n, hand: perf.hand / perf.n };
+  }
+  if (perf.n === 40) window.__ready = true;
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

@@ -320,8 +320,9 @@ export class Puppet {
     // keep the projected position of the torso fixed while moving in depth
     const L = this.world.lamp;
     const r = this.root;
-    const sx = L.x + (r.x - L.x) / (1 - this.z), sy = L.y + (r.y - L.y) / (1 - this.z);
-    const nx = L.x + (sx - L.x) * (1 - z), ny = L.y + (sy - L.y) * (1 - z);
+    const Lx = L.x + (L.sx || 0);
+    const sx = Lx + (r.x - Lx) / (1 - this.z), sy = L.y + (r.y - L.y) / (1 - this.z);
+    const nx = Lx + (sx - Lx) * (1 - z), ny = L.y + (sy - L.y) * (1 - z);
     const dx = nx - r.x, dy = ny - r.y;
     const moveAll = (b) => { b.x += dx; b.y += dy; b.px += dx; b.py += dy; b.z = z; };
     for (const b of this.parts) moveAll(b);

@@ -271,6 +271,15 @@ export class ShadowScreen {
 
   tex(sprite) {
     let t = this.textures.get(sprite.id);
+    if (t && sprite.dynamic) {
+      const gl = this.gl;
+      gl.bindTexture(gl.TEXTURE_2D, t);
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, sprite.canvas);
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+      gl.generateMipmap(gl.TEXTURE_2D);
+      return t;
+    }
     if (!t) {
       t = textureFromCanvas(this.gl, sprite.canvas);
       this.textures.set(sprite.id, t);

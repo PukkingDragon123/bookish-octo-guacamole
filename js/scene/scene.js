@@ -13,11 +13,12 @@ export class Scene {
     this.world = new World({ gravity: 1800, substeps: 10 });
     this.lamp = {
       x: CLOTH_W / 2, y: 360, dist: 640, flame: 30,
-      intensity: 1, target: 1, color: [1.0, 0.8, 0.52], kind: 'oil', flicker: 0,
+      intensity: 1, target: 1, sx: 0, color: [1.0, 0.8, 0.52], kind: 'oil', flicker: 0,
     };
     this.world.lamp = this.lamp;
     this.world.floorY = (z) => this.lamp.y + (FLOOR - this.lamp.y) * (1 - z);
     this.actors = [];
+    this.worldW = 1600; // stage length (cloth units); grows when the scene is expanded
     this.membrane = new Membrane();
     this.time = 0;
     this.listeners = {};
@@ -31,11 +32,11 @@ export class Scene {
   // ---- projection between the physics plane at depth z and the cloth
   project(x, y, z) {
     const L = this.lamp, s = 1 / (1 - z);
-    return [L.x + (x - L.x) * s, L.y + (y - L.y) * s, s];
+    return [L.x + (x - L.sx - L.x) * s, L.y + (y - L.y) * s, s];
   }
   unproject(cx, cy, z) {
     const L = this.lamp, k = 1 - z;
-    return [L.x + (cx - L.x) * k, L.y + (cy - L.y) * k];
+    return [L.x + L.sx + (cx - L.x) * k, L.y + (cy - L.y) * k];
   }
 
   // Move the lamp without making every shadow jump: shift the physics
@@ -183,6 +184,7 @@ export class Scene {
         if (squash !== 1) {
           m = [m[0] * squash, m[1], m[2] * squash, m[3], r.x + (m[4] - r.x) * squash, m[5]];
         }
+        m[4] -= this.lamp.sx;
         out.push({ sprite: b.sprite, m, z: b.z, ...extra });
       };
       for (const b of a.parts) addBody(b);
@@ -190,12 +192,12 @@ export class Scene {
         for (const h of a.handRods) {
           const b = h.body;
           const p0 = b.toWorld(0, -h.len / 2), p1 = b.toWorld(0, h.len / 2);
-          out.push({ line: true, a: sq(p0, r.x, squash), b: sq(p1, r.x, squash), width: 2.2, z: b.z, dark: 0.06 });
+          out.push({ line: true, a: sh(sq(p0, r.x, squash), this.lamp.sx), b: sh(sq(p1, r.x, squash), this.lamp.sx), width: 2.2, z: b.z, dark: 0.06 });
         }
       }
       if (a.rod) {
         const p0 = r.toWorld(a.rod.a[0], a.rod.a[1]), p1 = r.toWorld(a.rod.b[0], a.rod.b[1]);
-        out.push({ line: true, a: sq(p0, r.x, squash), b: sq(p1, r.x, squash), width: 4.2, z: r.z, dark: 0.03 });
+        out.push({ line: true, a: sh(sq(p0, r.x, squash), this.lamp.sx), b: sh(sq(p1, r.x, squash), this.lamp.sx), width: 4.2, z: r.z, dark: 0.03 });
       }
     }
     return out;
@@ -213,11 +215,13 @@ export class Scene {
       const [wx, wy] = b.toWorld(lp[0] - b.com[0], lp[1] - b.com[1]);
       const [cx, cy, s] = this.project(wx, wy, b.z);
       const fl = 0.85 + Math.sin(this.time * 17 + cx) * 0.08 + Math.sin(this.time * 7.3 + cy) * 0.07;
-      out.push({ x: cx, y: cy, r: g[2] * s * 1.6, i: 0.9 * fl, c: [1.0, 0.62, 0.25] });
+      out.push({ x: cx, y: cy, r: g[2] * s * 1.6, i: 0.9 * fl, c: a.def.glowColor || [1.0, 0.62, 0.25] });
     }
     return out;
   }
 }
+
+function sh(p, dx) { return [p[0] - dx, p[1]]; }
 
 function sq(p, x0, k) {
   return k === 1 ? p : [x0 + (p[0] - x0) * k, p[1]];
