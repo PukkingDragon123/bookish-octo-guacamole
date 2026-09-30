@@ -114,7 +114,6 @@ function fillAnim(def) {
   def.joints = [...joints];
 }
 for (const [name, def] of Object.entries(NEW_ANIMS)) {
-  if (ANIMS[name]) continue;
   fillAnim(def);
   ANIMS[name] = def;
 }
@@ -145,7 +144,8 @@ export class Games {
     this.frame = 0;
     this.time = 0;
     this._built = new Map();
-    this.stats = { kicks: 0, returns: 0, jumps: 0, trips: 0, bounces: 0, bestTakraw: 0, bestPong: 0 };
+    this.debug = null; // set to [] to collect diagnostics
+    this.stats = { kicks: 0, returns: 0, jumps: 0, trips: 0, bounces: 0, bestTakraw: 0, bestPong: 0, whiffs: 0, drops: 0 };
   }
 
   get scene() { return this.game.scene; }
@@ -353,15 +353,18 @@ export class Games {
     s.vx += -mg * s.va * s.vy * h;
     s.vy += mg * s.va * s.vx * h;
     s.va *= Math.exp(-0.25 * h);
+    const vmax = spec.vmax || 1800, sp2 = s.vx * s.vx + s.vy * s.vy;
+    if (sp2 > vmax * vmax) { const q = vmax / Math.sqrt(sp2); s.vx *= q; s.vy *= q; }
     s.x += s.vx * h; s.y += s.vy * h; s.a += s.va * h;
-    const ev = s.events;
+    // squeezed between a limb and the floor: no bounce (stops energy pumping)
+    const wedged = s.onFloor || s.y + R > env.fy - 2;
     // bodies (limbs, paddles, props)
     if (near) {
       for (const o of near) {
         const pd = o.owner && o.owner.def && o.owner.def.paddle;
         if (pd) {
           const [cx, cy] = this._blade(o.owner);
-          this._hitCircle(s, cx, cy, pd.blade[2] * 0.9, o, pd.e, quiet);
+          this._hitCircle(s, cx, cy, pd.blade[2] * 0.9, o, wedged ? 0.1 : pd.e, quiet);
           continue;
         }
         if (Math.hypot(o.x - s.x, o.y - s.y) > o.radius + R + 2) continue;
@@ -369,7 +372,7 @@ export class Games {
         for (const q of o.circles) {
           const lx = q.x * o.flip;
           const cx = o.x + lx * c - q.y * sn, cy = o.y + lx * sn + q.y * c;
-          this._hitCircle(s, cx, cy, q.r, o, o.isPuppet ? spec.e * 0.7 : spec.e * 0.6, quiet);
+          this._hitCircle(s, cx, cy, q.r, o, wedged ? 0.05 : o.isPuppet ? spec.e * 0.7 : spec.e * 0.6, quiet);
         }
       }
     }
@@ -407,7 +410,6 @@ export class Games {
       }
       s.onFloor = true;
     } else s.onFloor = false;
-    void ev;
   }
 
   _hitCircle(s, cx, cy, cr, o, e, quiet) {
@@ -464,9 +466,10 @@ export class Games {
       else this.sfx('thap', x, { vol: v * 0.7, pitch: rnd(0.9, 1.2) });
       // a keyboard / pad driven puppet (not a deva player) kicks the ball up
       // when it touches their foot or head
+      if (this.debug) this.debug.push(['touch', ow?.rig?.id, o.part, Math.round(speed), s.cool]);
       if (!pp && ow instanceof Puppet && ow._gameRole !== 'takraw' && s.cool <= 0 && !ow.isAnimal) {
         const L = ow.rig.limbs || {};
-        const foot = [L.legF?.[L.legF.length - 1], L.legB?.[L.legB.length - 1]].includes(o.part);
+        const foot = [...(L.legF || []), ...(L.legB || [])].includes(o.part);
         const head = o.part === (L.head || 'head');
         if (foot || head) {
           s.vy = Math.min(s.vy, -rnd(700, 900));
@@ -534,9 +537,9 @@ export class Games {
     return out;
   }
 
-  _launch(st, vx, vy, va, who) {
+  _launch(st, vx, vy, va, who, ignoreFor = 0.22) {
     st.vx = vx; st.vy = vy; st.va = va;
-    st.ignore = { who, until: this.time + 0.22 };
+    st.ignore = { who, until: this.time + ignoreFor };
     st.cool = 0.25;
   }
 
@@ -574,7 +577,16 @@ export class Games {
     return p.limbWorld('footF');
   }
 
+  // lay down whatever is in the hands (a trident is no good for takraw)
+  _freeHands(p, keep) {
+    for (const h of ['handF', 'handB']) {
+      const it = p.held[h];
+      if (it && !(keep && keep(it))) { p.release(h); it.body.vx = p.facing * 40; }
+    }
+  }
+
   _driveTakraw(p, dt) {
+    this._freeHands(p);
     // the ball: nearest takraw ball on stage, or bring one
     let ball = this._nearestProp(p, (a) => a.def.ball && a.def.ball.kind === 'takraw');
     if (!ball) {
@@ -604,6 +616,7 @@ export class Games {
     const spacing = n > 1 ? clamp(900 / (n - 1), 260, 380) : 0;
     const idx = players.indexOf(p);
     const home = m.cx + (idx - (n - 1) / 2) * spacing;
+    p._home = home;
     if (!st.free) { this._step(p, home, 120, dt); return; }
 
     // who's receiving
@@ -679,6 +692,8 @@ export class Games {
       if (gk.done) { if (t > gk.apex + 0.3) p._gk = null; continue; }
       if (t > gk.apex + 0.16) {
         // whiffed
+        this.stats.whiffs++;
+        if (this.debug) { const L = this._limbPoint(p, gk.kind), Z = this._zone(p, gk.kind); this.debug.push(['whiff', p.rig.id, gk.kind, gk.forced, Math.round(st.x - L[0]), Math.round(st.y - L[1]), Math.round(st.x - Z[0]), Math.round(st.y - Z[1]), st.onFloor]); }
         p._gk = null;
         continue;
       }
@@ -686,7 +701,8 @@ export class Games {
       const L = this._limbPoint(p, gk.kind) || this._zone(p, gk.kind);
       const Z = this._zone(p, gk.kind);
       const R = st.spec.r;
-      const close = Math.hypot(st.x - L[0], st.y - L[1]) < R + 55 || Math.hypot(st.x - Z[0], st.y - Z[1]) < R + 70 || (gk.forced && Math.abs(st.x - Z[0]) < 80 && st.onFloor);
+      const close = Math.hypot(st.x - L[0], st.y - L[1]) < R + 55 || Math.hypot(st.x - Z[0], st.y - Z[1]) < R + 70 || (gk.forced && Math.abs(st.x - Z[0]) < 80 && st.onFloor)
+        || (st.touch && st.touch.who === p && this.time - st.touch.t < 0.12 && this.time - st.touch.t <= t);
       if (!close) continue;
       gk.done = true;
       this._kickTo(m, p, gk.kind);
@@ -699,6 +715,7 @@ export class Games {
         const who = m.lastKicker && !m.lastKicker.removed ? m.lastKicker : m.players[0];
         if (Math.random() < 0.6) who?.say(pick(SAY.miss));
       }
+      if (m.rally > 0) this.stats.drops++;
       m.best = Math.max(m.best || 0, m.rally);
       this.stats.bestTakraw = Math.max(this.stats.bestTakraw, m.rally);
       m.rally = 0;
@@ -720,12 +737,14 @@ export class Games {
     let next = to === p ? (r < 0.55 ? 'kick' : r < 0.85 ? 'knee' : 'header') : (r < 0.75 ? 'kick' : r < 0.9 ? 'knee' : 'header');
     const Q = this._zone(to, next);
     if (to === p) Q[0] += rnd(-25, 25);
+    else if (to._home != null) Q[0] += (to._home - to.root.x) * 0.6; // spread out again
     const d = Math.abs(Q[0] - st.x);
     const T = to === p ? rnd(0.75, 1.0) : clamp(0.8 + d / 1100, 0.95, 1.55);
     const spin = rnd(-3, 3);
     const [vx, vy] = this._aim(st, Q, T, spin);
     if (!Number.isFinite(vx) || !Number.isFinite(vy)) return;
-    this._launch(st, vx, vy, spin, p);
+    // juggling alone: don't let my own head/arms knock it on the way down
+    this._launch(st, vx, vy, spin, p, to === p ? T * 0.7 : 0.3);
     m.receiver = to;
     m.nextKind = next;
     m.lastKicker = p;
@@ -747,7 +766,11 @@ export class Games {
       if (this.frame - (this._lastTable || -999) < 30) return;
       this._lastTable = this.frame;
       const W = this.scene.worldW || 1600;
-      const [wx] = this.scene.unproject(clamp(this.scene.project(p.root.x, 0, p.z)[0], 500, W - 500), 0, p.z);
+      // centred between everyone who wants to play
+      const ps = this._players('pingpong', null, p.z);
+      if (!ps.includes(p)) ps.push(p);
+      const mx = ps.reduce((a, q) => a + this.scene.project(q.root.x, 0, q.z)[0], 0) / ps.length;
+      const [wx] = this.scene.unproject(clamp(mx, 620, W - 620), 0, p.z);
       const def = this.def('pingpong-table');
       table = this.spawnProp('pingpong-table', wx, this.world.floorY(p.z) - 100, p.z);
       if (!table) return;
@@ -798,7 +821,7 @@ export class Games {
     }
     // ready stance: paddle forward at waist height
     if (!p.anim) {
-      p.ctrl = { shoulderF: -55 * DEG, elbowF: -50 * DEG, wristF: 0, shoulderB: -20 * DEG, elbowB: -40 * DEG, hipF: -14 * DEG, kneeF: 18 * DEG, hipB: 10 * DEG, kneeB: 16 * DEG };
+      p.ctrl = { shoulderF: -55 * DEG, elbowF: -50 * DEG, wristF: 0, shoulderB: -20 * DEG, elbowB: -40 * DEG };
       p.ctrlW = Math.min(0.9, (p.ctrlW || 0) + dt * 3);
       p._gameCtrl = true;
     }
@@ -869,7 +892,7 @@ export class Games {
       const pad = server.held.handF;
       if (!pad || !pad.def.paddle || !server._bladeReady) { m.t = 0.3; return; }
       const bx = server.root.x + server.facing * (server._BA ? server._BA[0] : this._blade(pad)[0] - server.root.x);
-      const by = server.root.y + (server._BA ? server._BA[1] : this._blade(pad)[1] - server.root.y);
+      const by = Math.min(server.root.y + (server._BA ? server._BA[1] : 0), this._blade(pad)[1]);
       let ball = m.ball;
       if (!ball) {
         ball = this.spawnProp('pingpong-ball', bx, by - 60, z);
@@ -881,6 +904,7 @@ export class Games {
       ball.placeAt(bx, by - 50);
       Object.assign(s, { x: ball.body.x, y: ball.body.y, vx: 0, vy: -330, va: 0, free: true, lastTable: -1, lastFloor: -1 });
       ball.body.vx = 0; ball.body.vy = -330;
+      s.ignore = { who: server, until: this.time + 0.3 }; // don't knock the toss with the resting paddle
       m.server = server;
       m.hitter = null;
       m.state = 'toss';
@@ -908,8 +932,9 @@ export class Games {
       this._returnShot(m, p, st, g);
     }
     // dead ball: on the floor, gone astray, or nobody hit it for a while
-    const dead = (st.lastFloor > m.lastHit && st.lastFloor > 0) || !st.free && m.state !== 'toss' || this.time - m.lastHit > 3.5 && m.state === 'play' || m.state === 'toss' && m.t < 0;
+    const dead = (st.lastFloor > m.lastHit && st.lastFloor > 0) || (st.onFloor && st.free && m.state === 'play' && this.time - m.lastHit > 0.1) || !st.free && m.state !== 'toss' || this.time - m.lastHit > 3.5 && m.state === 'play' || m.state === 'toss' && m.t < 0;
     if (dead) {
+      if (this.debug) this.debug.push(['pongdead', m.state, m.rally, Math.round(st.x), Math.round(st.y), Math.round(st.vx), Math.round(st.vy), st.lastFloor > m.lastHit, !st.free, +(this.time - m.lastHit).toFixed(2)]);
       if (m.rally >= 4) this.sfx(m.rally >= 10 ? 'cheer' : 'gasp', g.netX, { vol: 0.4 });
       m.best = Math.max(m.best || 0, m.rally);
       this.stats.bestPong = Math.max(this.stats.bestPong, m.rally);
@@ -927,16 +952,20 @@ export class Games {
     const tx = g.netX - side * half * rnd(0.35, 0.8);
     const Q = [tx, g.topY - st.spec.r - 1];
     const spin = rnd(4, 10) * -side; // a touch of topspin
+    // lowest arc that clears the net AND drops steeply enough to kick back
+    // up into the other player's reach after the bounce
     let best = null;
-    for (let T = 0.5; T <= 1.2; T += 0.1) {
+    for (let T = 0.5; T <= 1.4; T += 0.05) {
       const [vx, vy] = this._aim(st, Q, T, spin);
-      // net clearance
+      if (!Number.isFinite(vx) || !Number.isFinite(vy)) continue;
       const tn = Math.abs((g.netX - st.x) / (vx || 1e-3));
       const e = this._fly({ ...st, vx, vy, va: spin }, Math.min(tn, T), 30);
-      if (e.y < g.netTop - st.spec.r - 8 && Number.isFinite(vx)) { best = [vx, vy]; break; }
+      const land = this._fly({ ...st, vx, vy, va: spin }, T, 40);
       best = [vx, vy];
+      if (e.y < g.netTop - st.spec.r - 8 && land.vy > 760) break;
     }
     if (!best) return;
+    if (this.debug) this.debug.push(['return', p.rig.id, Math.round(st.x), Math.round(st.y), Math.round(tx), best.map(Math.round)]);
     this._launch(st, best[0], best[1], spin, p);
     st.lastTable = -1;
     m.hitter = p;
@@ -958,6 +987,7 @@ export class Games {
   }
 
   _driveRope(p, dt) {
+    if (p.held.handB) this._freeHands(p, (it) => it === p.held.handF);
     const held = p.held.handF;
     if (!held || !held.def.rope) {
       const rope = this._nearestProp(p, (a) => a.def.rope && !a.heldBy && !a.removed, 700);
@@ -1000,7 +1030,7 @@ export class Games {
   // how high to be off the floor right now (a parabola around the moment
   // the rope sweeps under the feet, led a little for the drive lag)
   _ropeLift(p, R) {
-    if (R.pause > 0 || R.omega < 3) return 0;
+    if (R.pause > 0 || R.omega < 2.5) return 0;
     const lead = 0.07;
     const phi = R.apexAng ?? R.phase;
     const d = wrapA(phi + R.omega * lead - Math.PI / 2);
@@ -1053,7 +1083,7 @@ export class Games {
     const turning = R.ai === p && this.frame - R.aiSeen < 3;
     // rotation speed: the deva turns it steadily, faster as the count grows
     const wantW = turning && R.pause <= 0 ? TAU / clamp(0.95 - R.count * 0.004, 0.72, 0.95) : 0;
-    R.omega = lerp(R.omega, wantW, 1 - Math.exp(-dt * 2.5));
+    R.omega = lerp(R.omega, wantW, 1 - Math.exp(-dt * (wantW ? 4 : 2.5)));
     R.pause = Math.max(0, R.pause - dt);
     R.phase += R.omega * dt;
     const mid = [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2];
@@ -1062,10 +1092,11 @@ export class Games {
     R.R = lerp(R.R, wantR, 1 - Math.exp(-dt * 4));
     const f = p.facing;
     const u = [f * Math.cos(R.phase), Math.sin(R.phase)], v = [-u[1], u[0]];
-    const W = R.R * 0.17;
+    const W = R.R * 0.16;
     const target = (i) => {
-      const s = i / N, e = Math.sin(Math.PI * s);
-      return [A[0] + (B[0] - A[0]) * s + u[0] * R.R * e + v[0] * W * Math.sin(TAU * s), A[1] + (B[1] - A[1]) * s + u[1] * R.R * e + v[1] * W * Math.sin(TAU * s)];
+      // a slim ellipse through the hands, reaching R.R out along u
+      const s = i / N, e = 0.5 - 0.5 * Math.cos(TAU * s), w = Math.sin(TAU * s);
+      return [A[0] + (B[0] - A[0]) * s + u[0] * R.R * e + v[0] * W * w, A[1] + (B[1] - A[1]) * s + u[1] * R.R * e + v[1] * W * w];
     };
     if (!wasActive) {
       for (let i = 0; i <= N; i++) { const t = target(i); P[i] = [t[0], Math.min(t[1], fy - 2)]; Pv[i] = P[i].slice(); }
@@ -1078,11 +1109,14 @@ export class Games {
       let L = 0;
       let prevT = target(0);
       for (let i = 1; i <= N; i++) { const t = target(i); L += Math.hypot(t[0] - prevT[0], t[1] - prevT[1]); prevT = t; }
-      R.rest = lerp(R.rest, (L / N) * 1.02, 0.05);
+      R.rest = lerp(R.rest, L / N, 0.05);
     }
     // legs of the holder (the rope catches on them)
     const L = p.rig.limbs || {};
-    const legs = [...(L.legF || []), ...(L.legB || [])].map((id) => p.bodies[id]).filter(Boolean);
+    // only the shins/feet: in side view the rope passes the rest of the body
+    // round its sides, and only the bottom of the loop sweeps under the feet
+    const legs = [L.legF?.[L.legF.length - 1], L.legB?.[L.legB.length - 1]].map((id) => p.bodies[id]).filter(Boolean);
+    const i0 = Math.floor(N * 0.3), i1 = Math.ceil(N * 0.7);
     const sub = 4, h = dt / sub, g = this.world.gravity;
     const att = R.omega > 1 ? 0.3 * Math.min(1, R.omega / 5) : 0;
     let pushed = 0, floorHit = false;
@@ -1094,7 +1128,7 @@ export class Games {
         q[0] += vx; q[1] += vy + g * h * h;
         if (att) { const t = target(i); q[0] += (t[0] - q[0]) * att; q[1] += (t[1] - q[1]) * att; }
       }
-      for (let it = 0; it < 5; it++) {
+      for (let it = 0; it < 6; it++) {
         P[0][0] = A[0]; P[0][1] = A[1]; P[N][0] = B[0]; P[N][1] = B[1];
         for (let i = 0; i < N; i++) {
           const a = P[i], c = P[i + 1];
@@ -1115,7 +1149,7 @@ export class Games {
           o[0] = lerp(o[0], q[0], 0.4); // floor friction
           floorHit = true;
         }
-        for (const lb of legs) {
+        for (const lb of i >= i0 && i <= i1 ? legs : []) {
           if (Math.hypot(lb.x - q[0], lb.y - q[1]) > lb.radius + 4) continue;
           const c = Math.cos(lb.a), sn = Math.sin(lb.a);
           for (const k2 of lb.circles) {
@@ -1136,9 +1170,10 @@ export class Games {
     // counting and tripping at each sweep under the feet
     const d = wrapA(R.apexAng - Math.PI / 2);
     if (R.omega > 4 && R.pause <= 0) {
-      if (Math.abs(d) < 0.9 && pushed > 0) R.snag += pushed;
+      if (Math.abs(d) < 0.9 && pushed > 0 && R.omega > 5) R.snag++;
+      if (this.debug && Math.abs(d) < 0.12) { let lowFoot = 1e9; for (const lb of legs) for (const k2 of lb.circles) { const [cx, cy] = lb.toWorld(k2.x, k2.y); lowFoot = Math.min(lowFoot, fy - cy - k2.r); } this.debug.push(['rope', +d.toFixed(2), Math.round(lowFoot), Math.round(this._ropeLift(p, R)), pushed, R.snag]); }
       if (R.prevD != null && R.prevD < 0 && d >= 0 && Math.abs(d) < 1) {
-        if (R.snag > 6) {
+        if (R.snag > 4) {
           // tangled
           R.pause = 1.4; R.omega = 0; this.stats.trips++;
           R.best = Math.max(R.best, R.count);
@@ -1168,7 +1203,7 @@ export class Games {
       if (!R.active || !R.tips) continue;
       const P = R.pts, z = R.z;
       for (let i = 0; i < R.N; i++) {
-        out.push({ line: true, a: [P[i][0] - sx, P[i][1]], b: [P[i + 1][0] - sx, P[i + 1][1]], width: 2.6, z, dark: 0.04 });
+        out.push({ line: true, a: [P[i][0] - sx, P[i][1]], b: [P[i + 1][0] - sx, P[i + 1][1]], width: 3.4, z, dark: 0.02 });
       }
       const spec = R.prop.def.rope, hs = spec.handle;
       if (!hs) continue;
@@ -1176,7 +1211,7 @@ export class Games {
       for (const H of R.tips) {
         // sprite "up" (0,-1) along the handle direction, grip on the hand
         const th = Math.atan2(H.dir[0], -H.dir[1]);
-        const c = Math.cos(th), s = Math.sin(th);
+        const c = Math.cos(th) * 1.25, s = Math.sin(th) * 1.25; // a touch bigger than life, to read
         const m = [c, s, -s, c, 0, 0];
         m[4] = H.grip[0] - (c * g[0] - s * g[1]) - sx;
         m[5] = H.grip[1] - (s * g[0] + c * g[1]);

@@ -5,6 +5,7 @@
 import { Puppet } from '../puppet/puppet.js';
 import { drawDeva } from '../render/deva.js';
 import { fight } from './combatAI.js';
+import { GAME_ROLES, GAME_ROLE_IDS, driveRole } from './games.js';
 
 export const ROLES = [
   ['fighter', 'นักดาบ', 'Sword fighter', '⚔'],
@@ -16,6 +17,7 @@ export const ROLES = [
   ['coward', 'ขี้ขลาด', 'Scaredy-cat', '!'],
   ['follower', 'ผู้ติดตาม', 'Follower', '→'],
   ['wander', 'เดินเล่น', 'Wanderer', '~'],
+  ...GAME_ROLES,
 ];
 
 const GENERIC = {
@@ -111,6 +113,7 @@ export class Fly {
     const p = this.actor;
     if (!(p instanceof Puppet)) return;
     if (p.mode === 'ragdoll' || p.dead) return;
+    if (GAME_ROLE_IDS.has(this.role)) return driveRole(this, p, this.role, dt, game);
     if (p.mode !== 'planted') p.plantAt(p.root.x);
     this.cool -= dt;
     const others = game.scene.actors.filter((o) => o !== p && o instanceof Puppet && !o.removed && Math.abs(o.z - p.z) < 0.08);

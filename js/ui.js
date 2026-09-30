@@ -6,6 +6,7 @@
 import { CATEGORIES } from './content.js';
 import { assemble, drawRig, rigBounds } from './puppet/rig.js';
 import { ROLES } from './sandbox/flies.js';
+import { GAME_ROLE_ICONS } from './sandbox/games.js';
 import { ANIMS } from './puppet/animations.js';
 
 const el = (tag, attrs = {}, ...kids) => {
@@ -64,6 +65,7 @@ const ROLE_ICONS = {
   villager: 'M3 11l9-7 9 7M6 10v10h12V10', comedian: MOVE_ICONS.laugh, monster: MOVE_ICONS.roar,
   coward: 'M12 3v11M12 18h.01M5 21h14', follower: 'M5 12h10M11 7l5 5-5 5M19 5v14', wander: 'M3 17c3-6 6 2 9-4s6 2 9-4',
 };
+Object.assign(ROLE_ICONS, GAME_ROLE_ICONS);
 
 export function thumbnail(def, size = 120) {
   const c = document.createElement('canvas');

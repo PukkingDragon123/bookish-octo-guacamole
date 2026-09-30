@@ -81,7 +81,7 @@ export const SCENES = [
     id: 'village-games', name: 'ลานกีฬาหมู่บ้าน', en: 'Village games', weather: [], lamp: 'electric', icon: 'ball',
     items: [
       ['sala', 1300, 0.12], ['ton-hukwang', 120, 0.08], ['ton-mamuang', 1520, 0.06], ['chaba-bush', 700, 0.03], ['bamboo-fence', 950, 0.05],
-      ['takraw', 420, 0.02, { y: 700 }], ['pingpong-table', 1080, 0.02], ['pingpong-paddle', 980, 0.02, { y: 800 }], ['pingpong-paddle', 1180, 0.02, { y: 800 }], ['pingpong-ball', 1080, 0.02, { y: 700 }], ['jump-rope', 1420, 0.02, { y: 820 }],
+      ['takraw', 420, 0.02, { y: 700 }], ['pingpong-table', 1080, 0.02], ['pingpong-paddle', 980, 0.02, { y: 800 }], ['pingpong-paddle-blue', 1180, 0.02, { y: 800 }], ['pingpong-ball', 1080, 0.02, { y: 700 }], ['jump-rope', 1420, 0.02, { y: 820 }],
       ['aitho', 300, 0.02, { f: 1, role: 'takraw' }], ['dek', 540, 0.02, { f: -1, role: 'takraw' }],
       ['chaoban-man', 900, 0.02, { f: 1, role: 'pingpong' }], ['yodthong', 1260, 0.02, { f: -1, role: 'pingpong' }],
       ['chaoban-woman', 1450, 0.02, { f: -1, role: 'jumprope' }], ['ma-thai', 700, 0.03],

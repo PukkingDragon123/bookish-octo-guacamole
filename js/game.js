@@ -19,6 +19,7 @@ import { Souls } from './sandbox/soul.js';
 import { Magic } from './sandbox/magic.js';
 import { AnimalAI } from './sandbox/animalAI.js';
 import { Scenes } from './sandbox/scenes.js';
+import { Games } from './sandbox/games.js';
 
 let audio = null;
 let HandTracker = null;
@@ -63,6 +64,8 @@ export class Game {
     this.souls = new Souls(this);
     this.magic = new Magic(this);
     this.scenes = new Scenes(this);
+    this.games = new Games(this);
+    this.scene.extraDrawables = () => this.games.drawables();
     this.fx.onThunder = () => audio?.sfx('thud', { vol: 1, pitch: 0.35 });
     this._wire();
     import('./audio/audio.js').then((m) => { audio = m.audio; this.audio = audio; }).catch((e) => console.warn('audio unavailable', e));
@@ -673,6 +676,7 @@ export class Game {
       this.fx.update(dt);
       this.souls.update(dt);
       this.magic.update(dt);
+      this.games.update(dt);
       this.scenes.update(dt);
       if (this.fx.shake) this.cam.shake = Math.max(this.cam.shake, this.fx.shake);
     }

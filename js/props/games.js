@@ -326,7 +326,7 @@ export const PROPS = [
     id: 'takraw', name: 'ลูกตะกร้อ', en: 'Takraw ball (woven rattan)', cat: 'games',
     build() {
       const R = 22;
-      return { sprite: takrawSprite(R), grip: [R + 1, R + 1], mass: 0.12, ball: { r: R, e: 0.74, drag: 0.12, spin: 0.5, kind: 'takraw' } };
+      return { sprite: takrawSprite(R), grip: [R + 1, R + 1], mass: 0.12, ball: { r: R, e: 0.74, drag: 0.12, spin: 0.5, vmax: 1700, kind: 'takraw' } };
     },
   },
   {
@@ -354,13 +354,13 @@ export const PROPS = [
   {
     id: 'pingpong-ball', name: 'ลูกปิงปอง', en: 'Ping-pong ball', cat: 'games',
     build() {
-      return { sprite: ppBallSprite(), mass: 0.02, ball: { r: 7, e: 0.9, drag: 0.35, spin: 1, kind: 'pingpong' } };
+      return { sprite: ppBallSprite(), mass: 0.02, ball: { r: 7, e: 0.9, drag: 0.35, spin: 1, vmax: 1500, kind: 'pingpong' } };
     },
   },
   {
     id: 'jump-rope', name: 'เชือกกระโดด', en: 'Jump rope (hand it to a puppet)', cat: 'games',
     build() {
-      return { sprite: ropeSprite(), grip: [16, 26], mass: 0.4, rope: { handle: handleSprite(), grip: HANDLE.grip, tip: HANDLE.tip, segs: 16 } };
+      return { sprite: ropeSprite(), grip: [16, 26], mass: 0.4, rope: { handle: handleSprite(), grip: HANDLE.grip, tip: HANDLE.tip, segs: 20 } };
     },
   },
 ];

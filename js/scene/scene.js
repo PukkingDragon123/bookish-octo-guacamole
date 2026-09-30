@@ -204,6 +204,7 @@ export class Scene {
         out.push({ line: true, a: sh(sq(p0, r.x, squash), this.lamp.sx), b: sh(sq(p1, r.x, squash), this.lamp.sx), width: 4.2, z: r.z, dark: 0.03 });
       }
     }
+    if (this.extraDrawables) for (const it of this.extraDrawables()) out.push(it);
     return out;
   }
 
