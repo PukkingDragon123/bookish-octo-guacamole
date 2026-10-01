@@ -10,7 +10,7 @@ import { KhonHand, drawString } from './render/cursor.js';
 import { Fly } from './sandbox/flies.js';
 import { Puppet } from './puppet/puppet.js';
 import { Pin } from './physics/world.js';
-import { GESTURE_MOVES, KEY_MOVES } from './puppet/animations.js';
+import { ANIMS, GESTURE_MOVES, KEY_MOVES } from './puppet/animations.js';
 import { CLOTH_W, CLOTH_H } from './render/screen.js';
 import { FX } from './render/fx.js';
 import { Editor } from './editor.js';
@@ -23,6 +23,7 @@ import { Games } from './sandbox/games.js';
 import { Director } from './scene/director.js';
 import { Tutorial } from './tutorial.js';
 import { SpeechLayer } from './render/speech.js';
+import { Social } from './sandbox/social.js';
 import { swayFoliage } from './props/foliage.js';
 
 let audio = null;
@@ -70,6 +71,7 @@ export class Game {
     this.scenes = new Scenes(this);
     this.games = new Games(this);
     this.director = new Director(this);
+    this.social = new Social(this);
     {
       // camera-mode medallion next to the others
       const top = this.root.querySelector('#topbar');
@@ -163,7 +165,7 @@ export class Game {
     const a = this.selected;
     if (!a || !a.play) return;
     const hold = name === 'block' || name === 'wong';
-    if (a.play(name, { hold: false })) audio?.sfx('magic', { vol: 0.35, pan: this._pan(a) });
+    if (a.play(name, { hold: !!ANIMS[name]?.hold })) audio?.sfx('magic', { vol: 0.35, pan: this._pan(a) });
     if (hold && a.anim) a.anim.hold = false;
   }
 
@@ -372,11 +374,20 @@ export class Game {
       // the limb; lifting it lets the whole figure dangle from that point.
       const b = hit.body;
       const lp = b.toLocal(wx, wy);
-      const pin = new Pin(b, lp, wx, wy, { compliance: 1 / (a.totalMass * 220), angle: null, maxCorr: 28 });
-      this.scene.world.addC(pin);
       this.flies.find((f) => f.actor === a)?.release();
-      a.controller = 'drag';
-      this.drag = { type: 'part', actor: a, pin, body: b, y0: wy, hist: [[performance.now(), wx, wy]] };
+      if (a.mode === 'planted' && !a.dead && a.animW > 0.5) {
+        // posing by hand: the limb bends at its joints toward the finger and
+        // stays where you leave it
+        a.controller = 'pose';
+        a.stopAnim();
+        this.drag = { type: 'pose', actor: a, body: b, lp, hist: [[performance.now(), wx, wy]] };
+        this.select(a);
+      } else {
+        const pin = new Pin(b, lp, wx, wy, { compliance: 1 / (a.totalMass * 220), angle: null, maxCorr: 28 });
+        this.scene.world.addC(pin);
+        a.controller = 'drag';
+        this.drag = { type: 'part', actor: a, pin, body: b, y0: wy, hist: [[performance.now(), wx, wy]] };
+      }
     } else if (a instanceof Puppet) {
       a.setMode('held');
       a.controller = a.controller && a.controller !== 'player' ? a.controller : 'player';
@@ -409,6 +420,19 @@ export class Game {
     const a = d.actor;
     const [wx, wy] = this.scene.unproject(clamp(x, -80, CLOTH_W + 80), clamp(y, -60, CLOTH_H + 40), a.z);
     if (d.hist) { d.hist.push([performance.now(), wx, wy]); if (d.hist.length > 8) d.hist.shift(); }
+    if (d.type === 'pose') {
+      const n = 3;
+      const miss = a.reach(d.body, d.lp, wx, wy, { n });
+      // pulled far beyond what the limb can reach: the whole figure comes along
+      if (miss > Math.max(140, a.chainReach(d.body, n) * 0.9)) {
+        const pin = new Pin(d.body, d.lp, wx, wy, { compliance: 1 / (a.totalMass * 220), angle: null, maxCorr: 28 });
+        this.scene.world.addC(pin);
+        a.controller = 'drag';
+        a.setMode('ragdoll');
+        this.drag = { type: 'part', actor: a, pin, body: d.body, y0: wy + 100, hist: d.hist };
+      }
+      return;
+    }
     if (d.type === 'part') {
       d.pin.tx = wx; d.pin.ty = wy;
       if (a.mode !== 'ragdoll' && d.y0 - wy > 70) a.setMode('ragdoll'); // lifted: dangle
@@ -438,6 +462,7 @@ export class Game {
       return;
     }
     const a = d.actor;
+    if (d.type === 'pose') { a.controller = null; audio?.sfx('click', { vol: 0.3 }); this.ui.renderSide(); return; }
     if (d.type === 'part') {
       this.scene.world.removeC(d.pin);
       a.controller = null;
@@ -501,6 +526,7 @@ export class Game {
     this.drag = null;
     clearTimeout(this._lpTimer);
     if (!d) return;
+    if (d.type === 'pose') { d.actor.controller = null; return; }
     if (d.type === 'part') { this.scene.world.removeC(d.pin); d.actor.controller = null; if (d.actor.mode !== 'ragdoll') d.actor.plantAt(d.actor.root.x); }
     else if (d.type === 'puppet') { d.actor.controller = null; d.actor.plantAt(d.actor.target.x); }
     else if (d.type === 'prop') this.scene.world.removeC(d.pin);
@@ -817,6 +843,7 @@ export class Game {
     this.editor?.update(this.wallDt || dt);
     if (!this.editor?.playing) {
       this.animalAI.update(dt);
+      this.social.update(dt);
       this.scene.update(dt);
       this.fx.update(dt);
       this.souls.update(dt);

@@ -509,3 +509,77 @@ export const KEY_MOVES = {
   Digit1: 'strike', Digit2: 'lunge', Digit3: 'block', Digit4: 'dance', Digit5: 'wai',
   Digit6: 'leap', Digit7: 'roar', Digit8: 'laugh', Digit9: 'wong', Digit0: 'bow',
 };
+
+// ---------------------------------------------------------------- everyday
+// Postures and social gestures (held poses scale their root drop with the
+// figure's height: scaleRoot).
+{
+  const K = (t, j, root = {}) => ({ t, j, root });
+  const more = {
+    sit: {
+      th: 'นั่ง', en: 'Sit', duration: 1.2, holdAt: 0.9, hold: true, fadeIn: 0.4, fadeOut: 0.6, smooth: true, omega: 14, scaleRoot: true,
+      keys: [
+        K(0, { hipF: -10, kneeF: 10, hipB: 5, kneeB: 10, shoulderF: -10, elbowF: -20, shoulderB: 5, elbowB: -20, neck: 0 }, { dy: 0, lean: 0 }),
+        K(0.5, { hipF: -55, kneeF: 70, hipB: -45, kneeB: 75, shoulderF: -25, elbowF: -40, shoulderB: -10, elbowB: -40, neck: 6 }, { dy: 55, lean: 8 }),
+        K(0.9, { hipF: -88, kneeF: 92, hipB: -80, kneeB: 96, shoulderF: -30, elbowF: -55, wristF: 10, shoulderB: -15, elbowB: -50, neck: 4 }, { dy: 105, lean: 2 }),
+        K(1.2, { hipF: -88, kneeF: 92, hipB: -80, kneeB: 96, shoulderF: -30, elbowF: -55, wristF: 10, shoulderB: -15, elbowB: -50, neck: 4 }, { dy: 105, lean: 2 }),
+      ],
+    },
+    kneel: {
+      th: 'นั่งพับเพียบ', en: 'Kneel (phap phiap)', duration: 1.4, holdAt: 1.1, hold: true, fadeIn: 0.45, fadeOut: 0.6, smooth: true, omega: 14, scaleRoot: true,
+      keys: [
+        K(0, { hipF: -10, kneeF: 10, hipB: 5, kneeB: 10, neck: 0 }, { dy: 0 }),
+        K(0.6, { hipF: -40, kneeF: 80, hipB: 20, kneeB: 90, shoulderF: -30, elbowF: -50, shoulderB: -20, elbowB: -50, neck: 10 }, { dy: 80, lean: 10 }),
+        K(1.1, { hipF: -20, kneeF: 140, hipB: 30, kneeB: 140, shoulderF: -35, elbowF: -70, wristF: 30, shoulderB: -30, elbowB: -70, wristB: 30, neck: 12 }, { dy: 150, lean: 6 }),
+        K(1.4, { hipF: -20, kneeF: 140, hipB: 30, kneeB: 140, shoulderF: -35, elbowF: -70, wristF: 30, shoulderB: -30, elbowB: -70, wristB: 30, neck: 12 }, { dy: 150, lean: 6 }),
+      ],
+    },
+    handshake: {
+      th: 'จับมือ', en: 'Shake hands', duration: 2.4, fadeIn: 0.35, fadeOut: 0.5, smooth: true, omega: 15,
+      keys: [
+        K(0, { shoulderF: -20, elbowF: -20, neck: 0 }),
+        K(0.5, { shoulderF: -62, elbowF: -18, wristF: 0, neck: 6 }, { lean: 4 }),
+        K(0.8, { shoulderF: -56, elbowF: -22, neck: 8 }, { lean: 5 }),
+        K(1.1, { shoulderF: -66, elbowF: -16, neck: 6 }, { lean: 4 }),
+        K(1.4, { shoulderF: -56, elbowF: -22, neck: 8 }, { lean: 5 }),
+        K(1.7, { shoulderF: -64, elbowF: -18, neck: 6 }, { lean: 4 }),
+        K(2.4, { shoulderF: -15, elbowF: -15, neck: 0 }, { lean: 0 }),
+      ],
+    },
+    highfive: {
+      th: 'แปะมือ', en: 'High five', duration: 1.4, fadeIn: 0.15, fadeOut: 0.4, smooth: true, omega: 17, events: [{ t: 0.55, sfx: 'chap' }],
+      keys: [
+        K(0, { shoulderF: -20, elbowF: -30 }, {}),
+        K(0.4, { shoulderF: -150, elbowF: -40, wristF: 20, hipF: -10, kneeF: 15 }, { dy: 8, lean: -4 }),
+        K(0.6, { shoulderF: -140, elbowF: -10, wristF: 10, hipF: -12, kneeF: 10 }, { dy: -6, lean: 6 }),
+        K(1.4, { shoulderF: -15, elbowF: -15, wristF: 0, hipF: 0, kneeF: 5 }, { dy: 0, lean: 0 }),
+      ],
+    },
+    hug: {
+      th: 'กอด', en: 'Hug', duration: 2.6, fadeIn: 0.4, fadeOut: 0.6, smooth: true, omega: 14,
+      keys: [
+        K(0, { shoulderF: -20, elbowF: -20, shoulderB: 0, elbowB: -20 }, {}),
+        K(0.7, { shoulderF: -80, elbowF: -70, shoulderB: -80, elbowB: -70, neck: 14 }, { lean: 10 }),
+        K(1.9, { shoulderF: -84, elbowF: -80, shoulderB: -82, elbowB: -78, neck: 16 }, { lean: 12 }),
+        K(2.6, { shoulderF: -15, elbowF: -15, shoulderB: 0, elbowB: -15, neck: 0 }, { lean: 0 }),
+      ],
+    },
+    talk: {
+      th: 'คุย', en: 'Chat', duration: 3, loop: true, fadeIn: 0.4, fadeOut: 0.5, smooth: true, omega: 13,
+      keys: [
+        K(0, { shoulderF: -30, elbowF: -60, wristF: 20, shoulderB: 5, elbowB: -25, neck: 0 }, {}),
+        K(0.75, { shoulderF: -55, elbowF: -45, wristF: 35, neck: -6 }, { lean: 2 }),
+        K(1.5, { shoulderF: -25, elbowF: -70, wristF: 10, shoulderB: -20, elbowB: -40, neck: 4 }, { lean: -1 }),
+        K(2.25, { shoulderF: -45, elbowF: -35, wristF: 30, shoulderB: 0, elbowB: -25, neck: -3 }, { lean: 2 }),
+        K(3, { shoulderF: -30, elbowF: -60, wristF: 20, shoulderB: 5, elbowB: -25, neck: 0 }, {}),
+      ],
+    },
+    'look-around': {
+      th: 'มองรอบๆ', en: 'Look around', duration: 3.2, fadeIn: 0.5, fadeOut: 0.6, smooth: true, omega: 12,
+      keys: [
+        K(0, { neck: 0 }, {}), K(0.9, { neck: -12, shoulderB: 8 }, { lean: -2 }), K(1.8, { neck: 10, shoulderF: -8 }, { lean: 2 }), K(3.2, { neck: 0, shoulderB: 0, shoulderF: 0 }, {}),
+      ],
+    },
+  };
+  for (const [k, d] of Object.entries(more)) { if (!ANIMS[k]) { ANIMS[k] = d; fill(d); } }
+}

@@ -53,6 +53,9 @@ export class Puppet {
     this.breath = Math.random() * 10;
     this.jawOpen = 0;
     this.handSwap = null;
+    this.pose = {};         // joint part id -> held target (posed by hand)
+    this.ik = null;         // per-frame joint target overrides (interactions)
+    this.animW = 0;         // 0 = pure physics, 1 = pure keyframed animation
     this._build(x, y, z);
     if (facing < 0) this.flip(true);
   }
@@ -270,6 +273,13 @@ export class Puppet {
     }
     // swap-able hand sprites (the princess's alternate hands)
     this.handSprites = rig.hands || null;
+    // parent-first order of the jointed parts (for forward kinematics)
+    const order = [];
+    const visit = (id) => { for (const k of childOf[id] || []) { order.push(k); visit(k); } };
+    visit(rootId);
+    this._order = order;
+    const L2 = rig.limbs || {};
+    this._legIds = new Set([...(L2.legF || []), ...(L2.legB || [])]);
   }
 
   get root() { return this.bodies[this.rootId]; }
@@ -515,6 +525,7 @@ export class Puppet {
         A = sampleAnim(def, Math.min(t, dur));
         aw = smooth01(an.w);
         root = A.root;
+        if (def.scaleRoot) root = { ...root, dy: root.dy * (this.height / 400) };
         if (A.swap !== undefined && this.handSprites) this.handSwap = A.swap;
         if (an.committed) root = { ...root, dx: 0 };
         // events (hit windows, sounds)
@@ -545,13 +556,27 @@ export class Puppet {
     if (this.walkAmt > 0.01) {
       const k = this.walkAmt;
       const dir = Math.sign(this.vel.x) * this.facing; // forward (+1) or backwards
-      W.hipF = -Math.sin(ph) * 0.42 * k * dir;
-      W.hipB = Math.sin(ph) * 0.42 * k * dir;
-      W.kneeF = Math.max(0, Math.cos(ph)) * 0.55 * k;
-      W.kneeB = Math.max(0, -Math.cos(ph)) * 0.55 * k;
-      W.shoulderF = Math.sin(ph) * 0.25 * k;
-      W.shoulderB = -Math.sin(ph) * 0.25 * k;
+      // a proper stride: thigh swing, knee lift on the passing leg, heel
+      // roll, counter-swinging arms with soft elbows, a little head bob
+      W.hipF = -Math.sin(ph) * 0.44 * k * dir;
+      W.hipB = Math.sin(ph) * 0.44 * k * dir;
+      W.kneeF = (Math.max(0, Math.cos(ph)) * 0.72 + 0.06) * k;
+      W.kneeB = (Math.max(0, -Math.cos(ph)) * 0.72 + 0.06) * k;
+      W.ankleF = -Math.max(0, -Math.cos(ph)) * 0.22 * k;
+      W.ankleB = -Math.max(0, Math.cos(ph)) * 0.22 * k;
+      W.shoulderF = Math.sin(ph) * 0.3 * k * dir;
+      W.shoulderB = -Math.sin(ph) * 0.3 * k * dir;
+      W.elbowF = -(0.22 + 0.18 * Math.max(0, Math.sin(ph))) * k;
+      W.elbowB = -(0.22 + 0.18 * Math.max(0, -Math.sin(ph))) * k;
+      W.neck = Math.sin(ph * 2) * 0.03 * k;
     }
+
+    // held postures end when the figure walks off; idle figures glance about
+    if (this.anim && this.anim.def.hold && this.walkAmt > 0.3) this.stopAnim();
+    if (!this.anim && this.isHumanoid && this.mode === 'planted' && !this.controller && this.walkAmt < 0.05 && !this.dead) {
+      this._idleT = (this._idleT || 0) + dt;
+      if (this._idleT > 7 + (this.group % 5)) { this._idleT = 0; this.play('look-around'); }
+    } else this._idleT = 0;
 
     // --- joint targets
     this.breath += dt;
@@ -609,6 +634,30 @@ export class Puppet {
       }
     }
 
+    // --- poses set by hand (persist) and per-frame interaction overrides
+    const free = !this.anim || this.anim.stopping ? 1 : 1 - aw;
+    for (const id in this.pose) {
+      const j = this.joints[id];
+      if (!j) continue;
+      if (this._legIds.has(id) && this.walkAmt > 0.15) continue;
+      j.target = lerp(j.target, this.pose[id], free);
+      j.drive = 1;
+    }
+    if (this.ik) {
+      for (const id in this.ik) { const j = this.joints[id]; if (j) { j.target = this.ik[id]; j.drive = 1; } }
+      this.ik = null;
+    }
+    // how much the keyframed pose rules the body (vs. free physics)
+    {
+      let want = 1;
+      if (this.mode === 'ragdoll' || this.dead || this.controller === 'drag' || this.isPlant) want = 0;
+      else if (this.mode === 'held' || this.mode === 'hung') want = 0.45;
+      else if (this.stun > 0) want = 0.25;
+      if (Object.values(this.pins).some((pn) => pn.enabled && pn.weight > 0.05)) want = Math.min(want, 0.15);
+      const rate = want < this.animW ? 18 : 5;
+      this.animW += (want - this.animW) * Math.min(1, dt * rate);
+    }
+
     // --- root pin
     const bob = this.walkAmt * Math.abs(Math.sin(ph)) * -5;
     const f = this.facing;
@@ -647,6 +696,108 @@ export class Puppet {
       }
     }
   }
+
+  // Forward kinematics: where every part would be if the joints sat exactly
+  // at their targets and the torso exactly at its grip. Map body -> [x, y, a].
+  _fk() {
+    const out = new Map();
+    const r = this.root, pin = this.rootPin;
+    out.set(r, [pin.tx, pin.ty, pin.angle]);
+    for (const id of this._order) {
+      const j = this.joints[id];
+      if (!j) continue;
+      const pa = out.get(j.A);
+      if (!pa) continue;
+      let t = j.target || 0;
+      if (j.lim) t = clamp(t, j.lim[0], j.lim[1]);
+      const fa = j.A.flip;
+      const aB = pa[2] + (j.rest + t) * fa;
+      const ca = Math.cos(pa[2]), sa = Math.sin(pa[2]);
+      const lx = j.la[0] * fa;
+      const ax = pa[0] + lx * ca - j.la[1] * sa, ay = pa[1] + lx * sa + j.la[1] * ca;
+      const cb = Math.cos(aB), sb = Math.sin(aB), fb = j.B.flip;
+      const bx = j.lb[0] * fb;
+      out.set(j.B, [ax - (bx * cb - j.lb[1] * sb), ay - (bx * sb + j.lb[1] * cb), aB]);
+    }
+    return out;
+  }
+
+  // After physics: pull the body toward the animated pose by animW, so
+  // walking, idling, sitting and gestures read as real animation while
+  // hits, drags and falls stay physical.
+  animate(dt) {
+    const w = this.animW;
+    if (w < 0.01 || this.removed) return;
+    const fk = this._fk();
+    const inv = 1 / Math.max(dt, 1e-3);
+    for (const [b, p] of fk) {
+      if (!Number.isFinite(p[0]) || !Number.isFinite(p[1])) continue;
+      const nx = b.x + (p[0] - b.x) * w, ny = b.y + (p[1] - b.y) * w;
+      const na = b.a + wrap(p[2] - b.a) * w;
+      if (b._ax != null) { b.vx = b.vx * (1 - w) + (nx - b._ax) * inv * w; b.vy = b.vy * (1 - w) + (ny - b._ay) * inv * w; b.va = b.va * (1 - w) + wrap(na - b._aa) * inv * w; }
+      b.x = nx; b.y = ny; b.a = na; b.px = nx; b.py = ny; b.pa = na;
+      b._ax = nx; b._ay = ny; b._aa = na;
+    }
+    // held items ride along at once
+    for (const pr of Object.values(this.held)) {
+      if (!pr || !pr.body.follow) continue;
+      const f = pr.body.follow, H = f.body;
+      const [x, y] = H.toWorld(f.lx, f.ly);
+      pr.body.x = pr.body.px = x; pr.body.y = pr.body.py = y; pr.body.a = pr.body.pa = H.a + f.rel * H.flip;
+    }
+  }
+
+  // Bend the joints above body b (up to n of them) so the body-local point
+  // lp reaches the world point (tx, ty): cyclic-coordinate-descent IK on the
+  // joint targets. Writes into `into` (this.pose by default) and returns the
+  // distance left over.
+  reach(b, lp, tx, ty, { n = 3, into = this.pose, iters = 6 } = {}) {
+    const chain = [];
+    let cur = b;
+    while (chain.length < n) {
+      const j = this.joints[cur.part];
+      if (!j) break;
+      chain.push(j);
+      cur = j.A;
+      if (cur === this.root) break;
+    }
+    if (!chain.length) return Infinity;
+    const save = chain.map((j) => j.target);
+    for (const j of chain) if (into[j.B.part] != null) j.target = into[j.B.part];
+    const pt = (p, l, flip) => { const c = Math.cos(p[2]), s = Math.sin(p[2]), x = l[0] * flip; return [p[0] + x * c - l[1] * s, p[1] + x * s + l[1] * c]; };
+    let miss = Infinity;
+    for (let it = 0; it < iters; it++) {
+      for (const j of chain) {
+        const fk = this._fk();
+        const pb = fk.get(b), pa = fk.get(j.A);
+        if (!pb || !pa) continue;
+        const e = pt(pb, lp, b.flip), piv = pt(pa, j.la, j.A.flip);
+        const da = Math.atan2(ty - piv[1], tx - piv[0]) - Math.atan2(e[1] - piv[1], e[0] - piv[0]);
+        let t = (j.target || 0) + wrap(da) * j.A.flip * 0.9;
+        if (j.lim) t = clamp(t, j.lim[0], j.lim[1]);
+        j.target = t;
+      }
+      const pb = this._fk().get(b);
+      if (pb) { const e = pt(pb, lp, b.flip); miss = Math.hypot(e[0] - tx, e[1] - ty); if (miss < 2) break; }
+    }
+    chain.forEach((j, i) => { into[j.B.part] = j.target; j.target = save[i]; });
+    return miss;
+  }
+
+  // reach of the chain above b (sum of segment lengths), for drag heuristics
+  chainReach(b, n = 3) {
+    let len = 0, cur = b;
+    for (let i = 0; i < n; i++) {
+      const j = this.joints[cur.part];
+      if (!j) break;
+      len += Math.hypot(j.lb[0], j.lb[1]) + Math.hypot(j.la[0], j.la[1]) * 0.5;
+      cur = j.A;
+      if (cur === this.root) break;
+    }
+    return len;
+  }
+
+  resetPose() { this.pose = {}; }
 
   // Drive a limb end toward a world point (mouse drag / hand-tracking).
   pullLimb(key, x, y, weight = 1) {

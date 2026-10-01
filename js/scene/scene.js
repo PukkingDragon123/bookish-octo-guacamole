@@ -137,6 +137,8 @@ export class Scene {
       this.world.step(dt / n);
       this._combat();
     }
+    // keyframed animation layered over the physics result
+    for (const a of this.actors) a.animate?.(dt);
     this._pressCloth();
     this.membrane.step(dt);
   }
@@ -150,6 +152,7 @@ export class Scene {
       const A = ps[i], B = ps[j];
       if (Math.abs(A.z - B.z) > 0.05) continue;
       if (A.attacking > 0 || B.attacking > 0) continue;
+      if (A.controller === 'social' && B.controller === 'social') continue;
       const dx = B.target.x - A.target.x;
       const need = (A.bounds.w + B.bounds.w) * 0.36;
       if (Math.abs(dx) >= need) continue;

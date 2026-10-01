@@ -7,6 +7,7 @@ import { CATEGORIES } from './content.js';
 import { assemble, drawRig, rigBounds } from './puppet/rig.js';
 import { ROLES } from './sandbox/flies.js';
 import { GAME_ROLE_ICONS } from './sandbox/games.js';
+import { INTERACTIONS } from './sandbox/social.js';
 import { ANIMS } from './puppet/animations.js';
 import { lockOf, lockText, notifyLocked, SEAL_HTML } from './tutorial.js';
 
@@ -209,11 +210,16 @@ export class UI {
     row.append(medal(ICONS.flip, 'กลับตัว · Turn around', () => a.flip()));
     if (a.rig && a.isHumanoid) {
       const moves = el('div', { class: 'fan' });
-      for (const name of ['strike', 'lunge', 'block', 'dance', 'ram-medley', 'ram-theppranom', 'ram-kinnorn', 'wai', 'leap', 'roar', 'laugh', 'wong', 'bow', 'wave', 'cheer']) {
+      for (const name of ['strike', 'lunge', 'block', 'dance', 'ram-medley', 'ram-theppranom', 'ram-kinnorn', 'wai', 'leap', 'roar', 'laugh', 'wong', 'bow', 'wave', 'cheer', 'sit', 'kneel']) {
         moves.append(el('button', { class: 'mini', title: `${ANIMS[name].th} · ${ANIMS[name].en}`, onclick: () => g.playMove(name), html: glyph(MOVE_ICONS[name] || MOVE_ICONS.dance) }));
       }
       const mb = medal(ICONS.moves, 'ท่า · Moves', () => { moves.classList.toggle('open'); roles.classList.remove('open'); });
       row.append(mb, moves);
+    }
+    if (a.rig && a.isHumanoid && g.social) {
+      const inter = el('div', { class: 'fan' });
+      for (const [id, th, en, d] of INTERACTIONS) inter.append(el('button', { class: 'mini', title: `${th} · ${en}`, onclick: () => { g.social.start(a, null, id); inter.classList.remove('open'); }, html: glyph(d) }));
+      row.append(medal(glyph(INTERACTIONS[0][3]), 'ทักทายกัน · Interact with the nearest puppet', () => { inter.classList.toggle('open'); row.querySelectorAll('.fan').forEach((f) => f !== inter && f.classList.remove('open')); }), inter);
     }
     const roles = el('div', { class: 'fan' });
     if (a.rig) {
@@ -233,6 +239,7 @@ export class UI {
     d.value = a.z;
     d.oninput = () => a.setDepth(+d.value);
     row.append(el('div', { class: 'depth' }, d));
+    if (a.pose && Object.keys(a.pose).length) row.append(medal(ICONS.flip, 'ท่าเดิม · Reset pose', () => { a.resetPose(); this.renderSide(); }));
     row.append(medal(ICONS.freeze, a.frozen ? 'ปลดตรึง · Unfreeze' : 'ตรึงไว้กลางอากาศ · Freeze in place', () => g.toggleFreeze(a), { cls: a.frozen ? 'on' : '' }));
     row.append(medal(ICONS.remove, 'เก็บ · Put away', () => g.removeActor(a)));
     s.append(row);
