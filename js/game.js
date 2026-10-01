@@ -24,6 +24,7 @@ import { Director } from './scene/director.js';
 import { Tutorial } from './tutorial.js';
 import { SpeechLayer } from './render/speech.js';
 import { Social } from './sandbox/social.js';
+import { Build } from './sandbox/build.js';
 import { swayFoliage } from './props/foliage.js';
 
 let audio = null;
@@ -94,6 +95,7 @@ export class Game {
     this.scene.on('animEvent', (p, ev) => { if (ev.sfx) audio?.sfx(ev.sfx, { pan: this._pan(p), vol: 0.8 }); });
     this.scene.on('removed', (a) => { if (this.selected === a) this.select(null); });
     this.tutorial = new Tutorial(this);
+    this.build = new Build(this);
   }
 
   // ------------------------------------------------------------ spawning
@@ -856,6 +858,7 @@ export class Game {
     for (const c of this.stage.curtains) c.step(dt, this.time);
     this.director.update(dt);
     this.tutorial?.update(this.wallDt || dt);
+    this.build?.update(dt);
     this.cam.update(this.intro ? this.wallDt || dt : dt);
     // hand cursor pose
     if (!tracking) {
@@ -985,6 +988,7 @@ export class Game {
       f.strokeStyle = 'rgba(255,230,160,0.9)'; f.lineWidth = 2;
       f.beginPath(); f.arc(lx, ly, 18, 0, 7); f.stroke();
     }
+    this.build?.draw(f, cam, dpr);
     this.director.drawOverlay(f, cam, dpr);
     // the khon hand cursor
     if (!this.intro || this.intro.t > 20) {

@@ -4,6 +4,9 @@
 // and the cast arrives last and takes up their roles.
 
 import { paintSprite, leather, dye, line, holes, dotLine, INK, poly, curve, ellipsePts } from '../art/leather.js';
+import * as TIK from '../art/thaiIcons.js';
+
+const TI = { ...TIK, poly };
 
 // [id, x, z, opts] — x in cloth units (0..1600; wider scenes go beyond),
 // opts: { f: facing, y, role, soul, ward, anim, dy }
@@ -92,45 +95,177 @@ export const SCENES = [
 ];
 
 const ICONS = {};
+// Scene plaques: a gilded proscenium (art/thaiIcons.js) framing a little
+// mural of the scene in จิตรกรรมฝาผนัง colours.
 function icon(kind) {
   if (ICONS[kind]) return ICONS[kind];
+  const T = TI, M = T.M;
+  const cloths = {
+    forest: [M.night, M.indigo, '#2d4a7a'], boat: ['#f6c58a', '#f3dcae', '#9cc4cf'], temple: [M.purpleD, M.rose, M.vermL],
+    battle: ['#3a0d10', M.lac, M.verm], buffalo: [M.sky, '#d9ecd0', '#bfdc9a'], hippo: ['#7f9cc0', '#a9c5d6', '#c5dbe0'], ball: [M.goldL, M.cream, '#e9cf98'],
+  };
   ICONS[kind] = paintSprite(140, 100, (ctx) => {
-    // a little proscenium: gilded arch with a lit cloth inside
-    const arch = poly(curve([[6, 96], [6, 30], [30, 8], [70, 2], [110, 8], [134, 30], [134, 96]], false, 10).concat([[134, 96], [6, 96]]));
-    leather(ctx, arch); dye(ctx, arch, INK.gold, 0.9);
-    const cloth = poly([[16, 88], [16, 32], [36, 16], [70, 11], [104, 16], [124, 32], [124, 88]]);
-    leather(ctx, cloth, { edge: false });
-    dye(ctx, cloth, kind === 'battle' ? INK.crimson : kind === 'forest' ? INK.indigo : kind === 'temple' ? INK.vermilion : INK.cream, 0.85);
-    dotLine(ctx, [[10, 92], [130, 92]], { spacing: 5, r: 1.2 });
-    const ground = poly([[16, 88], [16, 74], [124, 74], [124, 88]]); leather(ctx, ground); dye(ctx, ground, INK.leather, 0.9);
-    const s = (pts, col) => { const p = poly(pts); leather(ctx, p); dye(ctx, p, col, 0.95); return p; };
-    if (kind === 'forest') {
-      s(ellipsePts(100, 30, 8, 8, 16), INK.cream);
-      s([[30, 74], [34, 40], [38, 74]], INK.leather); s(ellipsePts(34, 38, 16, 14, 16), INK.green);
-      s([[74, 74], [78, 30], [82, 74]], INK.leather); s(ellipsePts(78, 30, 20, 16, 16), INK.jade); holes(ctx, [[72, 28], [84, 34]], 2.5);
-    } else if (kind === 'boat') {
-      s(ellipsePts(36, 32, 10, 10, 16), INK.orange);
-      s(curve([[24, 70], [40, 78], [100, 78], [116, 68], [100, 72], [40, 72]], true, 6), INK.brown);
-      s([[60, 70], [66, 48], [80, 48], [86, 70]], INK.gold);
-    } else if (kind === 'temple') {
-      s([[40, 74], [40, 52], [70, 26], [100, 52], [100, 74]], INK.red);
-      s([[64, 30], [70, 10], [76, 30]], INK.gold); holes(ctx, [[70, 58]], 5);
-    } else if (kind === 'battle') {
-      line(ctx, [[36, 72], [76, 26]], INK.cream, 4, { smoothIt: false }); line(ctx, [[104, 72], [64, 26]], INK.cream, 4, { smoothIt: false });
-      s([[60, 44], [70, 34], [80, 44], [70, 54]], INK.yellow);
-    } else if (kind === 'buffalo') {
-      s(ellipsePts(104, 30, 9, 9, 16), INK.orange);
-      s(ellipsePts(62, 58, 26, 12, 20), INK.leather); s([[34, 50], [24, 42], [40, 46]], INK.leather);
-      for (let i = 0; i < 5; i++) line(ctx, [[24 + i * 20, 74], [26 + i * 20, 64]], INK.green, 3, { smoothIt: false });
-    } else if (kind === 'hippo') {
-      s(ellipsePts(66, 60, 30, 16, 20), INK.pink); s(ellipsePts(94, 52, 14, 11, 16), INK.pink); holes(ctx, [[98, 48]], 2.2);
-      for (let i = 0; i < 6; i++) line(ctx, [[22 + i * 18, 20 + (i % 2) * 8], [18 + i * 18, 34 + (i % 2) * 8]], INK.blue, 2.5, { smoothIt: false });
-    } else {
-      s(ellipsePts(70, 44, 16, 16, 20), INK.yellow); holes(ctx, [[64, 40], [76, 40], [70, 50], [62, 50], [78, 50]], 2.6);
-    }
+    T.sceneFrame(ctx, (g) => SCENE_ART[kind](g, T, M), { cloth: cloths[kind], band: kind === 'battle' || kind === 'temple' ? M.indigo : M.red });
   }, { name: 'scene-' + kind });
   return ICONS[kind];
 }
+
+const SCENE_ART = {
+  forest(g, T, M) {
+    // ป่าหิมพานต์ by moonlight: เขามอ rocks, mural trees, a golden deer
+    for (const [x, y, r] of [[30, 38, 2.6], [52, 34, 2], [118, 44, 2.2], [76, 40, 1.8]]) T.star(g, x, y, r, { petal: M.goldL, core: null, punch: false });
+    T.moon(g, 100, 42, 10);
+    T.khaoMo(g, 100, 88, 44, 26, { seed: 3 });
+    T.muralTree(g, 34, 88, 52, { seed: 4, flowers: M.goldL });
+    T.muralTree(g, 120, 90, 40, { seed: 7, leaf: M.teal });
+    // golden deer (กวางทอง) grazing
+    const d = new Path2D();
+    d.ellipse(70, 74, 11, 5.5, 0, 0, Math.PI * 2);
+    T.shape(g, d, T.goldG(g, 58, 68, 82, 80), { w: 0.6 });
+    T.shape(g, T.poly(T.tubePts([[78, 72], [84, 64], [88, 60]], [3, 2.4, 2])), M.gold, { w: 0.5 });
+    T.shape(g, T.poly([[86, 58], [93, 60], [90, 63], [86, 63]]), M.gold, { w: 0.5 });
+    for (const x of [62, 66, 74, 78]) T.stroke(g, T.lin([[x, 78], [x + (x < 70 ? -1 : 1), 87]]), M.goldD, 1.4);
+    T.stroke(g, T.lin([[86, 58], [84, 52], [81, 50]]), M.goldD, 0.9); T.stroke(g, T.lin([[84, 53], [87, 50]]), M.goldD, 0.8);
+    for (const [x, y] of [[66, 72], [72, 75], [76, 72]]) T.fill(g, T.circle(x, y, 1), M.cream);
+    T.fill(g, T.poly([[0, 86], [140, 86], [140, 100], [0, 100]]), M.jadeD);
+    for (let x = 16; x < 130; x += 8) T.stroke(g, T.lin([[x, 88], [x + 2, 83], [x + 4, 88]]), M.jade, 1);
+  },
+  boat(g, T, M) {
+    // ตลาดน้ำ at dawn: sun, stilt house, a sampan with a hat-wearing vendor
+    T.sun(g, 34, 46, 9, { rays: 14 });
+    T.shape(g, T.poly([[96, 62], [110, 50], [124, 62]]), M.verm, { w: 0.6 });
+    T.shape(g, T.poly([[98, 62], [122, 62], [122, 72], [98, 72]]), M.creamD, { w: 0.5 });
+    for (const x of [100, 110, 120]) T.stroke(g, T.lin([[x, 72], [x, 82]]), M.brown, 1.4);
+    T.muralTree(g, 128, 82, 34, { seed: 9 });
+    T.waves(g, 10, 130, 76, { rows: 3, size: 9, cols: ['#6aa8c4', '#3f7fa8', M.indigo] });
+    // sampan
+    const hull = new Path2D();
+    hull.moveTo(30, 74); hull.quadraticCurveTo(40, 84, 66, 84); hull.quadraticCurveTo(92, 84, 102, 72); hull.quadraticCurveTo(86, 78, 66, 78); hull.quadraticCurveTo(44, 78, 30, 74);
+    T.shape(g, hull, T.vgrad(g, 72, 84, [M.brown, M.earthD]), { w: 0.7 });
+    T.stroke(g, T.lin([[36, 77], [66, 80.5], [96, 76]]), M.gold, 0.9);
+    // fruit heaps
+    for (const [x, c] of [[46, M.gold], [52, M.verm], [80, M.jade], [86, M.gold]]) T.shape(g, T.circle(x, 75, 3.4), c, { w: 0.4 });
+    // vendor in a งอบ hat
+    T.shape(g, T.poly([[60, 77], [62, 66], [70, 66], [72, 77]]), M.indigo, { w: 0.5 });
+    T.shape(g, T.circle(66, 63, 3.2), '#e8c49a', { w: 0.4 });
+    T.shape(g, T.poly([[56, 62], [66, 55], [76, 62]]), T.goldG(g, 56, 55, 76, 62), { w: 0.5 });
+    T.stroke(g, T.lin([[72, 70], [86, 64], [96, 88]]), M.brown, 1.3);
+  },
+  temple(g, T, M) {
+    // งานวัด at dusk: ubosot, chedi, floating khom loi
+    T.ubosot(g, 82, 86, 64, 50);
+    T.shape(g, T.chediPath(30, 86, 46), T.goldG(g, 20, 40, 40, 86), { w: 0.6 });
+    T.stroke(g, T.lin([[22, 80], [38, 80]]), M.red, 1.2);
+    for (const [x, y, s] of [[22, 40, 1], [52, 34, 0.8], [118, 38, 0.9], [104, 30, 0.7]]) {
+      const l = T.poly([[x - 4 * s, y], [x + 4 * s, y], [x + 3 * s, y + 7 * s], [x - 3 * s, y + 7 * s]]);
+      g.fillStyle = T.rgrad(g, x, y + 4 * s, 1, 10 * s, ['rgba(255,220,140,0.7)', 'rgba(255,200,120,0)']); g.fillRect(x - 12 * s, y - 8 * s, 24 * s, 24 * s);
+      T.shape(g, l, M.goldL, { w: 0.4 });
+      T.fill(g, T.circle(x, y + 7.5 * s, 1.1 * s), M.verm);
+    }
+    T.fill(g, T.poly([[0, 86], [140, 86], [140, 100], [0, 100]]), M.ink);
+    for (let x = 18; x < 130; x += 14) { T.fill(g, T.circle(x, 85, 1.5), M.goldL); }
+  },
+  battle(g, T, M) {
+    // ศึกลงกา: the city burns under lightning; crossed ดาบ and ตรีศูล
+    T.bolt(g, [[104, 30], [96, 44], [104, 46], [92, 62]], 2.6);
+    const city = new Path2D();
+    city.addPath(T.prangPath(70, 86, 44)); city.addPath(T.prangPath(44, 86, 30)); city.addPath(T.prangPath(96, 86, 32)); city.rect(14, 76, 112, 14);
+    for (let i = 0; i < 7; i++) { const x = 22 + i * 16; T.kanok(g, x, 80, 14 + (i % 3) * 4, -Math.PI / 2 + (i % 2 ? 0.2 : -0.2), i % 2 === 0, { fill: M.vermL, inner: M.goldL }); }
+    T.fill(g, city, M.ink);
+    T.stroke(g, city, 'rgba(255,150,60,0.8)', 0.6);
+    // weapons crossed in front
+    T.shape(g, T.poly([[34, 84], [36, 82], [92, 34], [96, 32], [94, 36], [38, 86]]), T.vgrad(g, 30, 86, [M.cream, '#b9b2a2']), { w: 0.5 });
+    T.shape(g, T.poly([[30, 84], [42, 88], [40, 90], [28, 86]]), M.gold, { w: 0.4 });
+    T.stroke(g, T.lin([[106, 86], [52, 38]]), M.goldD, 2.2);
+    T.stroke(g, T.lin([[106, 86], [52, 38]]), M.gold, 1.1);
+    const tri = [[52, 38], [45, 34], [47, 26], [50, 33], [52, 24], [54, 33], [58, 28], [57, 36]];
+    T.shape(g, T.poly(tri.map(([x, y]) => [x + (y - 38) * 0.3, y])), T.goldG(g, 44, 24, 60, 40), { w: 0.4 });
+    T.prajam(g, 72, 58, 6, { petal: M.goldL, core: M.red });
+  },
+  buffalo(g, T, M) {
+    // ทุ่งนา: sugar palms, a stilt hut, a buffalo in the paddies
+    T.sun(g, 112, 40, 8, { rays: 12 });
+    for (const x of [24, 36]) {
+      T.stroke(g, T.lin([[x, 86], [x + 1, 44]]), M.brown, 2);
+      for (let i = 0; i < 7; i++) { const a = -Math.PI + i * (Math.PI / 6); T.stroke(g, T.lin([[x + 1, 44], [x + 1 + Math.cos(a) * 9, 44 + Math.sin(a) * 7]]), M.jadeD, 1.6); }
+    }
+    T.shape(g, T.poly([[100, 64], [112, 54], [124, 64]]), M.ochre, { w: 0.5 });
+    T.shape(g, T.poly([[103, 64], [121, 64], [121, 72], [103, 72]]), M.brown, { w: 0.4 });
+    for (let k = 0; k < 4; k++) T.fill(g, T.poly([[0, 76 + k * 5], [140, 74 + k * 5], [140, 77 + k * 5], [0, 79 + k * 5]]), k % 2 ? M.jade : '#9cc66f');
+    for (let x = 12; x < 132; x += 7) for (let k = 0; k < 3; k++) T.stroke(g, T.lin([[x + k * 2, 80 + k * 5], [x + 1 + k * 2, 75 + k * 5]]), M.jadeD, 0.9);
+    // buffalo with crescent horns
+    const b = new Path2D();
+    b.ellipse(66, 72, 16, 7.5, 0, 0, Math.PI * 2);
+    b.moveTo(84, 70); b.ellipse(84, 70, 6, 4.5, 0.3, 0, Math.PI * 2);
+    T.shape(g, b, T.vgrad(g, 64, 80, ['#4a4048', M.ink]), { w: 0.5 });
+    for (const x of [56, 60, 72, 76]) T.stroke(g, T.lin([[x, 77], [x, 86]]), M.ink, 2.4);
+    T.shape(g, T.poly(T.tubePts([[80, 67], [74, 62], [76, 56], [82, 56]], [1.6, 1.4, 1, 0.3])), M.cream, { w: 0.4 });
+    T.shape(g, T.poly(T.tubePts([[86, 66], [90, 59], [96, 58], [98, 62]], [1.6, 1.4, 1, 0.3])), M.cream, { w: 0.4 });
+    T.fill(g, T.circle(86, 69, 0.9), M.goldL);
+    T.stroke(g, T.lin([[51, 70], [47, 76], [48, 80]]), M.ink, 1);
+  },
+  hippo(g, T, M) {
+    // บึงหมูเด้ง in the rain: lotus pads and a pink hippo surfacing
+    T.cloud(g, 40, 38, 40, 16, { seed: 41, tail: -1, top: '#e6ecf2', bot: '#9fb2c6' });
+    T.cloud(g, 104, 36, 36, 14, { seed: 42, tail: 1, top: '#e6ecf2', bot: '#9fb2c6' });
+    for (let i = 0; i < 11; i++) { const x = 20 + i * 10; T.stroke(g, T.lin([[x, 50 + (i % 2) * 5], [x - 4, 60 + (i % 2) * 5]]), M.indigoL, 1.1); }
+    T.waves(g, 10, 130, 74, { rows: 3, size: 9, cols: ['#7fb2c8', '#4f8eae', M.teal] });
+    // หมูเด้ง surfacing: wide wet head, tiny ears, sassy open chomp
+    const back = new Path2D(); back.ellipse(92, 78, 22, 8, 0, Math.PI, Math.PI * 2);
+    T.shape(g, back, T.vgrad(g, 70, 80, ['#f0aaa8', M.rose]), { w: 0.6 });
+    const pink = T.vgrad(g, 52, 82, ['#f6c0bb', '#e58f93', M.rose]);
+    for (const x of [56, 74]) T.shape(g, T.poly([[x - 3, 58], [x - 1, 52], [x + 3, 53], [x + 3, 58]]), '#e58f93', { w: 0.45 });
+    const head = new Path2D(); head.ellipse(65, 66, 15, 11, 0, 0, Math.PI * 2);
+    T.shape(g, head, pink, { w: 0.6 });
+    const snout = new Path2D(); snout.ellipse(65, 74, 13, 7.5, 0, 0, Math.PI * 2);
+    T.shape(g, snout, pink, { w: 0.6 });
+    const mouth = new Path2D(); mouth.moveTo(56, 74); mouth.quadraticCurveTo(65, 84, 74, 74); mouth.quadraticCurveTo(65, 77, 56, 74);
+    T.shape(g, mouth, M.lac, { w: 0.4 });
+    T.fill(g, T.poly([[58, 75], [60, 79], [61.5, 75.6]]), M.cream); T.fill(g, T.poly([[72, 75], [70, 79], [68.5, 75.6]]), M.cream);
+    for (const x of [60, 70]) { T.fill(g, T.circle(x, 62, 2.4), M.ink); T.hole(g, x + 0.7, 61.2, 0.8); }
+    T.stroke(g, T.lin([[56, 58.5], [60, 57.5], [62, 58.5]]), M.ink, 0.8); T.stroke(g, T.lin([[68, 58.5], [70, 57.5], [74, 58.5]]), M.ink, 0.8);
+    for (const x of [61, 69]) T.fill(g, T.circle(x, 70, 1.1), M.lac);
+    for (const x of [53, 77]) T.fill(g, T.circle(x, 69, 2.4), '#ffd1cc', 0.8);
+    T.waves(g, 10, 130, 84, { rows: 2, size: 9, cols: ['#4f8eae', M.teal] });
+    // lotus pads + flowers
+    for (const [x, y, r] of [[22, 82, 7], [116, 84, 8], [100, 90, 5]]) { const p = new Path2D(); p.ellipse(x, y, r, r * 0.35, 0, 0.3, Math.PI * 2); p.lineTo(x, y); T.shape(g, p, M.jade, { w: 0.4 }); }
+    T.lotus(g, 26, 80, 6); T.lotus(g, 112, 82, 5);
+  },
+  ball(g, T, M) {
+    // ลานกีฬา: a woven rattan takraw ball kicked high over the sala
+    T.shape(g, T.poly([[96, 72], [110, 58], [124, 72]]), M.verm, { w: 0.5 });
+    T.stroke(g, T.lin([[96, 72], [110, 58], [124, 72]]), M.gold, 1);
+    for (const x of [99, 121]) T.stroke(g, T.lin([[x, 72], [x, 86]]), M.red, 1.6);
+    T.muralTree(g, 26, 86, 44, { seed: 12 });
+    T.fill(g, T.poly([[0, 84], [140, 84], [140, 100], [0, 100]]), M.ochre);
+    T.stroke(g, T.lin([[10, 85], [130, 85]]), M.goldD, 0.8);
+    // motion arcs
+    for (const k of [0, 1, 2]) T.stroke(g, T.lin([[40 + k * 4, 80 - k * 2], [48 + k * 4, 62 - k * 3], [58, 52 + k * 2]]), M.goldD, 0.9, 0.6);
+    // the ball: rattan weave cut through with holes
+    const cx = 70, cy = 50, r = 15;
+    T.shape(g, T.circle(cx, cy, r), T.rgrad(g, cx - 5, cy - 5, 2, r * 1.2, [M.goldL, M.gold, M.goldD]), { w: 0.8 });
+    T.clip(g, T.circle(cx, cy, r), () => {
+      for (let k = -3; k <= 3; k++) {
+        T.stroke(g, T.lin([[cx - r + k * 7, cy - r], [cx + r + k * 7, cy + r]]), M.goldDD, 2.2);
+        T.stroke(g, T.lin([[cx + r + k * 7, cy - r], [cx - r + k * 7, cy + r]]), M.goldDD, 2.2);
+        T.stroke(g, T.lin([[cx - r, cy + k * 7], [cx + r, cy + k * 7]]), M.goldDD, 2.2);
+      }
+    });
+    for (let k = 0; k < 6; k++) { const a = (k / 6) * Math.PI * 2; T.hole(g, cx + Math.cos(a) * 8, cy + Math.sin(a) * 8, 2.2); }
+    T.hole(g, cx, cy, 2.6);
+    T.stroke(g, T.circle(cx, cy, r), M.ink, 1);
+    // a villager in a high bicycle-kick (cut like a puppet silhouette)
+    const body = T.poly(T.tubePts([[46, 66], [49, 74], [53, 80]], [3.2, 3.6, 3.2]));
+    T.shape(g, body, M.indigo, { w: 0.5 });
+    T.shape(g, T.poly(T.tubePts([[53, 80], [58, 72], [62, 62]], [2.2, 1.8, 1.4])), M.ink, { w: 0 });
+    T.shape(g, T.poly(T.tubePts([[52, 81], [46, 84], [40, 86]], [2.2, 1.8, 1.4])), M.ink, { w: 0 });
+    T.shape(g, T.poly(T.tubePts([[47, 68], [41, 64], [36, 58]], [1.4, 1.2, 1])), M.ink, { w: 0 });
+    T.shape(g, T.poly(T.tubePts([[47, 68], [52, 70], [56, 66]], [1.4, 1.2, 1])), M.ink, { w: 0 });
+    T.shape(g, T.circle(44, 62, 3.4), '#e8c49a', { w: 0.5 });
+    T.fill(g, T.poly([[40.8, 61], [44, 57.6], [47.6, 60]]), M.ink);
+    T.stroke(g, T.lin([[46, 76], [52, 76]]), M.verm, 1.4);
+  },
+};
 
 // chest entries (cat 'scenes'): dropping one loads the scene
 export const PROPS = SCENES.map((s) => ({ id: 'scene-' + s.id, name: s.name, en: s.en, cat: 'scenes', build: () => ({ sprite: icon(s.icon), scene: s.id }) }));
