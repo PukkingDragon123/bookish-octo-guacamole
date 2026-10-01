@@ -263,7 +263,7 @@ function tintRig(rig, hue) {
 
 // straw mats, the earth and a row of lanterns on poles
 function paintGround() {
-  const x0 = AREA.x0 - 400, y0 = AREA.y0 - 120, w = AREA.x1 - AREA.x0 + 800, h = AREA.y1 - AREA.y0 + 320, k = 0.5;
+  const x0 = AREA.x0 - 400, y0 = AREA.y0 - 120, w = AREA.x1 - AREA.x0 + 800, h = AREA.y1 - AREA.y0 + 900, k = 0.5;
   const c = makeCanvas(w * k, h * k), g = c.getContext('2d');
   g.scale(k, k); g.translate(-x0, -y0);
   const R = rng(5);
