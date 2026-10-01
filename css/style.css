@@ -248,3 +248,21 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #050610; col
 .rp-card span { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; grid-column: 1 / span 2; }
 .rp-card span.rp-en { -webkit-line-clamp: 3; }
 .rp-card:hover span { -webkit-line-clamp: 12; }
+/* move picker as a slim side drawer: the stage stays in view */
+#movepanel { left: auto; right: 72px; top: 76px; bottom: auto; transform: none; width: 272px; max-height: calc(100vh - 190px); background: linear-gradient(180deg, rgba(42, 18, 10, .9), rgba(23, 9, 5, .86)); backdrop-filter: blur(3px); animation: rpSide .22s ease; }
+@keyframes rpSide { from { transform: translateX(16px); } }
+#movepanel .rp-grid { grid-template-columns: 1fr; gap: 6px; padding: 2px 10px 10px; }
+#movepanel .rp-card { padding: 6px 8px; }
+#movepanel .rp-card span { -webkit-line-clamp: 2; font-size: 11.5px; }
+#movepanel .rp-card span.rp-en { display: none; }
+#movepanel .rp-card:hover span.rp-en { display: -webkit-box; }
+#movepanel .rp-tabs { flex-wrap: wrap; gap: 4px; min-height: 0; padding: 4px 10px 6px; }
+#movepanel .rp-tab { padding: 4px 9px 3px; font-size: 13px; }
+#movepanel .rp-title { font-size: 19px; }
+#movepanel .rp-note { font-size: 11px; padding: 4px 12px 10px; }
+@media (max-width: 600px) {
+  /* phones: one scrolling strip above the pad */
+  #movepanel { left: 8px; right: 8px; top: auto; bottom: 150px; width: auto; max-height: 200px; }
+  #movepanel .rp-grid { grid-auto-flow: column; grid-auto-columns: 62%; grid-template-columns: none; overflow-x: auto; overflow-y: hidden; }
+  #movepanel .rp-note { display: none; }
+}

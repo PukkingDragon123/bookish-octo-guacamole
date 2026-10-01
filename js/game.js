@@ -25,6 +25,7 @@ import { Tutorial } from './tutorial.js';
 import { SpeechLayer } from './render/speech.js';
 import { Social } from './sandbox/social.js';
 import { Build } from './sandbox/build.js';
+import { Guide } from './guide.js';
 import { swayFoliage } from './props/foliage.js';
 
 let audio = null;
@@ -97,6 +98,7 @@ export class Game {
     this.stage.heavenCrowd.usePuppets(this.content.puppets.map((p) => p.rig));
     this.tutorial = new Tutorial(this);
     this.build = new Build(this);
+    this.guide = new Guide(this);
   }
 
   // ------------------------------------------------------------ spawning
