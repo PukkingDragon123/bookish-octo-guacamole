@@ -30,7 +30,7 @@ function icon(name, draw, w = 120, h = 120) {
 
 export const PROPS = [
   { id: 'fx-fire', name: 'กองไฟลุก', en: 'Bonfire (live flames)', cat: 'tools', build() {
-    return { sprite: icon('fire', (ctx) => { logs(ctx, 60, 100, 110); flame(ctx, 60, 92, 40); }), fx: 'fire', fxAt: [60, 88], glow: [60, 70, 90], glowColor: [1, 0.55, 0.2], mass: 2 };
+    return { icon: fxIcon('fire'), sprite: icon('fire', (ctx) => { logs(ctx, 60, 100, 110); flame(ctx, 60, 92, 40); }), fx: 'fire', fxAt: [60, 88], glow: [60, 70, 90], glowColor: [1, 0.55, 0.2], mass: 2 };
   } },
   { id: 'fx-torch', name: 'คบเพลิง', en: 'Torch (hold it!)', cat: 'tools', build() {
     const sprite = icon('torch', (ctx) => {
@@ -39,17 +39,17 @@ export const PROPS = [
       const c = poly(ellipsePts(30, 42, 12, 8, 16)); leather(ctx, c); dye(ctx, c, INK.gold, 0.8);
       flame(ctx, 30, 40, 22);
     }, 60, 160);
-    return { sprite, fx: 'fire', fxAt: [30, 30], glow: [30, 20, 70], glowColor: [1, 0.6, 0.25], grip: [30, 140], weapon: { kind: 'blunt', a: [30, 40], b: [30, 160] } };
+    return { sprite, icon: fxIcon('torch'), fx: 'fire', fxAt: [30, 30], glow: [30, 20, 70], glowColor: [1, 0.6, 0.25], grip: [30, 140], weapon: { kind: 'blunt', a: [30, 40], b: [30, 160] } };
   } },
   { id: 'fx-smoke', name: 'กระถางธูป', en: 'Incense burner (smoke)', cat: 'tools', build() {
-    return { sprite: icon('smoke', (ctx) => {
+    return { icon: fxIcon('smoke'), sprite: icon('smoke', (ctx) => {
       const p = poly(curve([[20, 70], [100, 70], [92, 110], [28, 110]], true, 6)); leather(ctx, p); dye(ctx, p, INK.gold, 0.7);
       dotLine(ctx, [[30, 84], [90, 84]], { spacing: 5, r: 1.3 });
       for (const x of [48, 60, 72]) { const s = poly([[x - 1.5, 30], [x + 1.5, 30], [x + 1.5, 72], [x - 1.5, 72]]); leather(ctx, s); dye(ctx, s, INK.red, 0.9); }
     }), fx: 'smoke', fxAt: [60, 28] };
   } },
   { id: 'fx-water', name: 'สายน้ำ', en: 'Rippling water', cat: 'tools', build() {
-    return { sprite: paintSprite(700, 90, (ctx, { rng: r }) => {
+    return { icon: fxIcon('water'), sprite: paintSprite(700, 90, (ctx, { rng: r }) => {
       const top = [];
       for (let x = 0; x <= 700; x += 20) top.push([x, 20 + Math.sin(x * 0.03) * 10]);
       const p = poly([...top, [700, 90], [0, 90]]);
@@ -58,7 +58,7 @@ export const PROPS = [
     }, { name: 'fx-water', px: 1 }), static: true, float: false };
   } },
   { id: 'fx-fountain', name: 'น้ำพุ', en: 'Fountain', cat: 'tools', build() {
-    return { sprite: icon('fountain', (ctx) => {
+    return { icon: fxIcon('fountain'), sprite: icon('fountain', (ctx) => {
       const b = poly(curve([[10, 90], [110, 90], [95, 118], [25, 118]], true, 6)); leather(ctx, b); dye(ctx, b, INK.jade, 0.7);
       const c = poly([[54, 60], [66, 60], [64, 92], [56, 92]]); leather(ctx, c); dye(ctx, c, INK.gold, 0.8);
       dotLine(ctx, [[20, 100], [100, 100]], { spacing: 5, r: 1.3 });
@@ -66,7 +66,7 @@ export const PROPS = [
   } },
   ...[['gold', [1, 0.8, 0.4], INK.yellow, 'ไฟทอง', 'Golden light'], ['red', [1, 0.3, 0.2], INK.red, 'ไฟแดง', 'Red light'], ['blue', [0.35, 0.55, 1], INK.blue, 'ไฟฟ้าคราม', 'Blue light'], ['green', [0.4, 1, 0.5], INK.green, 'ไฟเขียว', 'Green light']].map(([k, c, ink, th, en]) => ({
     id: 'fx-light-' + k, name: th, en, cat: 'tools', build() {
-      return { sprite: icon('light-' + k, (ctx) => {
+      return { icon: fxIcon('light', { k, ...LIGHTS[k] }), sprite: icon('light-' + k, (ctx) => {
         const p = poly(ellipsePts(60, 60, 26, 30, 24)); leather(ctx, p); dye(ctx, p, ink, 0.95);
         holes(ctx, [[60, 60]], 8);
         for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; line(ctx, [[60 + Math.cos(a) * 34, 60 + Math.sin(a) * 38], [60 + Math.cos(a) * 50, 60 + Math.sin(a) * 54]], ink, 4, { smoothIt: false }); }
@@ -74,7 +74,7 @@ export const PROPS = [
     },
   })),
   { id: 'fx-magic', name: 'ประกายเวทย์', en: 'Magic sparkles', cat: 'tools', build() {
-    return { sprite: icon('magic', (ctx) => {
+    return { icon: fxIcon('magic'), sprite: icon('magic', (ctx) => {
       const p = poly([[60, 10], [70, 50], [110, 60], [70, 70], [60, 110], [50, 70], [10, 60], [50, 50]]); leather(ctx, p); dye(ctx, p, INK.gold, 0.9); holes(ctx, [[60, 60]], 6);
     }), fx: 'sparkle', fxAt: [60, 60], glow: [60, 60, 120], glowColor: [1, 0.85, 0.5], static: true };
   } },
