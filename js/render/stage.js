@@ -8,6 +8,7 @@ import { ShadowScreen, CLOTH_W, CLOTH_H } from './screen.js';
 import { paintBooth, bananaTrunkSprite, BAND } from './theatre.js';
 import { paintNight, paintHeaven, paintCloudSprites } from './sky.js';
 import { Curtain } from './curtain.js';
+import { HeavenCrowd } from './heavenCrowd.js';
 import { makeCanvas, rng, goldGrad, paperPiece, paperTexture } from './paint.js';
 
 export class Stage {
@@ -25,6 +26,8 @@ export class Stage {
     this.time = 0;
     this.trunk = bananaTrunkSprite();
     this.flags = makeFlags();
+    this.heavenCrowd = new HeavenCrowd();
+    this.excitement = 0;
     this.lanterns = [{ x: -330, y: -220, a: 0.2, v: 0 }, { x: 1930, y: -220, a: -0.1, v: 0 }];
     this.fireflies = Array.from({ length: 40 }, (_, i) => ({ x: -1400 + Math.random() * 4400, y: 700 + Math.random() * 600, p: Math.random() * 10 }));
     this.fx = [];
@@ -70,6 +73,9 @@ export class Stage {
     const view = this.viewRect();
     if (view.y0 < -250) this._layer(b, this.heaven, 0.85);
     this._layer(b, this.night, 0.9);
+    this.excitement = Math.max(0, this.excitement - dt * 0.35);
+    this.heavenCrowd.update(dt, this.excitement);
+    if (view.y0 < -400) this.heavenCrowd.draw(b, cam);
     // fireflies
     cam.apply(b, 0.9);
     b.globalCompositeOperation = 'lighter';

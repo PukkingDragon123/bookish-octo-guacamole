@@ -5,7 +5,7 @@
 import { loadSheetPuppets } from './puppet/characters/sheetPuppets.js';
 
 const PUPPET_MODULES = ['./puppet/characters/classical.js', './puppet/characters/comic.js'];
-const PROP_MODULES = ['fx', 'weapons', 'food', 'market', 'household', 'instruments', 'animals', 'livestock', 'monsters', 'buildings', 'village', 'boats', 'nature', 'foliage', 'games', 'vehicles'].map((n) => `./props/${n}.js`).concat(['./sandbox/scenes.js']);
+const PROP_MODULES = ['fx', 'weapons', 'food', 'market', 'household', 'instruments', 'animals', 'livestock', 'monsters', 'buildings', 'village', 'boats', 'nature', 'foliage', 'games', 'vehicles', 'erawan'].map((n) => `./props/${n}.js`).concat(['./sandbox/scenes.js']);
 
 export const CATEGORIES = [
   ['scenes', 'ฉาก', 'Ready-made scenes'],

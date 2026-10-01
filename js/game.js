@@ -608,6 +608,7 @@ export class Game {
 
   // ------------------------------------------------------------ events
   _onHit(h) {
+    this.stage.excitement = Math.min(1, this.stage.excitement + (h.vital >= 1.6 ? 0.6 : 0.3));
     if (h.target && h.attacker) h.target._lastAttacker = h.attacker;
     const [cx, cy] = this.scene.project(h.x, h.y, h.z);
     const alive = h.target?.dmg?.soul && !h.target.dead && !h.blocked;
@@ -872,6 +873,7 @@ export class Game {
       this.moodT = 3;
       const roles = this.scene.actors.map((x) => x.flyRole);
       const fighting = roles.includes('fighter') || roles.includes('monster') || this.scene.actors.some((x) => x.attacking > 0);
+      if (roles.includes('dancer') || this.social?.acts.length) this.stage.excitement = Math.max(this.stage.excitement, 0.35);
       const mood = fighting ? 'battle' : roles.includes('dancer') ? 'dance' : roles.includes('comedian') ? 'comic' : 'calm';
       if (audio.music.mood !== mood) audio.music.play(mood);
       audio.music.setIntensity(clamp(this.scene.actors.filter((x) => x.attacking > 0).length * 0.5, 0, 1));

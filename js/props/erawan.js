@@ -20,14 +20,15 @@ import {
 
 const TAU = Math.PI * 2;
 const lerp = (a, b, t) => a + (b - a) * t;
-const PALE = INK.white;
+// ivory hide: dense enough to read as a body on the lit cloth, glowing warm white
+const PALE = '#f1e5c6';
 const CREAM = INK.cream;
 
 // krajang lace hem hanging down from a left -> right baseline
 const hem = (ctx, pts, size, o = {}) => krajangRow(ctx, pts.slice().reverse(), size, { color: INK.gold, inner: INK.red, ...o });
 
 // pale hide: leather, white dye, gold contour and lace rows
-function paleHide(ctx, pts, { rows = 2, seed = 1, d = 3.4, gap = 3, r = 0.72, sp = 3.4, alpha = 0.9 } = {}) {
+function paleHide(ctx, pts, { rows = 2, seed = 1, d = 3.4, gap = 3, r = 0.72, sp = 3.4, alpha = 0.86 } = {}) {
   hide(ctx, pts);
   field(ctx, pts, PALE, { d: 1.6, alpha, edge: false });
   trim(ctx, pts, { rows, seed, d, gap, r, sp });
@@ -102,8 +103,8 @@ function chada(ctx, x, y, h, { lean = 0.2, seed = 1 } = {}) {
   const P = (u, v) => [x + u * k + lean * v * k, y + v * k];
   const crown = [...side.map(([u, v]) => P(-u, v)), ...side.slice(0, -1).reverse().map(([u, v]) => P(u, v))];
   // กรรเจียก: a tall flame ear-flare sweeping back and down from the diadem
-  kanok(ctx, ...P(-15, 12), 30 * k, Math.PI * 0.72, true, { color: INK.red });
-  kanok(ctx, ...P(-13, 6), 20 * k, Math.PI * 0.86, true, { color: INK.gold });
+  kanok(ctx, ...P(-15, 12), 30 * k, Math.PI * 0.72, true, { color: INK.gold });
+  kanok(ctx, ...P(-13, 6), 18 * k, Math.PI * 0.86, true, { color: INK.red });
   // little flames climbing both sides of the spire
   [[-10, 12], [-19, 10], [-28, 8], [-37, 6.2]].forEach(([v, w], i) => {
     const sz = (9 - i * 1.2) * k;

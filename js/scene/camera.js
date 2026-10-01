@@ -32,7 +32,7 @@ export class Camera {
       return { x: 800, y: 470 + visH * 0.03, zoom };
     }
     // stage: cloth + frame + roof + a band of heaven; keep the cloth big
-    const zoom = Math.min(w / 2000, h / 1560);
+    const zoom = Math.min(w / 2000, h / 1760);
     const visH = h / zoom;
     return { x: 800, y: 1200 - visH / 2, zoom };
   }

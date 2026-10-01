@@ -28,6 +28,7 @@ const SPECIES = {
   kwai: { speed: 42, run: 170, size: 3, timid: 0.2, herd: 'bovine', water: true, sound: [12, 28] },
   'wua-khao': { speed: 48, run: 170, size: 3, timid: 0.3, herd: 'bovine', sound: [12, 28] },
   'luk-kwai': { speed: 55, run: 200, size: 1.6, timid: 0.6, herd: 'bovine', mother: ['kwai', 'wua-khao'], water: true },
+  erawan: { speed: 36, run: 140, size: 5, timid: 0.02, herd: 'elephant', water: true, sound: [16, 34] },
   chang: { speed: 42, run: 160, size: 5, timid: 0.1, herd: 'elephant', water: true, sound: [15, 32] },
   'chang-song': { speed: 38, run: 150, size: 5, timid: 0.05, herd: 'elephant', sound: [15, 32] },
   'chang-noi': { speed: 58, run: 190, size: 2.4, timid: 0.5, herd: 'elephant', mother: ['chang', 'chang-song'], water: true },
