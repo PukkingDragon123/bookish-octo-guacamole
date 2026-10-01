@@ -144,6 +144,7 @@ export class Stage {
     this._lanterns(f, dt, L);
     for (const c of this.curtains) c.draw(f, 0.35 + L * 0.6);
     // audience in front, rim-lit by the screen
+    this.crowdLayer?.draw(f, cam);
     const A = this.audience;
     if (A) {
       f.drawImage(A.dark, A.x0, A.y0, A.w, A.h);

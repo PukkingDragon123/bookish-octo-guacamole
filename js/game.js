@@ -26,6 +26,7 @@ import { SpeechLayer } from './render/speech.js';
 import { Social } from './sandbox/social.js';
 import { Build } from './sandbox/build.js';
 import { Guide } from './guide.js';
+import { Crowd } from './render/crowd.js';
 import { swayFoliage } from './props/foliage.js';
 
 let audio = null;
@@ -88,6 +89,11 @@ export class Game {
         z.innerHTML = '<i class="gem"></i><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18v10H3zM7 10l-3 2 3 2M17 10l3 2-3 2M10 12h4"/></svg>';
         z.onclick = () => this.expandStage();
         top.insertBefore(z, top.querySelector('#b-help'));
+        const cr = document.createElement('button');
+        cr.className = 'medal'; cr.id = 'b-crowd'; cr.title = 'ผู้ชม · Look down at the audience (and back)';
+        cr.innerHTML = '<i class="gem"></i><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9a2 2 0 1 0 0-.1M12 7a2.4 2.4 0 1 0 0-.1M19 9a2 2 0 1 0 0-.1M2 19c0-4 1.5-6 3-6s3 2 3 6M8 19c0-5 2-7 4-7s4 2 4 7M16 19c0-4 1.5-6 3-6s3 2 3 6"/></svg>';
+        cr.onclick = () => this.toggleCrowdView();
+        top.insertBefore(cr, top.querySelector('#b-help'));
       }
     }
     this.scene.extraDrawables = () => this.games.drawables();
@@ -101,6 +107,9 @@ export class Game {
     this.scene.on('animEvent', (p, ev) => { if (ev.sfx) audio?.sfx(ev.sfx, { pan: this._pan(p), vol: 0.8 }); });
     this.scene.on('removed', (a) => { if (this.selected === a) this.select(null); });
     this.stage.heavenCrowd.usePuppets(this.content.puppets.map((p) => p.rig));
+    this.crowd = new Crowd(this);
+    this.crowd.setCast(this.content.puppets.map((p) => p.rig));
+    this.stage.crowdLayer = this.crowd;
     this.tutorial = new Tutorial(this);
     this.build = new Build(this);
     this.guide = new Guide(this);
@@ -354,7 +363,10 @@ export class Game {
       this.drag = { type: 'lamp' };
       return;
     }
-    if (!onCloth(x, y, 20)) return;
+    if (!onCloth(x, y, 20)) {
+      if (y > CLOTH_H) this.drag = { type: 'pan', sy: e.clientY, cy: this.cam.y };
+      return;
+    }
     if (e.button === 2) {
       const hit = this.scene.pick(x, y);
       if (hit) { hit.actor.flip(); audio?.sfx('flip', { pan: this._pan(hit.actor) }); }
@@ -446,6 +458,7 @@ export class Game {
     if (!d) return;
     const [x, y] = this._scenePt(e);
     if (d.type === 'lamp') { this.scene.moveLamp(x, y); return; }
+    if (d.type === 'pan') { const k = this.cam.zoom; this._panView(0); this.cam.y = d.cy - (e.clientY - d.sy) / k; return; }
     if (d.type === 'spawn') return;
     const a = d.actor;
     const [wx, wy] = this.scene.unproject(clamp(x, -80, CLOTH_W + 80), clamp(y, -60, CLOTH_H + 40), a.z);
@@ -582,7 +595,26 @@ export class Game {
     const sx = (P.mx - cam.vw / 2) / P.z0 + P.cx, sy = (P.my - cam.vh / 2) / P.z0 + P.cy;
     cam.zoom = z;
     cam.x = clamp(sx - (mx - cam.vw / 2) / z, -200, 1800);
-    cam.y = clamp(sy - (my - cam.vh / 2) / z, -2600, 1300);
+    cam.y = clamp(sy - (my - cam.vh / 2) / z, -2600, 1950);
+  }
+
+  // look down at the audience and back up at the show
+  _panView(dy) {
+    const cam = this.cam;
+    cam.anim = null;
+    this.camManual = true;
+    if (this.director.mode !== 'free') this.director.mode = 'free';
+    const base = cam.framing('stage');
+    cam.y = clamp(cam.y + dy / cam.zoom * 0.6, base.y - 200, 2050 - cam.vh / 2 / cam.zoom + 200);
+  }
+
+  toggleCrowdView() {
+    const base = this.cam.framing('stage');
+    const down = this.cam.y < base.y + 300;
+    this.camManual = down;
+    if (this.director.mode !== 'free') this.director.mode = 'free';
+    this.cam.flyTo(down ? { x: 800, y: 1450, zoom: Math.max(base.zoom, Math.min(this.cam.vw / 2300, this.cam.vh / 1300)) } : base, 1.1);
+    audio?.sfx('whoosh', { vol: 0.4 });
   }
 
   toggleFreeze(a) {
@@ -606,7 +638,10 @@ export class Game {
   _wheel(e) {
     e.preventDefault();
     const [x, y] = this._scenePt(e);
-    const hit = this.drag?.actor || this.scene.pick(x, y)?.actor || this.selected;
+    const over = this.drag?.actor || this.scene.pick(x, y)?.actor;
+    // over empty space (or below the cloth): scroll the view up/down to the audience
+    if (!over && (y > 1000 || !this.selected || e.shiftKey)) { this._panView(e.deltaY); return; }
+    const hit = over || this.selected;
     if (!hit || !hit.setDepth) return;
     hit.setDepth(hit.z + Math.sign(e.deltaY) * 0.02);
     this.ui.renderSide();
@@ -880,6 +915,7 @@ export class Game {
     }
     for (const c of this.stage.curtains) c.step(dt, this.time);
     this.director.update(dt);
+    this.crowd?.update(this.wallDt || dt);
     this.tutorial?.update(this.wallDt || dt);
     this.build?.update(dt);
     this.cam.update(this.intro ? this.wallDt || dt : dt);
