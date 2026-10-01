@@ -170,6 +170,49 @@ export class Director {
     cam.zoom = Math.exp(nz);
   }
 
+  // Scroll the stage (lamp.sx) so the action stays on the cloth: a fight
+  // that runs off the edge is followed, otherwise the puppet you drive.
+  scroll(dt) {
+    const g = this.game, S = g.scene, L = S.lamp;
+    const maxSx = Math.max(0, S.worldW - 1600);
+    let focus = null;
+    const fighters = S.actors.filter((a) => a instanceof Puppet && !a.removed && !a.dead && (a.attacking > 0 || (a.anim && a.anim.def.attack) || a.flyRole === 'fighter' || a.flyRole === 'monster'));
+    const visible = (x) => x > 220 && x < 1380;
+    if (fighters.length) {
+      let x0 = Infinity, x1 = -Infinity;
+      for (const a of fighters) { x0 = Math.min(x0, a.root.x); x1 = Math.max(x1, a.root.x); }
+      const mid = (x0 + x1) / 2;
+      const cx = mid - L.sx;
+      if (this.mode === 'cinematic' || !visible(cx)) focus = mid;
+    }
+    const a = g.selected;
+    if (focus == null && a && a.root && a.rootPin && !a.isPlant) {
+      const cx = a.root.x - L.sx;
+      if (cx > 1180) focus = a.root.x - 380;
+      else if (cx < 420) focus = a.root.x + 380;
+      if (this.mode === 'follow') focus = a.root.x;
+    }
+    if (focus == null) { L.sx = Math.max(0, Math.min(maxSx, L.sx)); return; }
+    const want = Math.max(0, Math.min(maxSx, focus - 800));
+    L.sx += (want - L.sx) * Math.min(1, dt * 2.5);
+  }
+
+  // where the view sits along a long stage (drawn as a thin gold rail)
+  drawRail(f, cam, dpr) {
+    const S = this.game.scene;
+    if (S.worldW <= 1600) return;
+    const [x0, y0] = cam.toScreen(0, 1012), [x1] = cam.toScreen(1600, 1012);
+    const w = x1 - x0, k = 1600 / S.worldW;
+    f.setTransform(dpr, 0, 0, dpr, 0, 0);
+    f.fillStyle = 'rgba(20,8,3,0.55)';
+    f.fillRect(x0, y0, w, 5);
+    f.fillStyle = 'rgba(231,181,69,0.9)';
+    f.fillRect(x0 + (S.lamp.sx / S.worldW) * w, y0, w * k, 5);
+    // where the puppets are
+    f.fillStyle = 'rgba(255,240,200,0.9)';
+    for (const a of S.actors) if (a.rootPin && !a.isPlant && a.root) f.fillRect(x0 + (a.root.x / S.worldW) * w - 1, y0 - 2, 2, 9);
+  }
+
   // letterbox bars + slow-motion vignette on the fg overlay (CSS px)
   drawOverlay(f, cam, dpr) {
     if (this.bars < 0.01) return;

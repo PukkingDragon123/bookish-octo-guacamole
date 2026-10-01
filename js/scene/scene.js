@@ -19,6 +19,7 @@ export class Scene {
     this.world.floorY = (z) => this.lamp.y + (FLOOR - this.lamp.y) * (1 - z);
     this.actors = [];
     this.worldW = 1600; // stage length (cloth units); grows when the scene is expanded
+    this.autoGrow = true; // extend the stage when someone walks or fights past its end
     this.membrane = new Membrane();
     this.time = 0;
     this.listeners = {};
@@ -130,6 +131,11 @@ export class Scene {
       L.flicker = (Math.sin(t * 13.1) * 0.35 + Math.sin(t * 23.7 + 1.3) * 0.25 + Math.sin(t * 5.3) * 0.4) * 0.028 + (Math.random() - 0.5) * 0.012;
     } else L.flicker = Math.sin(t * 100 * Math.PI) * 0.004;
     this._personalSpace(dt);
+    if (this.autoGrow) {
+      for (const a of this.actors) {
+        if (a.root && a.rootPin && a.root.x > this.worldW - 300 && this.worldW < 16000) { this.worldW += 800; break; }
+      }
+    }
     for (const a of this.actors) a.update(dt, t);
     // equal physics slices no longer than 1/60 s: steadier than one big step
     const n = Math.max(1, Math.ceil(dt * 60 - 1e-3));

@@ -83,6 +83,11 @@ export class Game {
         b.innerHTML = '<i class="gem"></i><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h3l2-3h8l2 3h3v11H3zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/></svg>';
         b.onclick = () => this.director.cycle();
         top.insertBefore(b, top.querySelector('#b-help'));
+        const z = document.createElement('button');
+        z.className = 'medal'; z.id = 'b-stage'; z.title = 'ขนาดเวที · Stage size: 1× → 4× → grows by itself';
+        z.innerHTML = '<i class="gem"></i><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18v10H3zM7 10l-3 2 3 2M17 10l3 2-3 2M10 12h4"/></svg>';
+        z.onclick = () => this.expandStage();
+        top.insertBefore(z, top.querySelector('#b-help'));
       }
     }
     this.scene.extraDrawables = () => this.games.drawables();
@@ -127,9 +132,23 @@ export class Game {
       if (a instanceof Puppet) a.def = def;
     }
     (def.onSpawn || def.rig?.onSpawn)?.(a, this.scene);
+    if (a && a.body && !a.rootPin) this.settleOnFloor(a);
     if (!opts.quiet && !this.intro && !this.menu) this.magic.arrive(a, def);
     else if (!opts.quiet) audio?.sfx('pop', { pan: (cx - 800) / 800 });
     return a;
+  }
+
+  // Static scenery (houses, trees, stalls, boats on the bank) sits on the
+  // floor of its depth instead of hanging where it was dropped.
+  settleOnFloor(a) {
+    const d = a.def || {};
+    if (!(d.static || a.isStatic) || d.float || d.glow || d.weather || d.spell || ['tools', 'weather', 'magic'].includes(d.cat)) return;
+    const b = a.body;
+    let low = -Infinity;
+    for (const c of b.circles) { const [, y] = b.toWorld(c.x, c.y); low = Math.max(low, y + c.r); }
+    if (!isFinite(low)) return;
+    const fy = this.scene.world.floorY(a.z);
+    a.placeAt(b.x, b.y + (fy - low) + 3);
   }
 
   removeActor(a) {
@@ -221,10 +240,16 @@ export class Game {
     }
   }
 
+  // Stage length: 1× → 2× → 3× → 4× → grows by itself (the default)
   expandStage() {
     const S = this.scene;
-    S.worldW = S.worldW >= 6400 ? 1600 : S.worldW + 1600;
+    const sizes = [1600, 3200, 4800, 6400, 0];
+    const cur = S.autoGrow ? 0 : S.worldW;
+    const next = sizes[(sizes.indexOf(cur) + 1) % sizes.length] ?? 0;
+    S.autoGrow = next === 0;
+    S.worldW = next || Math.max(1600, S.worldW);
     S.lamp.sx = Math.min(S.lamp.sx, S.worldW - CLOTH_W);
+    this.director.toastMode(S.autoGrow ? 'เวทีขยายเองอัตโนมัติ · Stage grows by itself' : `เวทียาว ${S.worldW / 1600}× · Stage ${S.worldW / 1600}× wide`);
     audio?.sfx('curtain', { vol: 0.4 });
   }
 
@@ -484,8 +509,8 @@ export class Game {
         audio?.sfx('whoosh', { vol: 0.5, pan: this._pan(a) });
         return;
       }
-      if (a.target.y > a.standY() - 140) a.plantAt(a.target.x);
-      else a.setMode('hung');
+      // let go: it comes down and stands on the floor (freeze it to keep it aloft)
+      a.plantAt(a.target.x);
       audio?.sfx('step', { vol: 0.4 });
     } else if (d.type === 'limb') a.releaseLimb(d.key);
     else if (d.type === 'prop') {
@@ -835,14 +860,8 @@ export class Game {
       if (Math.abs(d) > 6 && Math.sign(d) !== p.facing && p.flipAnim <= 0 && !p.isBusy()) p.flip();
       if (Math.abs(d) < 2) this.walkTo = null;
     }
-    // side-scrolling: the screen follows the puppet you drive along a longer stage
-    if (a && a instanceof Puppet && this.scene.worldW > CLOTH_W) {
-      const [cx] = this.scene.project(a.root.x, a.root.y, a.z);
-      const L = this.scene.lamp;
-      if (cx > 1180) L.sx += (cx - 1180) * Math.min(1, dt * 4);
-      if (cx < 420) L.sx -= (420 - cx) * Math.min(1, dt * 4);
-      L.sx = clamp(L.sx, 0, this.scene.worldW - CLOTH_W);
-    }
+    // side-scrolling: the stage scrolls after the fight / the puppet you drive
+    this.director.scroll(dt);
     const tracking = this._track(dt);
     this.trackingActive = tracking;
     for (const f of this.flies) f.update(dt, this);
@@ -993,6 +1012,7 @@ export class Game {
       f.strokeStyle = 'rgba(255,230,160,0.9)'; f.lineWidth = 2;
       f.beginPath(); f.arc(lx, ly, 18, 0, 7); f.stroke();
     }
+    this.director.drawRail(f, cam, dpr);
     this.build?.draw(f, cam, dpr);
     this.director.drawOverlay(f, cam, dpr);
     // the khon hand cursor

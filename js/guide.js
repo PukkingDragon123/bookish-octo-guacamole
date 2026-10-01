@@ -22,6 +22,7 @@ const G = {
   'b-help': ['ตารางวิธีเล่นและคีย์ลัดทั้งหมด', 'How to play, with every shortcut.'],
   'b-cam': ['กล้อง กดสลับ อิสระ → ติดตามตัวที่เลือก → กล้องภาพยนตร์ที่จับฉากต่อสู้ให้อัตโนมัติ (ปุ่ม C)', 'Camera: free → follow → cinematic fight camera (key C).'],
   'b-build': ['โหมดก่อสร้าง มีตาราง ช่วยวาง หมุน ย่อ ขยาย และจัดชั้นของพร็อพ (ปุ่ม B)', 'Build mode: grid, snap, rotate, resize and layer props (key B).'],
+  'b-stage': ['ขนาดเวที กดสลับ ยาว 1–4 เท่า หรือให้เวทีขยายเองเวลามีคนเดินหรือต่อสู้ไปสุดขอบ กล้องจะเลื่อนตามให้', 'Stage size: 1–4× long, or let it grow by itself when someone walks or fights past the end; the view scrolls along.'],
   'b-book': ['สมุดข่อยของฉัน มีคู่มือทุกอย่างและรายการภารกิจที่ปลดล็อกของใหม่', 'My folding book: the full manual and the quests that unlock new things.'],
 };
 // side-ring / pad / timeline buttons, recognised by their tooltip text

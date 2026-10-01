@@ -126,7 +126,7 @@ export class Fly {
       }
       return best ? { o: best, d: bd } : null;
     };
-    const minX = 120, maxX = 1480;
+    const minX = 120, maxX = (game.scene.worldW || 1600) - 120;
     const wander = (speed = 70) => {
       if (this.goal == null || this._walk(p, this.goal, speed, dt)) {
         if (Math.random() < dt * 0.6 || this.goal == null) this.goal = minX + Math.random() * (maxX - minX);
