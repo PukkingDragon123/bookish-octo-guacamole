@@ -193,7 +193,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #050610; col
 .royal-panel { background: linear-gradient(180deg, #2a120a, #170905); border: 1.5px solid var(--gold-mid); border-radius: 16px; box-shadow: 0 0 0 4px rgba(26, 11, 7, .85), 0 0 0 5px rgba(231, 181, 69, .45), 0 18px 50px rgba(0, 0, 0, .6); color: var(--ink); font-family: var(--ui-font); }
 #movepanel { position: fixed; left: 50%; bottom: 86px; transform: translateX(-50%); width: min(720px, calc(100vw - 24px)); max-height: min(62vh, 520px); display: flex; flex-direction: column; z-index: 30; animation: rpIn .22s ease; }
 #movepanel.hidden, #infocard.hidden { display: none; }
-@keyframes rpIn { from { opacity: 0; transform: translate(-50%, 12px) scale(.98); } }
+@keyframes rpIn { from { transform: translate(-50%, 12px) scale(.98); } }
 .rp-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px 4px; }
 .rp-title { font: 700 22px var(--title-font); color: var(--gold-hi); text-shadow: 0 0 12px rgba(255, 200, 100, .5); }
 .rp-title small { font: 500 12px var(--ui-font); color: var(--gold); margin-left: 6px; letter-spacing: .1em; text-transform: uppercase; }
@@ -219,7 +219,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #050610; col
 .item .info-btn:hover { opacity: 1; transform: scale(1.1); }
 #infocard { position: fixed; inset: 0; background: rgba(8, 3, 1, .55); display: grid; place-items: center; z-index: 40; backdrop-filter: blur(2px); }
 .ic-card { position: relative; width: min(640px, calc(100vw - 24px)); max-height: calc(100vh - 40px); overflow-y: auto; display: grid; grid-template-columns: 260px 1fr; gap: 14px; padding: 16px; animation: icIn .25s ease; }
-@keyframes icIn { from { opacity: 0; transform: scale(.96); } }
+@keyframes icIn { from { transform: scale(.96); } }
 .ic-card .rp-x { position: absolute; top: 10px; right: 10px; }
 .ic-pic { border-radius: 12px; background: radial-gradient(circle at 50% 45%, #fff2cf, #e9c98d 55%, #a77a3c); box-shadow: inset 0 0 30px rgba(90, 50, 10, .45); display: grid; place-items: center; padding: 10px; }
 .ic-pic canvas { max-width: 100%; height: auto; filter: drop-shadow(0 6px 10px rgba(60, 30, 5, .4)); }
@@ -238,3 +238,13 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #050610; col
   .ic-card { grid-template-columns: 1fr; }
   .ic-pic canvas { max-height: 34vh; width: auto; }
 }
+/* move picker layout fixes */
+.rp-head, .rp-tabs { flex-shrink: 0; }
+.rp-tabs { padding-top: 8px; min-height: 52px; align-items: stretch; }
+.rp-grid { align-items: start; align-content: start; flex: 1 1 auto; min-height: 0; }
+.rp-card { align-content: start; grid-template-rows: none; grid-auto-rows: min-content; row-gap: 1px; }
+.rp-ico { grid-row: 1 / span 2; align-self: start; }
+.rp-card b, .rp-card em { grid-column: 2; }
+.rp-card span { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; grid-column: 1 / span 2; }
+.rp-card span.rp-en { -webkit-line-clamp: 3; }
+.rp-card:hover span { -webkit-line-clamp: 12; }
