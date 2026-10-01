@@ -9,6 +9,7 @@ import { ROLES } from './sandbox/flies.js';
 import { GAME_ROLE_ICONS } from './sandbox/games.js';
 import { INTERACTIONS } from './sandbox/social.js';
 import { ANIMS } from './puppet/animations.js';
+import { MovePanel, InfoCard } from './panels.js';
 import { lockOf, lockText, notifyLocked, SEAL_HTML } from './tutorial.js';
 
 const el = (tag, attrs = {}, ...kids) => {
@@ -75,7 +76,7 @@ export function thumbnail(def, size = 120) {
   const c = document.createElement('canvas');
   c.width = size; c.height = Math.round(size * 1.1);
   const g = c.getContext('2d');
-  const rig = def.rig || { root: 'm', parts: { m: { sprite: def.sprite, z: 0 } } };
+  const rig = def.rig || { root: 'm', parts: { m: { sprite: def.icon || def.sprite, z: 0 } } };
   try {
     const T = assemble(rig);
     const b = rigBounds(rig, T);
@@ -118,6 +119,8 @@ export class UI {
     );
     // the puppet chest
     this.chestBtn = medal(ICONS.chest, 'หีบหนัง · Puppet chest', () => this.toggleHouse(), { id: 'b-house', cls: 'big' });
+    this.movePanel = new MovePanel(g, R, MOVE_ICONS);
+    this.infoCard = new InfoCard(g, R, thumbnail, CATEGORIES);
     this.house = el('div', { id: 'house', class: 'closed hidden' },
       el('div', { class: 'lid' }, el('i', { class: 'clasp' })),
       el('div', { class: 'box' },
@@ -162,6 +165,10 @@ export class UI {
       const it = el('div', { class: 'item' + (lk ? ' locked' : ''), title: `${def.name || ''} · ${def.en || ''}` + (lk ? ` — ${lockText(lk)}` : '') }, thumbnail(def));
       if (lk) { it.append(el('i', { class: 'seal', html: SEAL_HTML })); it.addEventListener('pointerdown', (e) => { e.preventDefault(); notifyLocked(def); }); } else
       it.addEventListener('pointerdown', (e) => { e.preventDefault(); this.game.beginSpawnDrag(def, e); this.toggleHouse(false); });
+      // ⓘ: the full story of the item
+      const ib = el('button', { class: 'info-btn', title: 'รายละเอียด · Details', html: 'i' });
+      ib.addEventListener('pointerdown', (e) => { e.stopPropagation(); e.preventDefault(); this.infoCard.open(def); });
+      it.append(ib);
       this.items.append(it);
     }
     this.items.scrollTop = 0;
@@ -209,12 +216,8 @@ export class UI {
     const row = el('div', { class: 'ring' });
     row.append(medal(ICONS.flip, 'กลับตัว · Turn around', () => a.flip()));
     if (a.rig && a.isHumanoid) {
-      const moves = el('div', { class: 'fan' });
-      for (const name of ['strike', 'lunge', 'block', 'dance', 'ram-medley', 'ram-theppranom', 'ram-kinnorn', 'wai', 'leap', 'roar', 'laugh', 'wong', 'bow', 'wave', 'cheer', 'sit', 'kneel']) {
-        moves.append(el('button', { class: 'mini', title: `${ANIMS[name].th} · ${ANIMS[name].en}`, onclick: () => g.playMove(name), html: glyph(MOVE_ICONS[name] || MOVE_ICONS.dance) }));
-      }
-      const mb = medal(ICONS.moves, 'ท่า · Moves', () => { moves.classList.toggle('open'); roles.classList.remove('open'); });
-      row.append(mb, moves);
+      const mb = medal(ICONS.moves, 'ท่า · Moves (with descriptions)', () => { this.movePanel.toggle(a); roles.classList.remove('open'); });
+      row.append(mb);
     }
     if (a.rig && a.isHumanoid && g.social) {
       const inter = el('div', { class: 'fan' });

@@ -287,3 +287,196 @@ const SPELL = {
     for (let i = 0; i < 9; i++) { const a = (i / 9) * Math.PI * 2 - Math.PI / 2 + Math.PI / 9; T.star(g, 60 + Math.cos(a) * 28, 60 + Math.sin(a) * 28, 3.2, { petal: T.M.goldL, core: null, punch: false }); }
   },
 };
+
+// Effect plaques for the chest (def.icon): the same gilded ซุ้ม window as
+// the weather, each holding a little mural of the effect. The prop's
+// `sprite` stays the plain leather cut-out the puppeteer holds on stage.
+function fxIcon(k, arg) {
+  const T = TI;
+  const f = FXI[k];
+  return paintSprite(120, 120, (ctx) => {
+    T.weatherFrame(ctx, (g) => {
+      T.fill(g, T.P([[0, 0], [120, 0], [120, 120], [0, 120]], true, 1), T.vgrad(g, 14, 104, f.sky(T, arg)));
+      f.draw(g, T, arg);
+    }, { band: f.band ? f.band(T, arg) : T.M.red });
+  }, { name: 'fxi-' + k + (arg ? '-' + arg.k : '') });
+}
+
+const spark = (g, T, x, y, r, col) => {
+  const p = T.poly([[x, y - r], [x + r * 0.28, y - r * 0.28], [x + r, y], [x + r * 0.28, y + r * 0.28], [x, y + r], [x - r * 0.28, y + r * 0.28], [x - r, y], [x - r * 0.28, y - r * 0.28]]);
+  T.shape(g, p, col || T.M.goldL, { w: 0.35 });
+};
+
+const LIGHTS = {
+  gold: { gem: '#f6c94a', gemL: '#fff3b8', gemD: '#a8701c', glow: 'rgba(255,214,120,', sky: ['#3a1d0c', '#5a2c10', '#2a1206'] },
+  red: { gem: '#d8302a', gemL: '#ff9a7a', gemD: '#6e0f0c', glow: 'rgba(255,110,80,', sky: ['#2e0a10', '#4a1018', '#1c0508'] },
+  blue: { gem: '#3a66d8', gemL: '#a8c8ff', gemD: '#122a7a', glow: 'rgba(120,170,255,', sky: ['#0b1236', '#16205a', '#070a24'] },
+  green: { gem: '#2fae5e', gemL: '#b4f0c0', gemD: '#0f5a30', glow: 'rgba(120,240,150,', sky: ['#06231a', '#0d3a28', '#041610'] },
+};
+
+const FXI = {
+  fire: {
+    sky: (T) => ['#1a1440', T.M.indigoD, '#3a1006'],
+    draw(g, T) {
+      g.fillStyle = T.rgrad(g, 60, 78, 4, 56, ['rgba(255,190,90,0.95)', 'rgba(230,90,30,0.45)', 'rgba(120,20,10,0)']); g.fillRect(0, 0, 120, 120);
+      // ground and ring of stones
+      T.shape(g, T.P([[10, 92], [40, 86], [80, 86], [110, 92], [110, 120], [10, 120]], true, 6), T.vgrad(g, 86, 104, [T.M.earth, T.M.earthD]), { w: 0.6 });
+      // flames
+      T.flames(g, 60, 88, 52);
+      // crossed logs in front
+      for (const s of [-1, 1]) {
+        const sp = [[60 - s * 30, 98], [60 + s * 26, 84]];
+        T.shape(g, T.poly(T.tubePts(sp, [4.2, 3.4])), T.vgrad(g, 82, 100, [T.M.ochre, T.M.brown]), { w: 0.7 });
+        T.stroke(g, T.lin([[60 - s * 24, 94.5], [60 + s * 18, 85.5]]), T.M.goldD, 0.8);
+        T.shape(g, T.circle(60 - s * 30, 98, 3.6), T.M.creamD, { w: 0.5 });
+        T.stroke(g, T.circle(60 - s * 30, 98, 1.8), T.M.brown, 0.6);
+      }
+      for (const [x, y] of [[26, 98], [38, 96], [82, 96], [94, 98], [50, 99], [70, 99]]) T.shape(g, T.P([[x - 5, y + 2], [x - 4, y - 2], [x, y - 3.5], [x + 4, y - 2], [x + 5, y + 2]], true, 4), T.vgrad(g, y - 4, y + 2, ['#a08870', '#5a4434']), { w: 0.5 });
+      // sparks drifting up
+      for (const [x, y, r] of [[34, 50, 3.2], [86, 44, 3.6], [44, 34, 2.4], [78, 30, 2.6], [28, 70, 2.2], [92, 66, 2.4], [62, 26, 2]]) spark(g, T, x, y, r, r > 3 ? T.M.goldL : '#ffd27a');
+      for (const [x, y] of [[40, 60], [80, 56], [52, 40], [70, 42], [96, 54], [24, 58]]) T.fill(g, T.circle(x, y, 1), T.M.goldL);
+    },
+  },
+  torch: {
+    sky: (T) => [T.M.night, T.M.indigoD, T.M.indigo],
+    draw(g, T) {
+      g.fillStyle = T.rgrad(g, 64, 44, 4, 54, ['rgba(255,200,110,0.9)', 'rgba(230,110,40,0.35)', 'rgba(120,30,10,0)']); g.fillRect(0, 0, 120, 120);
+      for (const [x, y, r] of [[28, 36, 3], [96, 50, 2.6], [30, 82, 2.2], [98, 84, 2.4]]) T.star(g, x, y, r, { petal: T.M.goldL, core: null, punch: false });
+      // shaft (tilted) wrapped with cord
+      g.save(); g.translate(64, 60); g.rotate(0.22);
+      const shaft = T.poly([[-3.4, -8], [3.4, -8], [2.6, 56], [-2.6, 56]]);
+      T.shape(g, shaft, T.vgrad(g, -8, 56, [T.M.ochre, T.M.brown]), { w: 0.7 });
+      for (let yy = 0; yy < 50; yy += 5) T.stroke(g, T.lin([[-3.2, yy], [3.2, yy + 2.2]]), T.M.earthD, 0.7);
+      // gold head cup
+      const cup = T.P([[-9, -10], [9, -10], [5, 0], [-5, 0]], true, 3, 0.2);
+      T.shape(g, cup, T.goldG(g, -10, -10, 10, 0), { w: 0.6 });
+      T.lotusBand(g, -9, 9, -9, 5, { fill: T.M.gold, inner: T.M.verm, n: 4 });
+      T.stroke(g, T.lin([[-6, -4], [6, -4]]), T.M.red, 1.6);
+      T.dotLine(g, [[-5, -4], [5, -4]], { spacing: 2.6, r: 0.55, smoothIt: false, jitter: 0 });
+      g.restore();
+      T.flames(g, 61.5, 50, 36, { spread: 0.8 });
+      // the hand: a mural fist gripping the shaft, with a gold bracelet
+      g.save(); g.translate(70, 92); g.rotate(0.22);
+      const skin = T.vgrad(g, -10, 12, ['#f3cf98', '#d9a668']);
+      T.shape(g, T.poly(T.tubePts([[2, 6], [10, 18], [16, 34]], [7, 8, 8.5])), skin, { w: 0.7 });
+      T.shape(g, T.poly([[3, 16], [13, 11], [16, 17], [6, 22]]), T.goldG(g, 0, 10, 16, 22), { w: 0.5 });
+      T.stroke(g, T.lin([[4.5, 18.5], [14.5, 13.5]]), T.M.red, 1.3);
+      const fist = T.P([[-9, -9], [3, -11], [10, -7], [11, 4], [6, 10], [-8, 9], [-11, 2]], true, 6, 0.4);
+      T.shape(g, fist, skin, { w: 0.75 });
+      for (const yy of [-5, -0.5, 4]) T.stroke(g, T.lin([[-9.5, yy], [-4, yy + 0.6], [1, yy]]), '#9a6a38', 0.8);
+      T.shape(g, T.P([[-2, -11], [6, -12], [10, -8], [4, -6], [-1, -7.5]], true, 4, 0.4), '#f6d8a8', { w: 0.5 });
+      g.restore();
+    },
+  },
+  smoke: {
+    sky: (T) => [T.M.rose, '#8a3a50', T.M.purpleD],
+    band: (T) => T.M.indigo,
+    draw(g, T) {
+      // curling smoke scrolls (ควันธูป)
+      const streams = [[[48, 62], [44, 50], [52, 40], [44, 30], [50, 22]], [[60, 60], [64, 48], [56, 38], [64, 28], [60, 18]], [[72, 62], [78, 52], [70, 42], [80, 34], [76, 24]]];
+      for (const s of streams) {
+        T.shape(g, T.poly(T.tubePts(s, [0.6, 2.4, 3.2, 2.6, 1.2])), T.vgrad(g, 20, 62, [T.M.cream, '#e6d6c4', '#cdb6b0']), { w: 0.5 });
+        const e = s[s.length - 1];
+        T.stroke(g, T.lin(T.spiralPts(e[0] + 2, e[1] + 2, 4.5, 1.1, Math.PI / 2, 1, 16)), T.M.cream, 2);
+        T.stroke(g, T.lin(T.spiralPts(e[0] + 2, e[1] + 2, 4.5, 1.1, Math.PI / 2, 1, 16)), T.M.rose, 0.5);
+      }
+      T.cloud(g, 30, 38, 28, 14, { seed: 41, tail: -1, lobes: 3, top: T.M.cream, bot: '#d8c2bc' });
+      T.cloud(g, 92, 32, 26, 13, { seed: 42, tail: 1, lobes: 3, top: T.M.cream, bot: '#d8c2bc' });
+      // three incense sticks with glowing tips
+      for (const [x, a] of [[51, -0.18], [60, 0], [69, 0.18]]) {
+        const tip = [x + Math.sin(a) * 4, 62];
+        T.stroke(g, T.lin([[x - Math.sin(a) * 12, 86], tip]), T.M.ink, 3.2);
+        T.stroke(g, T.lin([[x - Math.sin(a) * 12, 86], tip]), T.M.red, 1.8);
+        T.fill(g, T.circle(tip[0], tip[1], 2.8), 'rgba(255,170,80,0.6)');
+        T.shape(g, T.circle(tip[0], tip[1], 1.5), T.M.goldL, { w: 0.3 });
+      }
+      // the gold burner on lion feet, a lotus band round its belly
+      const bowl = T.P([[30, 78], [90, 78], [86, 92], [74, 98], [46, 98], [34, 92]], true, 6, 0.4);
+      T.shape(g, bowl, T.goldG(g, 30, 76, 90, 100), { w: 0.8 });
+      T.shape(g, T.poly([[27, 74], [93, 74], [91, 80], [29, 80]]), T.goldG(g, 0, 72, 0, 82), { w: 0.6 });
+      T.dotLine(g, [[31, 77], [89, 77]], { spacing: 3.4, r: 0.65, smoothIt: false, jitter: 0 });
+      T.clip(g, bowl, () => { T.lotusBand(g, 30, 90, 94, 9, { fill: T.M.goldL, inner: T.M.verm, n: 7 }); T.fill(g, T.poly([[20, 81], [100, 81], [100, 85], [20, 85]]), T.M.red); });
+      T.prajam(g, 60, 87, 4.4, { petal: T.M.goldL, core: T.M.indigo });
+      for (const s of [-1, 1]) T.kanok(g, 60 + s * 20, 97, 8, Math.PI / 2 - s * 0.4, s < 0, { fill: T.M.gold, inner: T.M.verm, w: 0.5 });
+      T.shape(g, T.poly([[22, 100], [98, 100], [96, 104], [24, 104]]), T.M.lac, { w: 0.5 });
+    },
+  },
+  water: {
+    sky: (T) => [T.M.sky, '#7fb2d4', T.M.indigoL],
+    band: (T) => T.M.indigo,
+    draw(g, T) {
+      T.cloud(g, 36, 34, 40, 18, { seed: 51, tail: -1 });
+      T.cloud(g, 88, 42, 34, 15, { seed: 52, tail: 1, lobes: 4 });
+      T.waves(g, 6, 114, 60, { rows: 5, size: 13, cols: ['#7ab0dc', T.M.indigoL, '#3f5aa6', T.M.indigo, T.M.indigoD] });
+      // a leaping fish (ปลา) arcing over the crests
+      g.save(); g.translate(64, 54); g.rotate(-0.35);
+      const body = T.P([[-16, 0], [-8, -6], [4, -6.5], [13, -2], [15, 1], [6, 5], [-8, 5]], true, 6, 0.45);
+      const tail = T.poly([[-14, 0], [-23, -7], [-20, 0], [-23, 7]]);
+      T.shape(g, tail, T.M.vermL, { w: 0.5 });
+      T.shape(g, body, T.vgrad(g, -7, 5, [T.M.goldL, T.M.gold, T.M.vermL]), { w: 0.6 });
+      T.kanok(g, -2, -5.5, 7, -Math.PI / 2 - 0.6, true, { fill: T.M.verm, inner: T.M.goldL, w: 0.4 });
+      for (const x of [-8, -3, 2]) T.stroke(g, T.lin([[x, -4], [x + 2.5, 0], [x, 4]]), T.M.goldD, 0.6);
+      T.shape(g, T.circle(9, -1.5, 1.6), T.M.cream, { w: 0.3 }); T.fill(g, T.circle(9.4, -1.5, 0.8), T.M.ink);
+      g.restore();
+      for (const [x, y] of [[44, 50], [40, 44], [86, 60], [90, 54]]) { const d = new Path2D(); d.moveTo(x, y - 3.5); d.quadraticCurveTo(x + 2.6, y + 1, x, y + 2); d.quadraticCurveTo(x - 2.6, y + 1, x, y - 3.5); T.shape(g, d, T.M.cream, { w: 0.35 }); }
+      // lotus pad and bud riding the water
+      T.shape(g, T.P([[16, 86], [24, 82], [36, 84], [38, 88], [26, 90]], true, 4), T.M.jade, { w: 0.5 });
+      T.lotus(g, 28, 84, 6.5);
+      T.shape(g, T.P([[86, 92], [94, 89], [104, 91], [100, 95], [90, 95]], true, 4), T.M.jade, { w: 0.5 });
+    },
+  },
+  fountain: {
+    sky: (T) => ['#bfe0e6', T.M.sky, '#5e9cb8'],
+    band: (T) => T.M.jadeD,
+    draw(g, T) {
+      T.cloud(g, 92, 34, 30, 14, { seed: 61, tail: 1, lobes: 3 });
+      // garden: rock and shrubs behind
+      T.khaoMo(g, 22, 84, 26, 40);
+      T.muralTree(g, 98, 86, 30, { seed: 7 });
+      // basin (อ่าง) with a lotus rim
+      // jets: a naga rises from the basin, spouting an arc of water
+      T.naga(g, 46, 86, 0.78, { dir: 1, neck: [[0, 0], [-6, -14], [-2, -30], [6, -40]], radii: [9, 8, 7, 6.5] });
+      const jet = [[70, 52], [82, 44], [92, 50], [96, 66], [96, 80]];
+      T.shape(g, T.poly(T.tubePts(jet, [2, 3, 3.4, 3, 2.4])), T.vgrad(g, 44, 80, ['#ffffff', '#cfeefb', '#8cc8ec']), { w: 0.6 });
+      T.stroke(g, T.lin(jet.slice(0, -1)), '#5aa0d0', 0.7);
+      for (const [x, y, r] of [[102, 58, 1.6], [88, 40, 1.4], [104, 72, 1.3], [80, 60, 1.2], [100, 46, 1.1]]) T.shape(g, T.circle(x, y, r), '#e6f6ff', { w: 0.3 });
+      const basin = T.P([[18, 86], [104, 86], [96, 100], [26, 100]], true, 3, 0.25);
+      T.shape(g, basin, T.vgrad(g, 84, 100, [T.M.cream, T.M.creamD, '#a8906a']), { w: 0.8 });
+      T.lotusBand(g, 22, 100, 100, 9, { fill: T.M.jade, inner: T.M.jadeL, n: 8 });
+      T.shape(g, T.poly([[14, 82], [108, 82], [106, 87], [16, 87]]), T.goldG(g, 0, 80, 0, 88), { w: 0.6 });
+      T.dotLine(g, [[18, 84.5], [104, 84.5]], { spacing: 3.4, r: 0.65, smoothIt: false, jitter: 0 });
+      T.clip(g, T.poly([[16, 70], [106, 70], [106, 82.5], [16, 82.5]]), () => T.waves(g, 16, 106, 82, { rows: 1, size: 8, cols: ['#7ab0dc'] }));
+      T.prajam(g, 61, 92.5, 4.4, { petal: T.M.goldL, core: T.M.red });
+    },
+  },
+  light: {
+    sky: (T, L) => L.sky,
+    band: (T, L) => (L.k === 'red' ? T.M.indigo : T.M.red),
+    draw(g, T, L) {
+      // a cloud-scroll canopy the lantern hangs from
+      T.lantern(g, 60, 62, 13, { ...L, top: 16 });
+      for (const [x, y, r] of [[28, 44, 3], [92, 42, 3.4], [30, 88, 2.6], [90, 90, 2.6]]) T.star(g, x, y, r, { petal: L.gemL, core: null, punch: false });
+      T.cloud(g, 34, 26, 34, 14, { seed: 71, tail: -1, lobes: 3, top: T.M.goldL, bot: T.M.gold });
+      T.cloud(g, 86, 26, 34, 14, { seed: 72, tail: 1, lobes: 3, top: T.M.goldL, bot: T.M.gold });
+    },
+  },
+  magic: {
+    sky: (T) => ['#4a1c6e', T.M.purple, T.M.purpleD],
+    band: (T) => T.M.indigo,
+    draw(g, T) {
+      g.fillStyle = T.rgrad(g, 60, 62, 2, 48, ['rgba(255,240,190,0.95)', 'rgba(240,170,255,0.35)', 'rgba(120,40,160,0)']); g.fillRect(0, 0, 120, 120);
+      // long sparkle rays between the petals
+      for (let i = 0; i < 16; i++) {
+        const a = (i / 16) * Math.PI * 2 + Math.PI / 16, r1 = i % 2 ? 34 : 44;
+        T.fill(g, T.poly([[60 + Math.cos(a - 0.05) * 14, 62 + Math.sin(a - 0.05) * 14], [60 + Math.cos(a) * r1, 62 + Math.sin(a) * r1], [60 + Math.cos(a + 0.05) * 14, 62 + Math.sin(a + 0.05) * 14]]), 'rgba(255,240,200,0.75)');
+      }
+      // ring of kanok flames, then the ดาวเพดาน star
+      for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2 - Math.PI / 2 + Math.PI / 8; T.kanok(g, 60 + Math.cos(a) * 14, 62 + Math.sin(a) * 14, 13, a, i % 2 === 1, { fill: T.M.vermL, inner: T.M.goldL, w: 0.5 }); }
+      T.star(g, 60, 62, 30, { petal: T.goldG(g, 30, 32, 90, 92), core: T.M.red });
+      T.star(g, 60, 62, 13, { petal: T.M.goldL, core: T.M.purple, punch: false });
+      T.prajam(g, 60, 62, 5, { petal: T.M.cream, core: T.M.red });
+      for (const [x, y, r] of [[26, 34, 4.4], [94, 32, 4], [24, 90, 3.6], [96, 88, 4.2], [60, 24, 3], [100, 62, 2.6], [20, 62, 2.6]]) spark(g, T, x, y, r);
+      for (const [x, y] of [[36, 46], [86, 50], [40, 80], [82, 78], [70, 30], [48, 98], [74, 96]]) T.fill(g, T.circle(x, y, 1.1), T.M.goldL);
+    },
+  },
+};

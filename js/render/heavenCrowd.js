@@ -15,6 +15,7 @@
 // petal particles. Clouds are pre-rendered paper-cut banks.
 
 import { drawDeva } from './deva.js';
+import { assemble, drawRig, rigBounds } from '../puppet/rig.js';
 import { makeCanvas, rng, thaiCloud } from './paint.js';
 import { paperize } from './sky.js';
 
@@ -74,6 +75,42 @@ export class HeavenCrowd {
       for (const [a, b] of R.bankXs || R.xs) for (let x = a - 100; x <= b + 140; x += 250 + r() * 90) banks.push({ x, y: R.y + 34 * R.s + (r() - 0.5) * 16, k: (r() * 4) | 0, s: R.s * (0.85 + r() * 0.3), f: r() < 0.5 ? -1 : 1 });
       return { ...R, devas, banks };
     });
+  }
+
+  // The audience can be made of the show's own leather puppets: each one
+  // cut out and lit from behind with a warm halo, seated in the clouds.
+  usePuppets(rigs) {
+    this.rigs = (rigs || []).filter((r) => r && r.parts);
+    this.puppetSprites = null;
+  }
+
+  _buildPuppets() {
+    this.puppetSprites = [];
+    const H = 150, R = 2.2; // figure height in crowd units, px per unit
+    for (const rig of this.rigs) {
+      try {
+        const T = assemble(rig);
+        const b = rigBounds(rig, T);
+        const k = (H / b.h) * R;
+        const pad = 18 * R;
+        const c = makeCanvas(Math.ceil(b.w * k + pad * 2), Math.ceil(b.h * k + pad * 2));
+        const g = c.getContext('2d');
+        // halo of lamplight behind the hide
+        g.save();
+        g.translate(pad - b.x0 * k, pad - b.y0 * k);
+        g.scale(k, k);
+        g.shadowColor = 'rgba(255,205,120,0.85)';
+        g.shadowBlur = 14 * R;
+        drawRig(g, rig, T);
+        g.restore();
+        g.save();
+        g.translate(pad - b.x0 * k, pad - b.y0 * k);
+        g.scale(k, k);
+        drawRig(g, rig, T);
+        g.restore();
+        this.puppetSprites.push({ c, w: c.width / R, h: c.height / R, face: rig.kind === 'demon' ? -1 : 1 });
+      } catch (e) { /* skip a rig that can't draw */ }
+    }
   }
 
   // ------------------------------------------------------------ assets
@@ -179,6 +216,7 @@ export class HeavenCrowd {
   // ------------------------------------------------------------ draw
   draw(ctx, cam) {
     if (!this.sprites) this._build();
+    if (this.rigs && this.rigs.length && !this.puppetSprites) this._buildPuppets();
     cam.apply(ctx, PARALLAX);
     // visible rect in this layer's space
     const cx = (cam.x + cam.shakeX) * PARALLAX + 800 * (1 - PARALLAX);
@@ -190,8 +228,8 @@ export class HeavenCrowd {
     ctx.save();
     for (const row of this.rows) {
       if (row.y + 100 * row.s < vy0 || row.y - 80 * row.s > vy1) continue;
-      // cloud banks
-      for (const b of row.banks) {
+      const banksFront = !!(this.puppetSprites && this.puppetSprites.length);
+      const drawBanks = () => { for (const b of row.banks) {
         const B = this.banks[b.k];
         const w = B.w * b.s * 0.36, h = B.h * b.s * 0.36;
         if (b.x + w / 2 < vx0 || b.x - w / 2 > vx1) continue;
@@ -201,7 +239,8 @@ export class HeavenCrowd {
         ctx.scale(b.f, 1);
         ctx.drawImage(B.c, -w / 2, -h / 2, w, h);
         ctx.restore();
-      }
+      } };
+      if (!banksFront) drawBanks();
       // the devas
       for (const d of row.devas) {
         const s = d.s;
@@ -209,6 +248,21 @@ export class HeavenCrowd {
         const pose = d.cheer > 0.45 || d.prop ? 'kneel' : d.pose;
         const S = this.sprites[pose + d.hue];
         const { bob, sway } = this._pose(d);
+        if (banksFront) {
+          // a leather puppet of the troupe, seated in the cloud, on its rod
+          const P = this.puppetSprites[(d.pi ??= Math.floor((d.ph / TAU) * 997) % this.puppetSprites.length)];
+          const ps = s * 0.62;
+          ctx.save();
+          ctx.translate(d.x, d.y + 40 * s + bob);
+          ctx.rotate(sway * d.face * 1.4);
+          ctx.scale(ps * d.face * P.face, ps * (1 + Math.sin(d.hop * 2) * d.cheer * 0.03));
+          ctx.drawImage(P.c, -P.w / 2, -P.h * 0.86, P.w, P.h);
+          ctx.strokeStyle = 'rgba(40,24,10,0.75)';
+          ctx.lineWidth = 2.2;
+          ctx.beginPath(); ctx.moveTo(0, -P.h * 0.45); ctx.lineTo(4, P.h * 0.1); ctx.stroke();
+          ctx.restore();
+          continue;
+        }
         ctx.save();
         ctx.translate(d.x, d.y + 30 * s);
         ctx.rotate(sway * d.face);
@@ -218,6 +272,7 @@ export class HeavenCrowd {
         if (pose === 'kneel') this._prop(ctx, d, t);
         ctx.restore();
       }
+      if (banksFront) drawBanks();
     }
     // petals in front of everything
     const m = ctx.getTransform();

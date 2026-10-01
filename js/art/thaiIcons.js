@@ -541,6 +541,63 @@ export function lotus(ctx, x, y, s, { petal = M.pink, petalD = M.rose, leaf = M.
   void leaf;
 }
 
+// ------------------------------------------------------------ เปลวไฟ
+// Mural flame: a fan of กนก tongues in three layers (lac-red back, vermilion,
+// gold) round a pale teardrop core. (x, y) is the base, h the height.
+export function flames(ctx, x, y, h, { back = M.red, mid = M.verm, front = M.gold, core = M.goldL, spread = 1 } = {}) {
+  const lay = (k, size, col, inner) => {
+    for (const [da, sz, dx] of k) {
+      const a = -Math.PI / 2 + da * spread;
+      kanok(ctx, x + dx * h * spread, y, h * sz * size, a, da > 0, { fill: col, inner, w: 0.6 });
+    }
+  };
+  lay([[-0.95, 0.5, -0.2], [0.95, 0.5, 0.2], [-0.55, 0.78, -0.12], [0.55, 0.78, 0.12]], 1, back, mid);
+  lay([[-0.3, 0.92, -0.06], [0.3, 0.92, 0.06], [-0.75, 0.55, -0.16], [0.75, 0.55, 0.16]], 0.95, mid, front);
+  kanok(ctx, x, y, h, -Math.PI / 2, false, { fill: front, inner: mid, w: 0.6 });
+  lay([[-0.42, 0.48, -0.08], [0.42, 0.48, 0.08]], 1, front, core);
+  const c = poly(tubePts([[x, y - h * 0.02], [x - h * 0.04, y - h * 0.22], [x + h * 0.02, y - h * 0.42], [x, y - h * 0.6]], [h * 0.13, h * 0.12, h * 0.07, h * 0.01]));
+  shape(ctx, c, core, { w: 0.5 });
+}
+
+// โคม: a jewelled lantern hung on a chain — a faceted ดวงแก้ว gem in a gold
+// cage with a spire cap, lotus cup and tassel. (x, y) is the gem centre.
+export function lantern(ctx, x, y, r, { gem = M.verm, gemL = M.vermL, gemD = M.lac, glow = 'rgba(255,200,120,', top = 0 } = {}) {
+  // glow halo + rays
+  fill(ctx, circle(x, y, r * 3), rgrad(ctx, x, y, r * 0.6, r * 3, [glow + '0.85)', glow + '0.25)', glow + '0)']));
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * TAU;
+    const big = i % 2 === 0;
+    const r0 = r * 1.5, r1 = r * (big ? 2.55 : 2.1);
+    const p = poly([[x + Math.cos(a - 0.07) * r0, y + Math.sin(a - 0.07) * r0], [x + Math.cos(a) * r1, y + Math.sin(a) * r1], [x + Math.cos(a + 0.07) * r0, y + Math.sin(a + 0.07) * r0]]);
+    fill(ctx, p, glow + (big ? '0.95)' : '0.6)'));
+  }
+  // chain
+  for (let yy = top; yy < y - r * 1.55; yy += 3.4) shape(ctx, circle(x, yy + 1.5, 1.3), M.gold, { w: 0.35 });
+  // spire cap (ยอด) with kanok wings
+  const cy = y - r * 1.05;
+  kanok(ctx, x - r * 0.55, cy, r * 0.7, -Math.PI / 2 - 0.9, true, { fill: M.gold, inner: M.verm, w: 0.45 });
+  kanok(ctx, x + r * 0.55, cy, r * 0.7, -Math.PI / 2 + 0.9, false, { fill: M.gold, inner: M.verm, w: 0.45 });
+  const cap = P([[x - r * 0.75, cy + r * 0.12], [x - r * 0.55, cy - r * 0.2], [x - r * 0.22, cy - r * 0.38], [x, cy - r * 0.8], [x + r * 0.22, cy - r * 0.38], [x + r * 0.55, cy - r * 0.2], [x + r * 0.75, cy + r * 0.12]], true, 6, 0.35);
+  shape(ctx, cap, goldG(ctx, x - r, cy - r, x + r, cy + r * 0.3), { w: 0.6 });
+  stroke(ctx, lin([[x - r * 0.6, cy - 0.05 * r], [x + r * 0.6, cy - 0.05 * r]]), M.red, Math.max(0.7, r * 0.12));
+  // the gem: an octagon with facets
+  const n = 8, oct = [], inn = [];
+  for (let i = 0; i < n; i++) { const a = (i / n) * TAU + Math.PI / 8; oct.push([x + Math.cos(a) * r, y + Math.sin(a) * r * 1.08]); inn.push([x + Math.cos(a) * r * 0.5, y - r * 0.08 + Math.sin(a) * r * 0.5]); }
+  shape(ctx, poly(oct), rgrad(ctx, x - r * 0.3, y - r * 0.4, r * 0.05, r * 1.2, ['#ffffff', gemL, gem, gemD]), { w: 0.8 });
+  for (let i = 0; i < n; i++) stroke(ctx, lin([oct[i], inn[i]]), 'rgba(255,255,255,0.55)', 0.6);
+  shape(ctx, poly(inn), rgrad(ctx, x - r * 0.15, y - r * 0.3, 0, r * 0.6, ['#ffffff', gemL, gem]), { w: 0.4 });
+  fill(ctx, P([[x - r * 0.42, y - r * 0.5], [x - r * 0.12, y - r * 0.66], [x - r * 0.2, y - r * 0.4]], true, 4), 'rgba(255,255,255,0.9)');
+  // gold cage ring round the gem
+  stroke(ctx, poly(oct), M.gold, Math.max(1, r * 0.13));
+  stroke(ctx, poly(oct), M.ink, 0.5, 0.8);
+  // lotus cup and tassel below
+  const by = y + r * 1.05;
+  lotusBand(ctx, x - r * 0.7, x + r * 0.7, by + r * 0.05, -r * 0.4, { fill: M.gold, inner: M.verm, n: 3 });
+  shape(ctx, P([[x - r * 0.75, by - r * 0.08], [x + r * 0.75, by - r * 0.08], [x + r * 0.3, by + r * 0.4], [x - r * 0.3, by + r * 0.4]], true, 3, 0.2), goldG(ctx, x - r, by, x + r, by + r * 0.4), { w: 0.5 });
+  for (const dx of [-0.2, 0, 0.2]) shape(ctx, poly(tubePts([[x + dx * r, by + r * 0.38], [x + dx * r * 1.4, by + r * 0.95]], [r * 0.12, r * 0.06])), M.red, { w: 0.35 });
+  shape(ctx, circle(x, by + r * 0.42, r * 0.17), M.goldL, { w: 0.4 });
+}
+
 // ------------------------------------------------------------ frames
 // Pointed Thai arch (ซุ้ม) outline from (x0, ySide) to (x1, ySide).
 export function archPts(x0, x1, ySide, h, n = 22, R = 1.35) {
