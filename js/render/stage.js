@@ -9,6 +9,7 @@ import { paintBooth, bananaTrunkSprite, BAND } from './theatre.js';
 import { paintNight, paintHeaven, paintCloudSprites } from './sky.js';
 import { Curtain } from './curtain.js';
 import { HeavenCrowd } from './heavenCrowd.js';
+import { assemble, drawRig, rigBounds } from '../puppet/rig.js';
 import { makeCanvas, rng, goldGrad, paperPiece, paperTexture } from './paint.js';
 
 export class Stage {
@@ -150,6 +151,13 @@ export class Stage {
     f.restore();
     if (overlay) overlay(f);
     this._fx(f, dt, scene);
+  }
+
+  // The village audience made of the troupe's own leather puppets.
+  usePuppetAudience(rigs) {
+    rigs = (rigs || []).filter((r) => r && r.parts);
+    if (!rigs.length) return;
+    try { this.audience = paintPuppetAudience(rigs); } catch (e) { console.warn('puppet audience failed', e); }
   }
 
   _layer(ctx, L, parallax) {
@@ -319,6 +327,64 @@ function paintAudience() {
 }
 
 let _rimTmp = null;
+// Rows of seated leather puppets watching the cloth: each is the real rig,
+// drawn upper body above the row in front, dimmed toward the back and
+// rim-lit by the glowing screen; a few still hold their rods.
+function paintPuppetAudience(rigs) {
+  const x0 = -600, y0 = 1080, w = 2800, h = 520, k = 0.6;
+  const dark = makeCanvas(w * k, h * k), rim = makeCanvas(w * k, h * k);
+  const d = dark.getContext('2d'), r = rim.getContext('2d');
+  for (const g of [d, r]) { g.scale(k, k); g.translate(-x0, -y0); }
+  const R = rng(23);
+  const cache = new Map();
+  const cut = (rig) => {
+    if (cache.has(rig)) return cache.get(rig);
+    const T = assemble(rig), b = rigBounds(rig, T);
+    const sc = 360 / b.h;
+    const c = makeCanvas(Math.ceil(b.w * sc) + 8, Math.ceil(b.h * sc) + 8);
+    const g = c.getContext('2d');
+    g.translate(4 - b.x0 * sc, 4 - b.y0 * sc); g.scale(sc, sc);
+    drawRig(g, rig, T);
+    const out = { c, w: c.width, h: c.height };
+    cache.set(rig, out);
+    return out;
+  };
+  const people = [];
+  for (let row = 0; row < 3; row++) {
+    for (let x = x0 + 40 + row * 30; x < x0 + w; x += 130 + R() * 90) {
+      people.push({ x, y: 1170 + row * 105 + R() * 20, s: 0.78 + row * 0.18 + R() * 0.1, rig: rigs[Math.floor(R() * rigs.length)], f: R() < 0.5 ? 1 : -1, rod: R() < 0.35 });
+    }
+  }
+  people.sort((a, b) => a.y - b.y);
+  const tmp = makeCanvas(dark.width, dark.height), t2 = tmp.getContext('2d');
+  for (const p of people) {
+    const P = cut(p.rig), s = p.s;
+    const dim = 0.34 + (p.y - 1170) / 520 * 0.5;
+    const ww = P.w * s, hh = P.h * s;
+    const place = (g) => { g.save(); g.translate(p.x, p.y); g.scale(p.f, 1); g.drawImage(P.c, -ww / 2, -hh * 0.42, ww, hh); g.restore(); };
+    // nearer figures hide the rim light of those behind them
+    r.save(); r.globalCompositeOperation = 'destination-out'; place(r); r.restore();
+    d.save();
+    d.filter = `brightness(${dim.toFixed(2)}) saturate(0.85)`;
+    place(d);
+    d.restore();
+    if (p.rod) { d.strokeStyle = 'rgba(20,12,6,0.9)'; d.lineWidth = 3 * s; d.beginPath(); d.moveTo(p.x + 8 * s * p.f, p.y - hh * 0.05); d.lineTo(p.x + 20 * s * p.f, p.y + hh * 0.6); d.stroke(); }
+    // rim light: the silhouette lit along its top edge by the screen
+    t2.setTransform(r.getTransform());
+    t2.clearRect(-1e4, -1e4, 2e4, 2e4);
+    place(t2);
+    t2.globalCompositeOperation = 'source-in';
+    t2.fillStyle = 'rgba(255,175,100,0.9)';
+    t2.fillRect(-1e4, -1e4, 2e4, 2e4);
+    t2.globalCompositeOperation = 'destination-out';
+    t2.translate(0, 6 * s);
+    place(t2);
+    t2.globalCompositeOperation = 'source-over';
+    r.save(); r.setTransform(1, 0, 0, 1, 0, 0); r.drawImage(tmp, 0, 0); r.restore();
+  }
+  return { dark, rim, x0, y0, w, h };
+}
+
 function rimTmp(r) {
   if (!_rimTmp || _rimTmp.width !== r.canvas.width) _rimTmp = makeCanvas(r.canvas.width, r.canvas.height);
   return _rimTmp;

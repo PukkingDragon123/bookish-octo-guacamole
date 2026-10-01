@@ -15,10 +15,9 @@ import('./descriptions.js').then((m) => { INFO = { ITEM_INFO: m.ITEM_INFO || {},
 
 const CATS = [
   ['fight', 'ต่อสู้', 'Fight'],
-  ['dance', 'ท่ารำ', 'Dance'],
+  ['dance', 'ท่ารำ · ทักทาย', 'Dance & greetings'],
   ['gesture', 'ท่าทาง', 'Gestures'],
   ['posture', 'อิริยาบถ', 'Postures'],
-  ['social', 'ทักทาย', 'Together'],
 ];
 
 const GUESS = {
@@ -28,9 +27,10 @@ const GUESS = {
 };
 function catOf(name) {
   const mi = INFO.MOVE_INFO[name];
+  if (mi && mi.cat === 'social') return 'dance';
   if (mi && mi.cat && CATS.some((c) => c[0] === mi.cat)) return mi.cat;
   if (name.startsWith('ram-') || name === 'dance' || name === 'wong') return 'dance';
-  for (const [k, list] of Object.entries(GUESS)) if (list.includes(name)) return k;
+  for (const [k, list] of Object.entries(GUESS)) if (list.includes(name)) return k === 'social' ? 'dance' : k;
   return 'gesture';
 }
 const SKIP = (n) => n.startsWith('ai-') || ['hit', 'kick', 'knee', 'header', 'forehand'].includes(n);
@@ -89,7 +89,7 @@ export class MovePanel {
     }
     if (!names.length) grid.append(el('div', { class: 'rp-empty', html: 'ยังไม่มีท่าในหมวดนี้ · nothing here yet' }));
     E.append(head, tabs, grid);
-    if (this.cat === 'social') E.append(el('div', { class: 'rp-note', html: 'จับคู่กับตัวที่อยู่ใกล้ที่สุดด้วยปุ่ม ทักทายกัน ในวงแหวน · pair up with the nearest puppet via the Interact medallion' }));
+    if (this.cat === 'dance') E.append(el('div', { class: 'rp-note', html: 'จับคู่กับตัวที่อยู่ใกล้ที่สุดด้วยปุ่ม ทักทายกัน ในวงแหวน · pair up with the nearest puppet via the Interact medallion' }));
   }
 
   _play(n, card) {
