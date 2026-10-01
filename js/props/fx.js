@@ -340,10 +340,10 @@ const FXI = {
   torch: {
     sky: (T) => [T.M.night, T.M.indigoD, T.M.indigo],
     draw(g, T) {
-      g.fillStyle = T.rgrad(g, 64, 44, 4, 54, ['rgba(255,200,110,0.9)', 'rgba(230,110,40,0.35)', 'rgba(120,30,10,0)']); g.fillRect(0, 0, 120, 120);
+      g.fillStyle = T.rgrad(g, 62, 42, 4, 54, ['rgba(255,200,110,0.9)', 'rgba(230,110,40,0.35)', 'rgba(120,30,10,0)']); g.fillRect(0, 0, 120, 120);
       for (const [x, y, r] of [[28, 36, 3], [96, 50, 2.6], [30, 82, 2.2], [98, 84, 2.4]]) T.star(g, x, y, r, { petal: T.M.goldL, core: null, punch: false });
       // shaft (tilted) wrapped with cord
-      g.save(); g.translate(64, 60); g.rotate(0.22);
+      g.save(); g.translate(60, 66); g.scale(1.25, 1.25); g.rotate(0.22);
       const shaft = T.poly([[-3.4, -8], [3.4, -8], [2.6, 56], [-2.6, 56]]);
       T.shape(g, shaft, T.vgrad(g, -8, 56, [T.M.ochre, T.M.brown]), { w: 0.7 });
       for (let yy = 0; yy < 50; yy += 5) T.stroke(g, T.lin([[-3.2, yy], [3.2, yy + 2.2]]), T.M.earthD, 0.7);
@@ -353,19 +353,23 @@ const FXI = {
       T.lotusBand(g, -9, 9, -9, 5, { fill: T.M.gold, inner: T.M.verm, n: 4 });
       T.stroke(g, T.lin([[-6, -4], [6, -4]]), T.M.red, 1.6);
       T.dotLine(g, [[-5, -4], [5, -4]], { spacing: 2.6, r: 0.55, smoothIt: false, jitter: 0 });
+      // the hand: a mural fist gripping the shaft, a gold bracelet at the wrist
+      g.translate(0, -9);
+      const skin = T.vgrad(g, 20, 70, ['#f6d6a2', '#dca86a']);
+      T.shape(g, T.poly(T.tubePts([[3, 38], [14, 48], [26, 66]], [6.5, 7.5, 8.5])), skin, { w: 0.7 });
+      const br = T.poly(T.tubePts([[5.5, 47.5], [13.5, 39.5]], [3, 3]));
+      T.shape(g, br, T.goldG(g, 4, 38, 16, 50), { w: 0.5 });
+      T.stroke(g, T.lin([[6.5, 47.8], [14, 40.2]]), T.M.red, 1.1);
+      for (let i = 0; i < 4; i++) {
+        const y0 = 22 + i * 4.6;
+        const f = T.P([[6, y0 + 0.2], [-4, y0 - 0.3], [-8.2, y0 + 2.3], [-4, y0 + 4.9], [6, y0 + 4.6]], true, 4, 0.4);
+        T.shape(g, f, skin, { w: 0.6 });
+        T.fill(g, T.circle(-5.5, y0 + 1.6, 0.9), 'rgba(255,240,215,0.8)');
+      }
+      T.shape(g, T.poly(T.tubePts([[7, 34], [6, 26], [1, 22.5], [-3, 22.8]], [3.6, 3.4, 2.8, 2.2])), '#f6d8a8', { w: 0.55 });
+      T.shape(g, T.P([[-3.6, 21.4], [-1.2, 21.2], [-1, 23.6], [-3.4, 24]], true, 3), T.M.cream, { w: 0.25 });
       g.restore();
-      T.flames(g, 61.5, 50, 36, { spread: 0.8 });
-      // the hand: a mural fist gripping the shaft, with a gold bracelet
-      g.save(); g.translate(70, 92); g.rotate(0.22);
-      const skin = T.vgrad(g, -10, 12, ['#f3cf98', '#d9a668']);
-      T.shape(g, T.poly(T.tubePts([[2, 6], [10, 18], [16, 34]], [7, 8, 8.5])), skin, { w: 0.7 });
-      T.shape(g, T.poly([[3, 16], [13, 11], [16, 17], [6, 22]]), T.goldG(g, 0, 10, 16, 22), { w: 0.5 });
-      T.stroke(g, T.lin([[4.5, 18.5], [14.5, 13.5]]), T.M.red, 1.3);
-      const fist = T.P([[-9, -9], [3, -11], [10, -7], [11, 4], [6, 10], [-8, 9], [-11, 2]], true, 6, 0.4);
-      T.shape(g, fist, skin, { w: 0.75 });
-      for (const yy of [-5, -0.5, 4]) T.stroke(g, T.lin([[-9.5, yy], [-4, yy + 0.6], [1, yy]]), '#9a6a38', 0.8);
-      T.shape(g, T.P([[-2, -11], [6, -12], [10, -8], [4, -6], [-1, -7.5]], true, 4, 0.4), '#f6d8a8', { w: 0.5 });
-      g.restore();
+      T.flames(g, 62.6, 53.6, 34, { spread: 0.9 });
     },
   },
   smoke: {
@@ -432,14 +436,12 @@ const FXI = {
       T.cloud(g, 92, 34, 30, 14, { seed: 61, tail: 1, lobes: 3 });
       // garden: rock and shrubs behind
       T.khaoMo(g, 22, 84, 26, 40);
-      T.muralTree(g, 98, 86, 30, { seed: 7 });
-      // basin (อ่าง) with a lotus rim
-      // jets: a naga rises from the basin, spouting an arc of water
+      // a naga rises from the basin (อ่าง), spouting an arc of water
       T.naga(g, 46, 86, 0.78, { dir: 1, neck: [[0, 0], [-6, -14], [-2, -30], [6, -40]], radii: [9, 8, 7, 6.5] });
-      const jet = [[70, 52], [82, 44], [92, 50], [96, 66], [96, 80]];
+      const jet = [[74, 52], [81, 45], [88, 47], [92, 60], [91, 84]];
       T.shape(g, T.poly(T.tubePts(jet, [2, 3, 3.4, 3, 2.4])), T.vgrad(g, 44, 80, ['#ffffff', '#cfeefb', '#8cc8ec']), { w: 0.6 });
       T.stroke(g, T.lin(jet.slice(0, -1)), '#5aa0d0', 0.7);
-      for (const [x, y, r] of [[102, 58, 1.6], [88, 40, 1.4], [104, 72, 1.3], [80, 60, 1.2], [100, 46, 1.1]]) T.shape(g, T.circle(x, y, r), '#e6f6ff', { w: 0.3 });
+      for (const [x, y, r] of [[99, 56, 1.6], [86, 36, 1.4], [99, 70, 1.3], [84, 60, 1.2], [96, 44, 1.1], [86, 76, 1.3], [98, 80, 1.2]]) T.shape(g, T.circle(x, y, r), '#e6f6ff', { w: 0.3 });
       const basin = T.P([[18, 86], [104, 86], [96, 100], [26, 100]], true, 3, 0.25);
       T.shape(g, basin, T.vgrad(g, 84, 100, [T.M.cream, T.M.creamD, '#a8906a']), { w: 0.8 });
       T.lotusBand(g, 22, 100, 100, 9, { fill: T.M.jade, inner: T.M.jadeL, n: 8 });
@@ -453,9 +455,9 @@ const FXI = {
     sky: (T, L) => L.sky,
     band: (T, L) => (L.k === 'red' ? T.M.indigo : T.M.red),
     draw(g, T, L) {
-      // a cloud-scroll canopy the lantern hangs from
       T.lantern(g, 60, 62, 13, { ...L, top: 16 });
       for (const [x, y, r] of [[28, 44, 3], [92, 42, 3.4], [30, 88, 2.6], [90, 90, 2.6]]) T.star(g, x, y, r, { petal: L.gemL, core: null, punch: false });
+      // the lantern hangs from a gilded cloud canopy
       T.cloud(g, 34, 26, 34, 14, { seed: 71, tail: -1, lobes: 3, top: T.M.goldL, bot: T.M.gold });
       T.cloud(g, 86, 26, 34, 14, { seed: 72, tail: 1, lobes: 3, top: T.M.goldL, bot: T.M.gold });
     },

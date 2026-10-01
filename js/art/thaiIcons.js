@@ -542,21 +542,21 @@ export function lotus(ctx, x, y, s, { petal = M.pink, petalD = M.rose, leaf = M.
 }
 
 // ------------------------------------------------------------ เปลวไฟ
-// Mural flame: a fan of กนก tongues in three layers (lac-red back, vermilion,
-// gold) round a pale teardrop core. (x, y) is the base, h the height.
+// Mural flame (ลายไฟ): S-curved tongues that taper to curling tips, in
+// three layers (lac-red back, vermilion, gold) round a pale core.
+// (x, y) is the base, h the height.
 export function flames(ctx, x, y, h, { back = M.red, mid = M.verm, front = M.gold, core = M.goldL, spread = 1 } = {}) {
-  const lay = (k, size, col, inner) => {
-    for (const [da, sz, dx] of k) {
-      const a = -Math.PI / 2 + da * spread;
-      kanok(ctx, x + dx * h * spread, y, h * sz * size, a, da > 0, { fill: col, inner, w: 0.6 });
-    }
+  const tongue = (dx, len, lean, wid, col) => {
+    const bx = x + dx * h * spread, L = len * h, s = Math.sign(lean) || 1;
+    const sp = [[bx, y], [bx + lean * h * 0.2, y - L * 0.35], [bx - lean * h * 0.05 , y - L * 0.68], [bx + lean * h * 0.35, y - L * 0.92], [bx + lean * h * 0.35 - s * h * 0.06, y - L]];
+    const p = poly(tubePts(sp, [wid * h, wid * h * 0.9, wid * h * 0.55, wid * h * 0.22, 0.4]));
+    shape(ctx, p, col, { w: 0.6 });
   };
-  lay([[-0.95, 0.5, -0.2], [0.95, 0.5, 0.2], [-0.55, 0.78, -0.12], [0.55, 0.78, 0.12]], 1, back, mid);
-  lay([[-0.3, 0.92, -0.06], [0.3, 0.92, 0.06], [-0.75, 0.55, -0.16], [0.75, 0.55, 0.16]], 0.95, mid, front);
-  kanok(ctx, x, y, h, -Math.PI / 2, false, { fill: front, inner: mid, w: 0.6 });
-  lay([[-0.42, 0.48, -0.08], [0.42, 0.48, 0.08]], 1, front, core);
-  const c = poly(tubePts([[x, y - h * 0.02], [x - h * 0.04, y - h * 0.22], [x + h * 0.02, y - h * 0.42], [x, y - h * 0.6]], [h * 0.13, h * 0.12, h * 0.07, h * 0.01]));
-  shape(ctx, c, core, { w: 0.5 });
+  const layer = (list, col) => list.forEach(([dx, len, lean, wid]) => tongue(dx, len, lean, wid, col));
+  layer([[-0.36, 0.62, -0.5, 0.14], [0.36, 0.64, 0.5, 0.14], [-0.2, 0.88, -0.35, 0.17], [0.2, 0.92, 0.35, 0.17], [0, 1, 0.12, 0.2]], back);
+  layer([[-0.24, 0.6, -0.4, 0.15], [0.24, 0.62, 0.42, 0.15], [-0.08, 0.84, -0.2, 0.18], [0.1, 0.8, 0.28, 0.16]], mid);
+  layer([[-0.12, 0.54, -0.3, 0.15], [0.12, 0.58, 0.3, 0.15], [0, 0.7, 0.1, 0.17]], front);
+  layer([[0, 0.42, -0.06, 0.1]], core);
 }
 
 // โคม: a jewelled lantern hung on a chain — a faceted ดวงแก้ว gem in a gold
