@@ -95,7 +95,6 @@ export class Game {
     this.scene.on('animEvent', (p, ev) => { if (ev.sfx) audio?.sfx(ev.sfx, { pan: this._pan(p), vol: 0.8 }); });
     this.scene.on('removed', (a) => { if (this.selected === a) this.select(null); });
     this.stage.heavenCrowd.usePuppets(this.content.puppets.map((p) => p.rig));
-    this.stage.usePuppetAudience(this.content.puppets.filter((p) => ['comic', 'villager', 'child'].includes(p.kind) || /chaoban|dek|teng|nunui|yodthong|samor|srikaew|phuyai|aitho|khwan/.test(p.id)).map((p) => p.rig));
     this.tutorial = new Tutorial(this);
     this.build = new Build(this);
   }

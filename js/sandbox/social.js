@@ -27,6 +27,7 @@ const LINES = {
   hug: [['คิดถึงที่สุดเลย', 'Missed you so much!']],
   five: [['เย้!', 'Yay!'], ['เยี่ยมไปเลย!', 'Awesome!']],
 };
+const isFemale = (p) => /female|woman|girl/.test(p.rig?.voice || '') || /nang|woman|thewada/.test(p.def?.id || p.rig?.id || '');
 const pick = (a) => { const l = a[Math.floor(Math.random() * a.length)]; return { th: l[0], en: l[1] }; };
 
 export class Social {
@@ -125,7 +126,12 @@ export class Social {
     const { a, b, kind } = s;
     const say = (p, cat, force = true) => p.say(pick(LINES[cat]), 2.4, { force });
     if (kind === 'handshake') { a.play('handshake'); b.play('handshake'); say(a, 'greet'); s.reply = 1.3; }
-    else if (kind === 'wai') { a.play('wai'); setTimeout(() => !b.removed && b.play('wai'), 350); a.say({ th: 'สวัสดีครับ', en: 'Sawasdee!' }, 2, { force: true }); s.reply = 1.2; s.replyLine = { th: 'สวัสดีค่ะ', en: 'Sawasdee!' }; }
+    else if (kind === 'wai') {
+      // polite particle by who is speaking: ครับ for men, ค่ะ for women
+      const hello = (p) => ({ th: 'สวัสดี' + (isFemale(p) ? 'ค่ะ' : 'ครับ'), en: 'Sawasdee!' });
+      a.play('wai'); setTimeout(() => !b.removed && b.play('wai'), 350);
+      a.say(hello(a), 2, { force: true }); s.reply = 1.2; s.replyLine = hello(b);
+    }
     else if (kind === 'hug') { a.play('hug'); b.play('hug'); say(a, 'hug'); }
     else if (kind === 'highfive') { a.play('highfive'); b.play('highfive'); setTimeout(() => !a.removed && say(b, 'five'), 600); }
     else if (kind === 'chat' || kind === 'sit') {

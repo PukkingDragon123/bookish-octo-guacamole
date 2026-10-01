@@ -217,6 +217,8 @@ export class FX {
         const gr = g.createRadialGradient(q.x, q.y, 0, q.x, q.y, q.r);
         gr.addColorStop(0, `rgba(150,190,255,${a})`); gr.addColorStop(1, 'rgba(150,190,255,0)');
         g.fillStyle = gr; g.beginPath(); g.arc(q.x, q.y, q.r, 0, 7); g.fill();
+      } else if (GLOW_KINDS.has(q.k)) {
+        continue;
       } else if (q.k === 'gold' || q.k === 'heal' || q.k === 'violet') {
         const c = q.k === 'gold' ? '235,180,60' : q.k === 'heal' ? '110,210,130' : '170,90,220';
         g.fillStyle = `rgba(${c},${Math.min(1, (1 - u) * 1.5)})`;
@@ -359,6 +361,60 @@ function drawWard(g, w, t) {
     g.stroke();
   }
   g.restore();
+}
+
+// particles that are light, not gel: drawn additively by drawSparkles()
+const GLOW_KINDS = new Set(['gold', 'heal', 'violet', 'forge', 'spark']);
+const GLOW_COL = { gold: [255, 214, 120], heal: [150, 255, 170], violet: [215, 150, 255], spark: [255, 225, 150] };
+
+// Fairy sparkles: a soft halo, a hot core and a slowly turning four-point
+// star that twinkles, with a short streak while it flies. Called on the
+// front canvas in 'lighter' mode with the cloth transform applied.
+export function drawSparkles(g, particles, t) {
+  for (const q of particles) {
+    if (!GLOW_KINDS.has(q.k)) continue;
+    const u = q.t / q.life;
+    let col = GLOW_COL[q.k] || GLOW_COL.gold;
+    if (q.k === 'forge') col = q.h === 'violet' ? GLOW_COL.violet : GLOW_COL.gold;
+    const tw = 0.55 + 0.45 * Math.sin(t * 18 + q.x * 0.37 + q.y * 0.21);
+    let a;
+    if (q.k === 'forge') {
+      const arr = Math.min(1, q.t / (q.arrive || 0.6));
+      a = q.t > (q.arrive || 0.6) ? (1 - (q.t - q.arrive) / (q.life - q.arrive)) * tw : 0.4 + arr * 0.6;
+    } else a = Math.min(1, (1 - u) * 1.6) * (0.6 + 0.4 * tw);
+    if (a <= 0.02) continue;
+    const r = (q.r || 3) * (q.k === 'forge' && q.t > (q.arrive || 0.6) ? 1.5 : 1.1);
+    const [R, G, B] = col;
+    // halo
+    const hr = r * 5;
+    const gr = g.createRadialGradient(q.x, q.y, 0, q.x, q.y, hr);
+    gr.addColorStop(0, `rgba(${R},${G},${B},${0.55 * a})`);
+    gr.addColorStop(0.35, `rgba(${R},${G},${B},${0.18 * a})`);
+    gr.addColorStop(1, `rgba(${R},${G},${B},0)`);
+    g.fillStyle = gr;
+    g.beginPath(); g.arc(q.x, q.y, hr, 0, 7); g.fill();
+    // streak while moving
+    const sp = Math.hypot(q.vx || 0, q.vy || 0);
+    if (sp > 30) {
+      g.strokeStyle = `rgba(${R},${G},${B},${0.35 * a})`;
+      g.lineWidth = r * 0.8;
+      g.lineCap = 'round';
+      g.beginPath(); g.moveTo(q.x, q.y); g.lineTo(q.x - (q.vx / sp) * Math.min(28, sp * 0.05), q.y - (q.vy / sp) * Math.min(28, sp * 0.05)); g.stroke();
+    }
+    // four-point star flare
+    const L = r * (3 + 2.5 * tw), w = r * 0.32, rot = (q.spin || 0) * 0.3 + t * 0.6;
+    g.save();
+    g.translate(q.x, q.y); g.rotate(rot);
+    g.fillStyle = `rgba(255,250,235,${0.85 * a})`;
+    for (let i = 0; i < 2; i++) {
+      g.rotate(Math.PI / 2 * i);
+      g.beginPath(); g.moveTo(-L, 0); g.quadraticCurveTo(0, w, L, 0); g.quadraticCurveTo(0, -w, -L, 0); g.fill();
+    }
+    g.restore();
+    // hot core
+    g.fillStyle = `rgba(255,255,245,${a})`;
+    g.beginPath(); g.arc(q.x, q.y, r * 0.55, 0, 7); g.fill();
+  }
 }
 
 function mulberry(seed) {

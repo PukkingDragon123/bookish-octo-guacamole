@@ -9,6 +9,7 @@ import { paintBooth, bananaTrunkSprite, BAND } from './theatre.js';
 import { paintNight, paintHeaven, paintCloudSprites } from './sky.js';
 import { Curtain } from './curtain.js';
 import { HeavenCrowd } from './heavenCrowd.js';
+import { drawSparkles } from './fx.js';
 import { assemble, drawRig, rigBounds } from '../puppet/rig.js';
 import { makeCanvas, rng, goldGrad, paperPiece, paperTexture } from './paint.js';
 
@@ -43,7 +44,7 @@ export class Stage {
     this.night = T('night', () => paintNight(0.45));
     this.heaven = T('heaven', () => paintHeaven(0.4));
     this.cloudSprites = T('clouds', () => paintCloudSprites(0.4));
-    this.audience = T('audience', () => paintAudience());
+    this.audience = null; // the stage audience was removed (keep the view on the show)
   }
 
   resize() {
@@ -144,11 +145,13 @@ export class Stage {
     for (const c of this.curtains) c.draw(f, 0.35 + L * 0.6);
     // audience in front, rim-lit by the screen
     const A = this.audience;
-    f.drawImage(A.dark, A.x0, A.y0, A.w, A.h);
-    f.save();
-    f.globalAlpha = Math.min(1, L);
-    f.drawImage(A.rim, A.x0, A.y0, A.w, A.h);
-    f.restore();
+    if (A) {
+      f.drawImage(A.dark, A.x0, A.y0, A.w, A.h);
+      f.save();
+      f.globalAlpha = Math.min(1, L);
+      f.drawImage(A.rim, A.x0, A.y0, A.w, A.h);
+      f.restore();
+    }
     if (overlay) overlay(f);
     this._fx(f, dt, scene);
   }
@@ -235,6 +238,12 @@ export class Stage {
     this.cam.apply(f, 1);
     f.save();
     f.globalCompositeOperation = 'lighter';
+    if (this.fxLayer) {
+      // fairy light lives on the audience side of the cloth, shifted with the scroll
+      f.save();
+      drawSparkles(f, this.fxLayer.p, this.time);
+      f.restore();
+    }
     this.fx = this.fx.filter((p) => {
       p.t += dt;
       if (p.t > p.life) return false;

@@ -65,20 +65,23 @@ export class SpeechLayer {
     const boxes = [];
     for (const a of talkers) {
       const s = a.speech;
-      let L = this.cache.get(s);
-      if (!L) {
+      // laid out every frame: the web font may arrive after the first
+      // measurement, and a stale width pushed the text off its card
+      let L = null;
+      {
         f.font = `600 ${Math.round(17 * scale)}px Sarabun, sans-serif`;
         const th = wrap(f, s.th, maxW - 28 * scale).slice(0, 4);
         f.font = `${Math.round(12 * scale)}px Sarabun, sans-serif`;
         const en = s.en ? wrap(f, s.en, maxW - 28 * scale).slice(0, 2) : [];
         f.font = `600 ${Math.round(17 * scale)}px Sarabun, sans-serif`;
         let w = 0;
-        for (const l of th) w = Math.max(w, f.measureText(l).width);
+        const thW = th.map((l) => f.measureText(l).width);
+        for (const v of thW) w = Math.max(w, v);
         f.font = `${Math.round(12 * scale)}px Sarabun, sans-serif`;
-        for (const l of en) w = Math.max(w, f.measureText(l).width);
+        const enW = en.map((l) => f.measureText(l).width);
+        for (const v of enW) w = Math.max(w, v);
         const lh = 23 * scale, le = 15 * scale;
-        L = { th, en, w: w + 28 * scale, h: th.length * lh + en.length * le + 18 * scale, lh, le, n: words(s.th).length };
-        this.cache.set(s, L);
+        L = { th, en, thW, enW, w: w + 28 * scale, h: th.length * lh + en.length * le + 18 * scale, lh, le, n: words(s.th).length };
       }
       const [ax, ay] = this._anchor(a, proj);
       boxes.push({ a, s, L, ax, ay, x: ax - L.w / 2, y: ay - L.h - 16 * scale });
@@ -151,22 +154,25 @@ export class SpeechLayer {
     // text: Thai revealed word by word while it's being spoken
     const shown = Math.min(1, s.t / Math.max(0.4, s.speak || s.dur * 0.55));
     let budget = Math.ceil(L.n * shown);
-    f.textAlign = 'center';
+    // explicit left-aligned placement (centre computed from measured widths)
+    // so every browser lays it out the same and the reveal grows in place
+    f.textAlign = 'left';
+    f.direction = 'ltr';
     f.textBaseline = 'alphabetic';
     f.font = `600 ${Math.round(17 * k)}px Sarabun, sans-serif`;
     f.fillStyle = '#3a1a08';
     let yy = y + 9 * k + L.lh * 0.8;
-    for (const line of L.th) {
+    L.th.forEach((line, i) => {
       const ws = words(line);
       const part = budget >= ws.length ? line : ws.slice(0, Math.max(0, budget)).join('');
       budget -= ws.length;
-      if (part) f.fillText(part, x + L.w / 2, yy);
+      if (part) f.fillText(part, x + (L.w - L.thW[i]) / 2, yy);
       yy += L.lh;
-    }
+    });
     if (L.en.length && shown >= 1) {
       f.font = `${Math.round(12 * k)}px Sarabun, sans-serif`;
       f.fillStyle = 'rgba(90,55,20,0.7)';
-      for (const line of L.en) { f.fillText(line, x + L.w / 2, yy - 4 * k); yy += L.le; }
+      L.en.forEach((line, i) => { f.fillText(line, x + (L.w - L.enW[i]) / 2, yy - 4 * k); yy += L.le; });
     }
     f.restore();
   }
