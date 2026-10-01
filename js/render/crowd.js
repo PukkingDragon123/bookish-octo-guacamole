@@ -220,7 +220,8 @@ export class Crowd {
     shade.addColorStop(1, 'rgba(8,4,16,0.35)');
     f.fillStyle = shade;
     f.fillRect(AREA.x0 - 300, AREA.y0 - 150, AREA.x1 - AREA.x0 + 600, AREA.y1 - AREA.y0 + 260);
-    // bubbles
+    // bubbles (only when you're actually looking at the audience)
+    if (vy1 < AREA.y0 + 260) return;
     for (const bb of this.bubbles) {
       const p = bb.p, a = Math.min(1, bb.t * 5, (bb.life - bb.t) * 4);
       const hy = p.y - p.b.h * p.s - p.hop - 18;

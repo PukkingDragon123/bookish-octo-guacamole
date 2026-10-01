@@ -38,6 +38,7 @@ export const ICONS = {
   show: P('M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12zM12 9a3 3 0 1 1 0 6 3 3 0 0 1 0-6z'),
   flip: P('M7 7h11l-3-3M17 17H6l3 3'),
   remove: P('M6 6l12 12M18 6L6 18'),
+  talk: P('M4 5h16v10H9l-5 4zM8 9h8M8 12h5'),
   freeze: P('M12 2v20M4 6l16 12M20 6L4 18M9 3l3 2 3-2M9 21l3-2 3 2'),
   soul: P('M12 21c-4 0-6-3-6-6 0-4 3-6 4-10 1 3 4 4 4 7 1-1 1-2 1-3 2 2 3 4 3 6 0 3-2 6-6 6zM12 17a2 2 0 1 0 0-.1'),
   ward: P('M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6zM9 9h6v6H9zM12 9v6M9 12h6'),
@@ -232,6 +233,7 @@ export class UI {
       if (a.flyRole) roles.append(el('button', { class: 'mini', title: 'ปล่อย · Release', onclick: () => g.assignFly(a, null), html: ICONS.release }));
       row.append(medal(ICONS.deva, 'มอบให้เทวดาเชิด · Give to a deva', () => { roles.classList.toggle('open'); row.querySelector('.fan')?.classList.remove('open'); }, { cls: a.flyRole ? 'on' : '' }), roles);
     }
+    if (a.rig && a.isHumanoid && g.chat) row.append(medal(ICONS.talk, 'คุยกับตัวละคร · Talk to this character (AI)', () => g.chat.open(a)));
     if (a.rig && g.souls) {
       const st = a.dmg || {};
       row.append(medal(ICONS.soul, st.soul ? 'ถอดวิญญาณ · Take the soul back' : 'ปลุกเสกวิญญาณ · Give a soul (feels, bleeds, can die)', () => { g.souls.giveSoul(a, !(a.dmg && a.dmg.soul)); this.renderSide(); }, { cls: st.soul ? 'on' : '' }));

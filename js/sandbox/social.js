@@ -40,7 +40,7 @@ export class Social {
   busy(p) { return this.acts.some((s) => s.a === p || s.b === p); }
 
   // start an interaction between a and b (b defaults to the nearest figure)
-  start(a, b, kind = 'handshake') {
+  start(a, b, kind = 'handshake', script = null) {
     const S = this.game.scene;
     if (!b) {
       let bd = 700;
@@ -61,7 +61,7 @@ export class Social {
     if (Math.abs(b.z - a.z) > 0.005) b.setDepth(a.z);
     const gap = kind === 'hug' ? 0.32 : kind === 'sit' || kind === 'chat' ? 0.62 : kind === 'dance' ? 0.75 : 0.5;
     const dist = (a.height + b.height) * 0.5 * gap;
-    this.acts.push({ a, b, kind, t: 0, phase: 'approach', dist, spoken: 0 });
+    this.acts.push({ a, b, kind, t: 0, phase: 'approach', dist, spoken: 0, script });
     return true;
   }
 
@@ -128,7 +128,7 @@ export class Social {
     if (kind === 'handshake') { a.play('handshake'); b.play('handshake'); say(a, 'greet'); s.reply = 1.3; }
     else if (kind === 'wai') {
       // polite particle by who is speaking: ครับ for men, ค่ะ for women
-      const hello = (p) => ({ th: 'สวัสดี' + (isFemale(p) ? 'ค่ะ' : 'ครับ'), en: 'Sawasdee!' });
+      const hello = (p) => { const per = this.game.minds?.of(p)?.p; return { th: 'สวัสดี' + (per ? per.polite || '' : isFemale(p) ? 'ค่ะ' : 'ครับ'), en: 'Sawasdee!' }; };
       a.play('wai'); setTimeout(() => !b.removed && b.play('wai'), 350);
       a.say(hello(a), 2, { force: true }); s.reply = 1.2; s.replyLine = hello(b);
     }
@@ -137,7 +137,7 @@ export class Social {
     else if (kind === 'chat' || kind === 'sit') {
       if (kind === 'sit') { a.play('sit', { hold: true }); b.play('sit', { hold: true }); }
       else { a.play('talk', { loop: true }); b.play('talk', { loop: true }); }
-      s.turn = 0; s.next = 0.6; s.lines = 0; s.maxLines = 4 + Math.floor(Math.random() * 3);
+      s.turn = 0; s.next = 0.6; s.lines = 0; s.maxLines = s.script ? s.script.length : 4 + Math.floor(Math.random() * 3);
     } else if (kind === 'dance') {
       const d = ['ram-theppranom', 'ram-sodsoi', 'dance', 'ram-chanee'][Math.floor(Math.random() * 4)];
       a.play(d, { loop: true }); b.play(d, { loop: true });
@@ -178,8 +178,14 @@ export class Social {
       s.next -= dt;
       if (s.next <= 0) {
         const p = s.turn % 2 ? b : a;
+        const other = p === a ? b : a;
+        // a scripted AI dialogue (if one was written for this pair) comes first
+        const scripted = s.script && s.script[s.lines];
+        const ml = scripted || this.game.minds?.chatLine(p, other, s.lines, s.maxLines, s.prev);
         const cat = s.lines === 0 ? 'greet' : s.lines === s.maxLines - 1 ? 'bye' : s.lines % 3 === 2 ? 'laugh' : s.lines === 1 ? 'reply' : 'chat';
-        if (p.say(pick(LINES[cat]), 2.6, { force: true })) { s.lines++; s.turn++; }
+        const said = ml || pick(LINES[cat]);
+        const speaker = scripted && scripted.who === 'b' ? b : scripted && scripted.who === 'a' ? a : p;
+        if (speaker.say(said, 3, { force: true })) { s.prev = said; s.lines++; s.turn++; if (scripted?.action) speaker.play(scripted.action); }
         s.next = 2.8 + Math.random() * 0.8;
         if (cat === 'laugh' && Math.random() < 0.5) { (p === a ? b : a).play('laugh'); }
         if (s.lines >= s.maxLines) s.done = s.t + 2.5;

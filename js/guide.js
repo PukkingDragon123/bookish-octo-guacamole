@@ -35,6 +35,7 @@ const BY_TITLE = [
   [/วิญญาณ/, ['ปลุกเสกให้มีชีวิต มีเลือดเนื้อ เจ็บได้ ร้องไห้ได้ และตายได้', 'Give it a soul: it bleeds, weeps and can die.']],
   [/ลงยันต์/, ['ยันต์คุ้มกัน ช่วยรับดาบไว้จนกว่าพลังจะหมด', 'A yantra ward that soaks up blows until its power runs out.']],
   [/ชุบชีวิต/, ['รักษาแผล เย็บแขนขาที่ขาดกลับคืน และชุบชีวิตคนที่ตายแล้ว', 'Heal wounds, stitch torn limbs back and revive the dead.']],
+  [/คุยกับตัวละคร/, ['พิมพ์คุยกับตัวละครได้เลย! แต่ละตัวมีนิสัย ความจำ และความรู้สึกต่อคนอื่นของตัวเอง กด ให้คุยกันเอง เพื่อให้คุยกับตัวข้างๆ', 'Type to talk with the character — each has its own personality, memories and feelings. Press “let them talk” for a conversation with its neighbour.']],
   [/ตรึง/, ['ตรึงไว้กลางอากาศ ไม่ขยับจนกว่าจะปลด', 'Freeze it in mid-air until released.']],
   [/ท่าเดิม/, ['คืนท่าที่จัดด้วยมือกลับเป็นท่ายืนปกติ', 'Undo the pose you set by hand.']],
   [/เก็บ/, ['เก็บกลับเข้าหีบ (ปุ่ม Delete)', 'Put it back in the chest (Delete).']],
@@ -72,7 +73,7 @@ export class Guide {
     const T = this.tut;
     if (!el || !T || T.running) return;
     if (el.classList.contains('tab') || el.classList.contains('mini') || el.classList.contains('info-btn') || el.classList.contains('rp-card') || el.classList.contains('rp-tab')) return;
-    if (el.closest('#tut, .tut-box, #book, .book, #infocard, #movepanel')) return; // her own UI and panels
+    if (el.closest('#tut, .tut-box, #book, .book, #infocard, #movepanel, #chatpanel')) return; // her own UI and panels
     if (el.id === 'b-help' && this.off) { setTimeout(() => this._askBack(), 50); return; }
     if (this.off) return;
     const key = this._key(el);

@@ -27,6 +27,8 @@ import { Social } from './sandbox/social.js';
 import { Build } from './sandbox/build.js';
 import { Guide } from './guide.js';
 import { Crowd } from './render/crowd.js';
+import { Minds } from './sandbox/minds.js';
+import { Chat } from './chat.js';
 import { swayFoliage } from './props/foliage.js';
 
 let audio = null;
@@ -75,6 +77,7 @@ export class Game {
     this.games = new Games(this);
     this.director = new Director(this);
     this.social = new Social(this);
+    this.minds = new Minds(this);
     {
       // camera-mode medallion next to the others
       const top = this.root.querySelector('#topbar');
@@ -113,6 +116,7 @@ export class Game {
     this.tutorial = new Tutorial(this);
     this.build = new Build(this);
     this.guide = new Guide(this);
+    this.chat = new Chat(this);
   }
 
   // ------------------------------------------------------------ spawning
@@ -904,6 +908,7 @@ export class Game {
     if (!this.editor?.playing) {
       this.animalAI.update(dt);
       this.social.update(dt);
+      this.minds.update(dt);
       this.scene.update(dt);
       this.fx.update(dt);
       this.souls.update(dt);
