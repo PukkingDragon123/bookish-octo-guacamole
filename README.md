@@ -1,5 +1,7 @@
 # โรงละครหนังตะลุง Simulator
 
+![banner](docs/promo/banner.png)
+
 A browser sandbox of southern Thai shadow-puppet theatre. You are a deva in a
 golden heaven above a village show; golden strings run from your โขน dancer's
 hand down to leather puppets behind a lamp-lit cloth.
@@ -13,6 +15,14 @@ Any static server works (ES modules, no build step). Camera tracking needs
 npx serve .        # or: python3 -m http.server
 # open http://localhost:3000   (?intro=0 skips the intro)
 ```
+
+## Play highlights
+
+- Drag puppets, pose any limb by hand, throw them; pinch-zoom and pan on phones.
+- ท่ารำ dances, greetings (handshake, ไหว้, hug), fights with a vital-aim combat AI, souls, wounds and magic.
+- A living audience of puppet devas below the stage — scroll down (wheel, drag, or the ผู้ชม medallion) to watch them cheer, boo and go wild in fights.
+- Ready-made scenes, swaying trees, animals with AI (หมูเด้ง!), ช้างเอราวัณ, ตะกร้อ / ping-pong / jump rope, grid build mode, a timeline editor and a guide deva, น้องเมฆ.
+- `?unlock=all` opens every quest-sealed drawer; `?intro=0` skips the menu.
 
 ## What's inside
 
